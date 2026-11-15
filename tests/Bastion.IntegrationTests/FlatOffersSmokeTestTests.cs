@@ -5,6 +5,8 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.DependencyInjection;
+using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 
 namespace Bastion.IntegrationTests;
 
@@ -13,8 +15,11 @@ public class FlatOffersSmokeTestTests
     [Test]
     public async Task Refuses_to_run_without_vpn()
     {
-        await using var factory = new WebApplicationFactory<Program>().WithWebHostBuilder(b =>
-            b.ConfigureTestServices(s => s.AddSingleton<IVpnCheck>(new NoVpn())));
+        var noVpn = Substitute.For<IVpnCheck>();
+        noVpn.EnsureTunnelAsync(default!, default)
+            .ThrowsAsyncForAnyArgs(new ScrapingException(ScrapingException.VpnRequired, "no VPN in tests"));
+        await using var factory = TestApp.WithAllModules(b =>
+            b.ConfigureTestServices(s => s.AddSingleton(noVpn)));
         using var client = factory.CreateClient();
 
         var response = await client.PostAsync(new Uri("/api/flat-offers/smoke-test", UriKind.Relative), null);
@@ -30,8 +35,7 @@ public class FlatOffersSmokeTestTests
     [Test]
     public async Task Disabled_module_has_no_endpoints()
     {
-        await using var factory = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(b => b.UseSetting("Modules:FlatOffers:Enabled", "false"));
+        await using var factory = TestApp.WithAllModules(b => b.UseSetting("Modules:FlatOffers:Enabled", "false"));
         using var client = factory.CreateClient();
 
         var response = await client.PostAsync(new Uri("/api/flat-offers/smoke-test", UriKind.Relative), null);
@@ -39,9 +43,4 @@ public class FlatOffersSmokeTestTests
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 
-    private sealed class NoVpn : IVpnCheck
-    {
-        public Task EnsureTunnelAsync(string host, CancellationToken cancellationToken) =>
-            throw new ScrapingException(ScrapingException.VpnRequired, "no VPN in tests");
-    }
 }

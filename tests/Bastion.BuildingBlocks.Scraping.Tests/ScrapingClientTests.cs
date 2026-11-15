@@ -1,11 +1,15 @@
 using System.Net;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using NSubstitute;
+using NSubstitute.ExceptionExtensions;
 
 namespace Bastion.BuildingBlocks.Scraping.Tests;
 
 public class ScrapingClientTests
 {
+    private const string BrowserUserAgent = "Mozilla/5.0 (X11; Linux x86_64; rv:140.0) Gecko/20100101 Firefox/140.0";
+
     private static readonly Uri Page = new("https://portal.example/pl/wyniki?page=1");
 
     [Test]
@@ -39,6 +43,7 @@ public class ScrapingClientTests
         Assert.Multiple(() =>
         {
             Assert.That(first, Is.EqualTo("<html>page</html>"));
+            Assert.That(handler.UserAgents, Has.All.EqualTo(BrowserUserAgent));
             Assert.That(handler.Requests, Is.EqualTo(new[] { "/robots.txt", "/pl/wyniki?page=1", "/pl/wyniki?page=1" }));
         });
     }
@@ -96,23 +101,28 @@ public class ScrapingClientTests
 
     private static ScrapingClient CreateClient(FakeHandler handler, bool vpnUp = true)
     {
-        var options = new ScrapingOptions { MinDelaySeconds = 0, MaxDelaySeconds = 0, UserAgent = "Mozilla/5.0" };
-        return new ScrapingClient(handler, new FakeVpnCheck(vpnUp), TimeProvider.System, Options.Create(options), NullLogger<ScrapingClient>.Instance);
+        var vpn = Substitute.For<IVpnCheck>();
+        if (!vpnUp)
+        {
+            vpn.EnsureTunnelAsync(default!, default).ThrowsAsyncForAnyArgs(new ScrapingException(ScrapingException.VpnRequired, "no VPN"));
+        }
+
+        var userAgent = Substitute.For<IUserAgentSource>();
+        userAgent.GetAsync(default).ReturnsForAnyArgs(BrowserUserAgent);
+
+        var options = Options.Create(new ScrapingOptions { MinDelaySeconds = 0, MaxDelaySeconds = 0 });
+        return new ScrapingClient(handler, vpn, userAgent, TimeProvider.System, options, NullLogger<ScrapingClient>.Instance);
     }
 
     private static Func<HttpResponseMessage> Ok(string body) => () => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body) };
-
-    private sealed class FakeVpnCheck(bool up) : IVpnCheck
-    {
-        public Task EnsureTunnelAsync(string host, CancellationToken cancellationToken) =>
-            up ? Task.CompletedTask : throw new ScrapingException(ScrapingException.VpnRequired, "no VPN");
-    }
 
     private sealed class FakeHandler : HttpMessageHandler, IEnumerable<KeyValuePair<string, Func<HttpResponseMessage>>>
     {
         private readonly Dictionary<string, Func<HttpResponseMessage>> _responses = [];
 
         public List<string> Requests { get; } = [];
+
+        public List<string> UserAgents { get; } = [];
 
         public Func<HttpResponseMessage> this[string pathAndQuery]
         {
@@ -123,6 +133,7 @@ public class ScrapingClientTests
         {
             var path = request.RequestUri!.PathAndQuery;
             Requests.Add(path);
+            UserAgents.Add(request.Headers.UserAgent.ToString());
             return Task.FromResult(_responses.TryGetValue(path, out var response) ? response() : new HttpResponseMessage(HttpStatusCode.NotFound));
         }
 

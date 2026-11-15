@@ -9,7 +9,7 @@ public class PlatformModulesTests
     [Test]
     public async Task Lists_enabled_modules_in_host_order()
     {
-        await using var factory = new WebApplicationFactory<Program>();
+        await using var factory = TestApp.WithAllModules();
 
         var modules = await GetModules(factory);
 
@@ -23,8 +23,7 @@ public class PlatformModulesTests
     [Test]
     public async Task Disabled_module_is_not_listed_and_app_still_starts()
     {
-        await using var factory = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(b => b.UseSetting("Modules:JobOffers:Enabled", "false"));
+        await using var factory = TestApp.WithAllModules(b => b.UseSetting("Modules:JobOffers:Enabled", "false"));
 
         var modules = await GetModules(factory);
 

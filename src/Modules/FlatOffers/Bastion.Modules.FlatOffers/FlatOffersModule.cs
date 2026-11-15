@@ -19,7 +19,7 @@ public sealed class FlatOffersModule : IModule
     public void AddServices(IServiceCollection services, IConfiguration moduleSection)
     {
         services.AddScraping();
-        services.Configure<OtoDomOptions>(moduleSection.GetSection("OtoDom"));
+        services.Configure<OtoDomOptions>(moduleSection.GetSection(OtoDomOptions.Section));
         services.AddSingleton<IListingSource, OtoDomListingSource>();
         services.AddTransient<RunSmokeTestHandler>();
     }

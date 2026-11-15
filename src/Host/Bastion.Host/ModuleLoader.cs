@@ -7,7 +7,7 @@ internal static class ModuleLoader
     public static IReadOnlyList<IModule> GetEnabled(IReadOnlyList<IModule> allModules, IConfiguration configuration)
     {
         var knownNames = allModules.Select(m => m.Name).ToHashSet();
-        var unknown = configuration.GetSection("Modules").GetChildren()
+        var unknown = configuration.GetSection(ModuleOptions.Section).GetChildren()
             .Select(s => s.Key)
             .Where(name => !knownNames.Contains(name))
             .ToList();
@@ -17,7 +17,7 @@ internal static class ModuleLoader
                 $"Unknown module(s) in configuration: {string.Join(", ", unknown)}. Known modules: {string.Join(", ", knownNames)}.");
         }
 
-        var enabled = allModules.Where(m => configuration.GetValue<bool>($"Modules:{m.Name}:Enabled")).ToList();
+        var enabled = allModules.Where(m => ModuleOptions.SectionOf(configuration, m.Name).Get<ModuleOptions>()?.Enabled == true).ToList();
         var enabledNames = enabled.Select(m => m.Name).ToHashSet();
         foreach (var module in enabled)
         {
@@ -25,7 +25,7 @@ internal static class ModuleLoader
             {
                 throw new InvalidOperationException(
                     $"Module '{module.Name}' depends on module '{dependency}', which is disabled or unknown. " +
-                    $"Set Modules:{dependency}:Enabled = true or disable '{module.Name}'.");
+                    $"Enable '{dependency}' in the [{ModuleOptions.Section}.{dependency}] section or disable '{module.Name}'.");
             }
         }
 

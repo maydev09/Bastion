@@ -23,7 +23,25 @@ Requires the .NET 10 SDK.
 dotnet run --project src/Host/Bastion.Host --launch-profile http
 ```
 
-The API listens on http://localhost:5080 (`/api/platform/modules` lists the enabled modules).
+The API listens on http://localhost:5080 (`/api/platform/modules` lists the enabled modules);
+Swagger UI is at http://localhost:5080/swagger in Development.
+
+Live scraping reads the browser User-Agent from Playwright's Firefox; install it once:
+
+```bash
+scripts/install-playwright-firefox.sh
+```
+
+The web UI needs Node.js 24 LTS; run from the repository root:
+
+```bash
+npm install
+npm run dev
+```
+
+It runs at http://localhost:5173 and forwards `/api` to the backend.
+In Rider, the shared run configuration **API + Web** (`.run/`) starts the backend and Vite together.
+`npm run build` puts the UI into the Host, which then serves it at http://localhost:5080.
 Configuration is in TOML, not `appsettings.json`: `src/Host/Bastion.Host/bastion.toml`, with
 overrides in `bastion.<Environment>.toml` and a git-ignored `bastion.local.toml`.
 Environment variables override files, e.g. `Modules__JobOffers__Enabled=false`.

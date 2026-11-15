@@ -26,6 +26,8 @@ internal static class RunSmokeTestEndpoint
                 title: "Smoke test failed",
                 extensions: new Dictionary<string, object?> { ["code"] = outcome.ErrorCode });
         })
+        .ProducesProblem(StatusCodes.Status502BadGateway)
+        .ProducesProblem(StatusCodes.Status503ServiceUnavailable)
         .WithName("RunFlatOffersSmokeTest")
         .WithSummary("Fetches one live OtoDom results page and returns the number of parsed offers. Stores nothing.");
 }

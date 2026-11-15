@@ -2,11 +2,11 @@ namespace Bastion.BuildingBlocks.Scraping;
 
 public sealed class ScrapingOptions
 {
+    public const string Section = "Scraping";
+
     public bool RequireVpn { get; set; } = true;
 
     public IList<string> VpnInterfacePrefixes { get; } = ["wg", "tun", "proton"];
-
-    public string UserAgent { get; set; } = "";
 
     public double MinDelaySeconds { get; set; } = 3;
 

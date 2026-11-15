@@ -10,9 +10,10 @@ public static class ScrapingServiceCollectionExtensions
 {
     public static IServiceCollection AddScraping(this IServiceCollection services)
     {
-        services.AddOptions<ScrapingOptions>().BindConfiguration("Scraping");
+        services.AddOptions<ScrapingOptions>().BindConfiguration(ScrapingOptions.Section);
         services.TryAddSingleton(TimeProvider.System);
         services.TryAddSingleton<IVpnCheck, RouteVpnCheck>();
+        services.TryAddSingleton<IUserAgentSource, PlaywrightUserAgentSource>();
         services.TryAddSingleton(sp => new ScrapingClient(
             new SocketsHttpHandler
             {
@@ -20,6 +21,7 @@ public static class ScrapingServiceCollectionExtensions
                 AutomaticDecompression = DecompressionMethods.All,
             },
             sp.GetRequiredService<IVpnCheck>(),
+            sp.GetRequiredService<IUserAgentSource>(),
             sp.GetRequiredService<TimeProvider>(),
             sp.GetRequiredService<IOptions<ScrapingOptions>>(),
             sp.GetRequiredService<ILogger<ScrapingClient>>()));

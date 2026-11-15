@@ -134,3 +134,6 @@ CLAUDE.local.md
 
 # Local configuration overrides (ADR 0008)
 bastion.local.toml
+
+# Built frontend (web/ builds into the Host)
+src/Host/Bastion.Host/wwwroot/

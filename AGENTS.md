@@ -44,10 +44,11 @@ Spend effort only on what solves a real problem the maintainer has today
 - The platform never contains module-specific code. Building blocks contain no business logic.
 - A whole module is switched on/off in configuration; feature flags work inside a module.
 - Module internals are `internal`; only the registration entry point and contracts are `public`.
-- Frontend: `web/src/modules/<module>` folders never import from each other.
+- Frontend: a module's UI lives in `src/Modules/<Module>/Web`; module UIs never import from
+  each other or from the shell (`src/Web/App`), only from `src/Web/Shared` (`@shared/*`).
   Stack (Vite, React Router, TanStack Query/Table, Base UI + CSS Modules, no Tailwind, API types
   generated from OpenAPI, one container): docs/adr/0011-frontend-stack.md.
-  Never edit `web/src/api/schema.ts` by hand; regenerate it.
+  Never edit `src/Web/Shared/api/schema.ts` by hand; regenerate it.
 - Audit and logs: log only through `ILogger<T>` (Serilog is configured in the Host only);
   run events via `JobContext`; raw scraped data is stored by the scraping toolkit:
   docs/adr/0013-audit-logging-and-raw-data.md.
@@ -58,8 +59,14 @@ Spend effort only on what solves a real problem the maintainer has today
 - UI texts only from i18next dictionaries by key; no hardcoded texts. Every new or
   changed text goes to both `pl` (default) and `en` in the same change
   (docs/adr/0015-ui-translations.md).
-- Tests: NUnit (not xUnit), Testcontainers for the database, no mocking library by
-  default; Vitest in the frontend: docs/adr/0012-testing.md.
+- Tests: NUnit (not xUnit), integration tests first (Host via `WebApplicationFactory`,
+  Testcontainers for the database), NSubstitute for dependencies that reach the outside
+  world; Vitest in the frontend: docs/adr/0012-testing.md.
+- Test behavior that matters, not implementation details: what a user or caller sees
+  (an endpoint result, a parsed offer, a refused request, a page that shows the result).
+  A refactor or a changed UI text must not break tests. No test per trivial member,
+  no assertions on private structure or exact wording; frontend tests find elements by
+  role and compare texts through the translation keys.
 - Module contract (`IModule`, `ModuleDefinition`, explicit module lists): docs/adr/0007-module-contract.md.
 - Solution layout and versions (.NET 10, React 19): docs/adr/0003-solution-structure-and-versions.md.
 
@@ -79,6 +86,8 @@ Spend effort only on what solves a real problem the maintainer has today
 - Handlers are plain classes called by endpoints. No MediatR, CQRS frameworks or AutoMapper.
 - No project name in identifiers (`UseTomlConfiguration`, not `UseBastionToml`); the
   `Bastion.*` namespaces already give the context.
+- Configuration keys are never typed as strings in code: each section has an options
+  class with `public const string Section` and code binds through it.
 - Private fields are `_camelCase`, never accessed with `this.`; prefer primary constructors.
   Enforced by `.editorconfig` in the build.
 - Comments only where the code is hard to follow (scraping details such as where data sits
@@ -156,3 +165,8 @@ Update the matching file in the same change that makes it outdated:
 - Build: `dotnet build Bastion.slnx`
 - Test: `dotnet test Bastion.slnx`
 - Run: `dotnet run --project src/Host/Bastion.Host --launch-profile http` (http://localhost:5080)
+- Frontend (repository root): `npm install`, `npm run dev` (http://localhost:5173, proxies `/api`
+  to the backend), `npm run build` (into the Host's `wwwroot`), `npm run lint`, `npm test`.
+- API types: `dotnet build` writes `src/Web/Shared/api/openapi.json`; then `npm run api`
+  regenerates `src/Web/Shared/api/schema.ts`. Commit both.
+- Playwright Firefox (needed for live scraping): `scripts/install-playwright-firefox.sh`.

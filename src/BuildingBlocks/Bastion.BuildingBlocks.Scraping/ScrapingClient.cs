@@ -12,24 +12,21 @@ public sealed partial class ScrapingClient : IDisposable
 
     private readonly HttpClient _http;
     private readonly IVpnCheck _vpnCheck;
+    private readonly IUserAgentSource _userAgent;
     private readonly TimeProvider _time;
     private readonly ScrapingOptions _options;
     private readonly ILogger<ScrapingClient> _logger;
     private readonly ConcurrentDictionary<string, HostGate> _gates = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, (RobotsRules Rules, DateTimeOffset FetchedAt)> _robots = new(StringComparer.OrdinalIgnoreCase);
 
-    internal ScrapingClient(HttpMessageHandler handler, IVpnCheck vpnCheck, TimeProvider time, IOptions<ScrapingOptions> options, ILogger<ScrapingClient> logger)
+    internal ScrapingClient(HttpMessageHandler handler, IVpnCheck vpnCheck, IUserAgentSource userAgent, TimeProvider time, IOptions<ScrapingOptions> options, ILogger<ScrapingClient> logger)
     {
         _vpnCheck = vpnCheck;
+        _userAgent = userAgent;
         _time = time;
         _options = options.Value;
         _logger = logger;
         _http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(_options.TimeoutSeconds) };
-        if (_options.UserAgent.Length > 0)
-        {
-            _http.DefaultRequestHeaders.UserAgent.ParseAdd(_options.UserAgent);
-        }
-
         _http.DefaultRequestHeaders.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
         _http.DefaultRequestHeaders.AcceptLanguage.ParseAdd("pl,en;q=0.5");
     }
@@ -78,7 +75,7 @@ public sealed partial class ScrapingClient : IDisposable
         RobotsRules rules;
         if (response.IsSuccessStatusCode)
         {
-            rules = RobotsRules.Parse(await response.Content.ReadAsStringAsync(cancellationToken), _options.UserAgent);
+            rules = RobotsRules.Parse(await response.Content.ReadAsStringAsync(cancellationToken), await _userAgent.GetAsync(cancellationToken));
         }
         else if (status is >= 400 and < 500)
         {
@@ -108,7 +105,9 @@ public sealed partial class ScrapingClient : IDisposable
             HttpResponseMessage response;
             try
             {
-                response = await _http.GetAsync(url, cancellationToken);
+                using var request = new HttpRequestMessage(HttpMethod.Get, url);
+                request.Headers.UserAgent.ParseAdd(await _userAgent.GetAsync(cancellationToken));
+                response = await _http.SendAsync(request, cancellationToken);
             }
             catch (Exception e) when (e is HttpRequestException || (e is TaskCanceledException && !cancellationToken.IsCancellationRequested))
             {

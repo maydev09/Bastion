@@ -7,6 +7,7 @@ public sealed class ScrapingException : Exception
     public const string RateLimited = "scraping.rateLimited";
     public const string HttpError = "scraping.httpError";
     public const string NetworkError = "scraping.networkError";
+    public const string BrowserUnavailable = "scraping.browserUnavailable";
 
     public ScrapingException(string code, string message, Exception? innerException = null)
         : base(message, innerException)
