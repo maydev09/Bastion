@@ -1,0 +1,136 @@
+# ==========================================================
+# .NET / C#
+# ==========================================================
+[Bb]in/
+[Oo]bj/
+[Dd]ebug/
+[Rr]elease/
+[Ll]og/
+[Ll]ogs/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+artifacts/
+publish/
+*.user
+*.userosscache
+*.suo
+*.sln.docstates
+*.userprefs
+*.rsuser
+
+# Build results and caches
+*.pdb
+*.cache
+*.tlog
+*.binlog
+project.lock.json
+project.fragment.lock.json
+
+# NuGet
+*.nupkg
+*.snupkg
+**/packages/*
+!**/packages/build/
+.nuget/
+
+# Tests and coverage
+[Tt]est[Rr]esult*/
+*.trx
+coverage/
+coverage*.json
+coverage*.xml
+coverage*.info
+*.coverage
+*.coveragexml
+.coverlet/
+TestResults/
+
+# Local app settings with secrets (keep the base appsettings.json)
+appsettings.*.local.json
+appsettings.Local.json
+secrets.json
+
+# ==========================================================
+# IDEs and editors
+# ==========================================================
+# JetBrains Rider / IntelliJ
+.idea/
+*.iml
+*.sln.iml
+*.DotSettings.user
+_ReSharper*/
+*.[Rr]e[Ss]harper
+
+# Visual Studio
+.vs/
+*.vspscc
+*.vssscc
+*.ncb
+*.opendb
+*.VC.db
+
+# VS Code (share recommended extensions only)
+.vscode/*
+!.vscode/extensions.json
+
+# Vim / Emacs
+*.swp
+*.swo
+*~
+\#*\#
+
+# ==========================================================
+# Frontend (React / Node)
+# ==========================================================
+node_modules/
+dist/
+build/
+.vite/
+.turbo/
+.eslintcache
+.stylelintcache
+*.tsbuildinfo
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+.pnpm-store/
+
+# ==========================================================
+# Environment and secrets
+# ==========================================================
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.pfx
+*.p12
+
+# ==========================================================
+# Runtime data
+# ==========================================================
+*.log
+*.db
+*.sqlite
+*.sqlite3
+data/
+scraped/
+
+# ==========================================================
+# OS
+# ==========================================================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ==========================================================
+# Claude Code (shared settings stay committed, personal ones do not)
+# ==========================================================
+.claude/settings.local.json
+CLAUDE.local.md
+
+# Local configuration overrides (ADR 0008)
+bastion.local.toml
