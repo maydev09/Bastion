@@ -25,6 +25,7 @@ Spend effort only on what solves a real problem the maintainer has today
 
 - Build for one user on one instance, not for a million users. No login screen,
   user management, multi-tenancy, horizontal scaling or "enterprise" infrastructure.
+  No user concept in the data model (no `user_id` columns) until a future ADR adds users.
 - Before adding anything, ask: does it help collect, browse or act on the data now?
   If not, leave it out and note it as a possible later idea instead.
 - Start with plain .NET and simple code. Adopt a bigger tool only when a real need
@@ -129,6 +130,10 @@ Update the matching file in the same change that makes it outdated:
   from `/run/secrets`, never TOML values or container env vars (docs/adr/0010-secrets.md).
   Test samples contain no personal data (e.g. seller names, phone numbers).
 - Scraped portals are named by their real names in code (enums, scraper classes).
+- Scraping rules (docs/adr/0016-scraping-rules.md): every request goes through the
+  scraping toolkit (robots.txt check, one request at a time per host, backoff on
+  429/503). Never store personal data of private persons; store the link to the
+  portal's offer or contact page instead.
 - Never hardcode user-specific preferences (search criteria, cities, price ranges,
   filters) in code or configuration files. They are data, managed by the user through the UI.
   Code and configuration only hold technical settings (e.g. delays, timeouts, URLs).

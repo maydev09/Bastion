@@ -14,3 +14,9 @@ Bastion is the next step:
 - **One platform** instead of two separate projects in different tech stacks.
 - **A frontend** that clearly presents the insights hidden in the collected data.
 - **A modular architecture** where the scrapers are just the first modules. The long-term goal is a personal headquarters: a hub of tools that automate everyday tasks for a single person.
+
+## License
+
+Bastion is free software licensed under the [GNU Affero General Public License v3.0](LICENSE).
+You may use, modify and host it. If you run a modified version for other people over a
+network, you must make your source code available to them under the same license.
