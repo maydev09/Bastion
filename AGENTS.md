@@ -136,6 +136,8 @@ Update the matching file in the same change that makes it outdated:
 - Never commit directly to `master`. Work on short-lived branches cut from `master`:
   `feature-<short-name>`, `fix-<short-name>`, `docs-<short-name>`, `chore-<short-name>`.
 - Merge back into `master` through a pull request; delete the branch afterwards.
+  The `master` ruleset requires the CI jobs `backend`, `frontend` and `api-types` to pass
+  and the branch to be up to date with `master`.
 - Unfinished functionality is merged behind a feature flag, never left on a long-lived branch.
 - Rationale: docs/adr/0001-use-trunk-based-development.md.
 - Keep changes small and focused; one concern per commit.
