@@ -44,7 +44,7 @@ Spend effort only on what solves a real problem the maintainer has today
 - The platform never contains module-specific code. Building blocks contain no business logic.
 - A whole module is switched on/off in configuration; feature flags work inside a module.
 - Module internals are `internal`; only the registration entry point and contracts are `public`.
-- Frontend: a module's UI lives in `src/Modules/<Module>/Web`; module UIs never import from
+- Frontend: a module's UI lives in `src/Web/Modules/<Module>`; module UIs never import from
   each other or from the shell (`src/Web/App`), only from `src/Web/Shared` (`@shared/*`).
   Stack (Vite, React Router, TanStack Query/Table, Base UI + CSS Modules, no Tailwind, API types
   generated from OpenAPI, one container): docs/adr/0011-frontend-stack.md.

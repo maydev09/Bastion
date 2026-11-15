@@ -10,7 +10,7 @@ export default defineConfig({
   resolve: {
     alias: {
       "@shared": path.join(repo, "src/Web/Shared"),
-      "@modules": path.join(repo, "src/Modules"),
+      "@modules": path.join(repo, "src/Web/Modules"),
     },
   },
   server: {

@@ -50,7 +50,7 @@ IModule[] modules = [new FlatOffersModule(), new JobOffersModule()];
 
 ### Frontend
 
-Every module exports one definition from `src/Modules/<Module>/Web/index.tsx`:
+Every module exports one definition from `src/Web/Modules/<Module>/index.tsx`:
 
 ```ts
 export const flatOffersModule: ModuleDefinition = {

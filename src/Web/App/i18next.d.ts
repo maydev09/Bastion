@@ -1,6 +1,6 @@
 import type common from "./locales/pl/common.json";
-import type flatOffers from "@modules/FlatOffers/Web/locales/pl.json";
-import type jobOffers from "@modules/JobOffers/Web/locales/pl.json";
+import type flatOffers from "@modules/FlatOffers/locales/pl.json";
+import type jobOffers from "@modules/JobOffers/locales/pl.json";
 
 declare module "i18next" {
   interface CustomTypeOptions {

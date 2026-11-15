@@ -34,12 +34,12 @@ src/
   Host/Bastion.Host                          ASP.NET Core app; the only composition root
   Web/App                                    React shell: navigation, routes, i18n setup
   Web/Shared                                 shared UI library, typed API client
+  Web/Modules/<Module>                       the module's UI
   Platform/Bastion.Platform.Abstractions     module contract and shared service interfaces
   Platform/Bastion.Platform                  shared service implementations
   BuildingBlocks/Bastion.BuildingBlocks.*    technical libraries, created when needed
   Modules/<Module>/Bastion.Modules.<Module>              the whole module
   Modules/<Module>/Bastion.Modules.<Module>.Contracts    public API, only when needed
-  Modules/<Module>/Web                                  the module's UI
 tests/
   Bastion.ArchitectureTests
   Bastion.Modules.<Module>.Tests
@@ -49,9 +49,9 @@ tests/
 - **One project per module.** Inside it, Clean Architecture layers as folders:
   `Domain/`, `Application/` (vertical slices), `Infrastructure/`, `Api/` (see ADR 0004). Everything is `internal` except the module's entry point class,
   so the compiler protects the module boundary.
-- A module is one folder: its backend project and its UI (`Web/`) live side by side.
-  All frontend code is one npm project with its tooling at the repository root
-  (`package.json`, `vite.config.ts`); imports use the aliases `@shared/*` and `@modules/*`.
+- All frontend code is in `src/Web`: one npm project with its tooling at the repository
+  root (`package.json`, `vite.config.ts`); imports use the aliases `@shared/*` and `@modules/*`.
+  A module's backend and UI share its name (`src/Modules/FlatOffers`, `src/Web/Modules/FlatOffers`).
 - Only the Host references modules. It enables the modules listed in configuration.
 - First two modules: `FlatOffers` and `JobOffers`.
 
@@ -60,6 +60,9 @@ tests/
 - **Several projects per module** (Domain / Application / Infrastructure / Api):
   common in Clean Architecture templates, but layers must then be `public` to reach
   each other, which weakens module encapsulation, and the project count quadruples.
+- **Module UI inside the module folder** (`src/Modules/<Module>/Web`): a module would be one
+  folder, but frontend tooling needs extra aliases and paths, and the UI is scattered across
+  the tree. Module independence comes from lint rules and configuration, not from folders.
 - **One solution per module:** harder to build, test and refactor the whole system together.
 - **.NET 11 now, installed with `dotnet-install.sh`:** newest, but installed and updated
   by hand outside the package manager, only to save one later upgrade.

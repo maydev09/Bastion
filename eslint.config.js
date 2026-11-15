@@ -20,13 +20,13 @@ export default tseslint.config(
   reactRefresh.configs.vite,
   { languageOptions: { globals: globals.browser } },
   boundary(
-    ["src/Modules/*/Web/**"],
-    ["@modules/**", "../../**", "**/Web/App/**"],
+    ["src/Web/Modules/**"],
+    ["@modules/**", "../*/**", "**/Modules/**", "**/App/**"],
     "A module UI imports only its own files and @shared (ADR 0002).",
   ),
   boundary(
     ["src/Web/Shared/**"],
-    ["@modules/**", "**/App/**"],
+    ["@modules/**", "**/Modules/**", "**/App/**"],
     "Shared code knows no modules and no shell (ADR 0002).",
   ),
   prettier,

@@ -14,10 +14,8 @@ public partial class FrontendModulesTests
         using var client = factory.CreateClient();
         var backend = await client.GetFromJsonAsync<ModuleInfo[]>("/api/platform/modules");
 
-        var frontend = Directory.GetDirectories(Path.Combine(RepositoryRoot(), "src", "Modules"))
-            .Select(dir => Path.Combine(dir, "Web", "index.tsx"))
-            .Where(File.Exists)
-            .Select(File.ReadAllText)
+        var frontend = Directory.GetDirectories(Path.Combine(RepositoryRoot(), "src", "Web", "Modules"))
+            .Select(dir => File.ReadAllText(Path.Combine(dir, "index.tsx")))
             .Select(source => new ModuleInfo(
                 NameRegex().Match(source).Groups[1].Value,
                 RoutePrefixRegex().Match(source).Groups[1].Value));
