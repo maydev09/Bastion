@@ -15,6 +15,19 @@ Bastion is the next step:
 - **A frontend** that clearly presents the insights hidden in the collected data.
 - **A modular architecture** where the scrapers are just the first modules. The long-term goal is a personal headquarters: a hub of tools that automate everyday tasks for a single person.
 
+## Running locally
+
+Requires the .NET 10 SDK.
+
+```bash
+dotnet run --project src/Host/Bastion.Host --launch-profile http
+```
+
+The API listens on http://localhost:5080 (`/api/platform/modules` lists the enabled modules).
+Configuration is in TOML, not `appsettings.json`: `src/Host/Bastion.Host/bastion.toml`, with
+overrides in `bastion.<Environment>.toml` and a git-ignored `bastion.local.toml`.
+Environment variables override files, e.g. `Modules__JobOffers__Enabled=false`.
+
 ## License
 
 Bastion is free software licensed under the [GNU Affero General Public License v3.0](LICENSE).

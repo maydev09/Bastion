@@ -17,7 +17,7 @@ A phase is complete only when all its exit criteria are met.
 
 ## Phase 1: Modular skeleton with a scraping smoke test
 
-- **Status:** Planned
+- **Status:** In progress (started 2026-11-15)
 - **Outcome:** The modular platform runs end-to-end. Both modules exist in code; the
   flat offers module can read one live page of offers from OtoDom on demand.
 - **Included work:** .NET solution with Host and module contract (ADR 0007); modules

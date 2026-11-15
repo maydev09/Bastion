@@ -1,0 +1,26 @@
+[Modules.FlatOffers]
+Enabled = true
+
+[Modules.JobOffers]
+Enabled = true
+
+[Logs]
+Path = "/data/logs"
+
+[Serilog.MinimumLevel]
+Default = "Information"
+
+[Serilog.MinimumLevel.Override]
+"Microsoft.AspNetCore" = "Warning"
+
+[Modules.FlatOffers.OtoDom]
+BaseUrl = "https://www.otodom.pl"
+SmokeTestUrl = "https://www.otodom.pl/pl/wyniki/wynajem/mieszkanie/cala-polska?by=LATEST&direction=DESC&limit=72"
+
+[Scraping]
+RequireVpn = true
+UserAgent = "Mozilla/5.0 (X11; Linux x86_64; rv:160.0) Gecko/20100101 Firefox/160.0"
+MinDelaySeconds = 3
+MaxDelaySeconds = 6
+TimeoutSeconds = 30
+RobotsCacheHours = 24

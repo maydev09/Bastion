@@ -1,0 +1,21 @@
+<Solution>
+  <Folder Name="/src/Host/">
+    <Project Path="src/Host/Bastion.Host/Bastion.Host.csproj" />
+  </Folder>
+  <Folder Name="/src/Platform/">
+    <Project Path="src/Platform/Bastion.Platform.Abstractions/Bastion.Platform.Abstractions.csproj" />
+  </Folder>
+  <Folder Name="/src/BuildingBlocks/">
+    <Project Path="src/BuildingBlocks/Bastion.BuildingBlocks.Scraping/Bastion.BuildingBlocks.Scraping.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/">
+    <Project Path="src/Modules/FlatOffers/Bastion.Modules.FlatOffers/Bastion.Modules.FlatOffers.csproj" />
+    <Project Path="src/Modules/JobOffers/Bastion.Modules.JobOffers/Bastion.Modules.JobOffers.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Bastion.ArchitectureTests/Bastion.ArchitectureTests.csproj" />
+    <Project Path="tests/Bastion.BuildingBlocks.Scraping.Tests/Bastion.BuildingBlocks.Scraping.Tests.csproj" />
+    <Project Path="tests/Bastion.IntegrationTests/Bastion.IntegrationTests.csproj" />
+    <Project Path="tests/Bastion.Modules.FlatOffers.Tests/Bastion.Modules.FlatOffers.Tests.csproj" />
+  </Folder>
+</Solution>

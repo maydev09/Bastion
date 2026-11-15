@@ -61,7 +61,7 @@ Spend effort only on what solves a real problem the maintainer has today
 - Tests: NUnit (not xUnit), Testcontainers for the database, no mocking library by
   default; Vitest in the frontend: docs/adr/0012-testing.md.
 - Module contract (`IModule`, `ModuleDefinition`, explicit module lists): docs/adr/0007-module-contract.md.
-- Solution layout and versions (.NET 11, React 19): docs/adr/0003-solution-structure-and-versions.md.
+- Solution layout and versions (.NET 10, React 19): docs/adr/0003-solution-structure-and-versions.md.
 
 ## Code style (see docs/adr/0004 and 0005)
 
@@ -77,6 +77,13 @@ Spend effort only on what solves a real problem the maintainer has today
   Migrations are `.sql` files run by dbmate (with `migrate:down`), one folder and schema per module.
   Never edit an applied migration. No generated columns (identity keys are fine); the domain calculates derived values.
 - Handlers are plain classes called by endpoints. No MediatR, CQRS frameworks or AutoMapper.
+- No project name in identifiers (`UseTomlConfiguration`, not `UseBastionToml`); the
+  `Bastion.*` namespaces already give the context.
+- Private fields are `_camelCase`, never accessed with `this.`; prefer primary constructors.
+  Enforced by `.editorconfig` in the build.
+- Comments only where the code is hard to follow (scraping details such as where data sits
+  in a page, protocol rules, non-obvious workarounds). No XML doc comments that repeat the
+  name of a type or member.
 
 ## Language
 
@@ -146,6 +153,6 @@ Update the matching file in the same change that makes it outdated:
 
 ## Commands
 
-<!-- Fill in once the solution and frontend exist. -->
-- Build: `dotnet build`
-- Test: `dotnet test`
+- Build: `dotnet build Bastion.slnx`
+- Test: `dotnet test Bastion.slnx`
+- Run: `dotnet run --project src/Host/Bastion.Host --launch-profile http` (http://localhost:5080)
