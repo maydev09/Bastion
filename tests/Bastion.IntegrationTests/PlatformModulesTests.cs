@@ -31,6 +31,20 @@ public class PlatformModulesTests
     }
 
     [Test]
+    public async Task App_starts_with_every_module_disabled()
+    {
+        await using var factory = TestApp.WithAllModules(b =>
+        {
+            b.UseSetting("Modules:FlatOffers:Enabled", "false");
+            b.UseSetting("Modules:JobOffers:Enabled", "false");
+        });
+
+        var modules = await GetModules(factory);
+
+        Assert.That(modules, Is.Empty);
+    }
+
+    [Test]
     public void Unknown_module_in_configuration_stops_startup()
     {
         using var factory = new WebApplicationFactory<Program>()
