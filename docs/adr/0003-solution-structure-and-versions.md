@@ -7,13 +7,16 @@
 
 ADR 0002 defines Bastion as a modular monolith. We need a concrete .NET solution
 layout that follows established industry practice for modular monoliths in .NET
-instead of inventing our own, and we want the newest stable runtime and frontend versions.
+instead of inventing our own, and we want current, supported runtime and frontend versions.
 
 ## Decision
 
 ### Versions
-- **.NET 11** (latest stable release; support ends 2028-11-14, the same date as .NET 10 LTS).
-  The SDK is pinned in `global.json`.
+- **.NET 10** (LTS, support ends 2028-11-14). The SDK is pinned in `global.json` with
+  `rollForward: latestFeature`.
+- .NET 11 (released 2026-11-10, same end of support) is not yet in the distribution
+  packages of the development machine. We move to it once it is, so tools stay installed
+  and updated by the package manager.
 - **React 19** (latest stable major) with TypeScript; the rest of the frontend stack
   is in [ADR 0011](0011-frontend-stack.md).
 - When a new stable major version is released, we upgrade to it.
@@ -53,7 +56,8 @@ web/                                          React app
   common in Clean Architecture templates, but layers must then be `public` to reach
   each other, which weakens module encapsulation, and the project count quadruples.
 - **One solution per module:** harder to build, test and refactor the whole system together.
-- **.NET 10 LTS:** equally long support at this moment, but older; we prefer the newest stable.
+- **.NET 11 now, installed with `dotnet-install.sh`:** newest, but installed and updated
+  by hand outside the package manager, only to save one later upgrade.
 
 ## Consequences
 

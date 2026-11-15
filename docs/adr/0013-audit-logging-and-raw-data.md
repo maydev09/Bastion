@@ -44,8 +44,8 @@ Audit has three levels, from overview to evidence, plus technical logs.
   files. When the run ends, the folder is packed into one `run-<id>.tar.zst` and the plain
   files are deleted. Folders left by crashed runs are packed by the cleanup job.
 - Compression is **Zstandard** with long distance matching, so similar pages of one run
-  compress well together. .NET 11 has it built in (`ZstandardStream`,
-  `System.Formats.Tar`); no extra package. The archives can also be opened with
+  compress well together. Tar packing is built in (`System.Formats.Tar`); Zstandard
+  comes from ZstdSharp (MIT) until we move to .NET 11, which has `ZstandardStream` built in. The archives can also be opened with
   standard Linux tools (`tar --zstd -xf`).
 - Each module has a `raw_capture` table (run, URL, time, HTTP status, size, SHA-256,
   archive path) in its own schema. Timeline events link to it, and the UI can show
@@ -61,8 +61,9 @@ Audit has three levels, from overview to evidence, plus technical logs.
 ### Technical logs
 - Code logs only through `ILogger<T>`. **Serilog** is configured once in the Host as
   the logging provider; the static `Log` class is not used.
-- Outputs: console (for `docker logs`) and daily rolling files with compact JSON in
-  `/data/logs`, kept 14 days.
+- Outputs: console (for `docker logs`) and daily rolling plain-text files
+  (`bastion-<yyyyMMdd>.log`) in `/data/logs`, kept 14 days. Same line format as the
+  console, so they are easy to read with `less` or `tail -f`.
 - Each entry inside a job carries `RunId`, module and job name, so logs and audit can
   be matched.
 - Logs are for technical debugging (startup errors, crashes). The audit in the database
@@ -79,6 +80,8 @@ Audit has three levels, from overview to evidence, plus technical logs.
 - **xz:** slightly smaller archives, but much slower, especially when opening raw data from the UI.
 - **WARC** (format of web archives): standard for crawling at scale, more than we need.
 - **Object storage (MinIO/S3):** not needed for one server; paths can move there later.
+- **Compact JSON log files:** easy to filter by property with `jq`, but hard to read by eye;
+  structured data the user works with is in the audit tables anyway.
 - **Built-in logging providers only:** no file output; **NLog:** comparable to Serilog,
   less common in new projects.
 
@@ -87,5 +90,4 @@ Audit has three levels, from overview to evidence, plus technical logs.
 - Any failed parse can be traced from the UI down to the exact bytes the portal sent.
 - Disk usage is predictable thanks to compression and retention.
 - The Docker setup needs a `/data` volume and it should be backed up together with the database.
-- The built-in Zstandard API is new in .NET 11. If it turns out to be missing something
-  we need, ZstdSharp (MIT) is the fallback.
+- Raw data compression needs one package (ZstdSharp) until the move to .NET 11.
