@@ -77,7 +77,8 @@ Replaces the legacy flat offers scraper.
 - The user manages **search profiles** in the UI: which source to scrape and with what
   criteria (e.g. rent or buy, city, price range, rooms). Each run executes the enabled
   profiles. Several profiles can run side by side (e.g. rent in one city, buy in another).
-- Requests are rate-limited with randomized delays between calls.
+- Requests are rate-limited with randomized delays between calls and follow the
+  scraping rules (robots.txt, one request at a time per portal, no personal data): ADR 0016.
 - Each source can be run from saved sample files instead of the live website
   (offline mode for development and tests).
 - When parsing fails, the raw input and the error are saved for debugging,
@@ -130,7 +131,10 @@ and is extracted into the library when the job offers module needs it.
 
 ## Non-goals
 
-- Multi-user accounts, roles or a public hosted instance.
+- Running Bastion as a commercial product. It is open source under AGPL-3.0 (see `LICENSE`).
+- Multi-user accounts, roles or a login for now. The data model has no concept of a
+  user (no `user_id` columns); it is added in its own ADR if Bastion is ever hosted
+  for several people.
 - Third-party plugins: modules are developed in this repository.
 - Bypassing CAPTCHAs or other explicit access restrictions of a website.
 - Applying to jobs or contacting sellers automatically.
