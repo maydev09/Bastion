@@ -14,7 +14,8 @@ instead of inventing our own, and we want the newest stable runtime and frontend
 ### Versions
 - **.NET 11** (latest stable release; support ends 2028-11-14, the same date as .NET 10 LTS).
   The SDK is pinned in `global.json`.
-- **React 19** (latest stable major) with TypeScript.
+- **React 19** (latest stable major) with TypeScript; the rest of the frontend stack
+  is in [ADR 0011](0011-frontend-stack.md).
 - When a new stable major version is released, we upgrade to it.
 
 ### Solution

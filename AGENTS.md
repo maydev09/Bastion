@@ -44,6 +44,20 @@ Spend effort only on what solves a real problem the maintainer has today
 - A whole module is switched on/off in configuration; feature flags work inside a module.
 - Module internals are `internal`; only the registration entry point and contracts are `public`.
 - Frontend: `web/src/modules/<module>` folders never import from each other.
+  Stack (Vite, React Router, TanStack Query/Table, Base UI + CSS Modules, no Tailwind, API types
+  generated from OpenAPI, one container): docs/adr/0011-frontend-stack.md.
+  Never edit `web/src/api/schema.ts` by hand; regenerate it.
+- Audit and logs: log only through `ILogger<T>` (Serilog is configured in the Host only);
+  run events via `JobContext`; raw scraped data is stored by the scraping toolkit:
+  docs/adr/0013-audit-logging-and-raw-data.md.
+- Data and API conventions (docs/adr/0014-data-and-api-conventions.md): `int` identity keys,
+  `timestamptz` + `DateTimeOffset` + `TimeProvider`, money as `numeric`/`decimal` with a
+  currency column, enums as `text` + `CHECK` and as JSON strings, `ProblemDetails` with a
+  `code`, paging via `PageRequest`/`PagedResult<T>`, expected errors as `TypedResults`.
+- UI texts only from i18next dictionaries by key, Polish only for now; no hardcoded
+  texts (docs/adr/0015-ui-translations.md).
+- Tests: NUnit (not xUnit), Testcontainers for the database, no mocking library by
+  default; Vitest in the frontend: docs/adr/0012-testing.md.
 - Module contract (`IModule`, `ModuleDefinition`, explicit module lists): docs/adr/0007-module-contract.md.
 - Solution layout and versions (.NET 11, React 19): docs/adr/0003-solution-structure-and-versions.md.
 

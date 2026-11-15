@@ -6,11 +6,12 @@ A phase is complete only when all its exit criteria are met.
 
 ## Phase 0: Foundations
 
-- **Status:** In progress
+- **Status:** Done (2026-11-15)
 - **Outcome:** The repository has clear rules for humans and AI, and the decisions
   needed to start coding are recorded.
-- **Included work:** CLAUDE.md, .gitignore, planning documents, ADRs for the module
-  contract, database, data access and background jobs.
+- **Included work:** AGENTS.md and CLAUDE.md, .gitignore, planning documents,
+  ADRs 0001–0015 (architecture, data, configuration, jobs, secrets, frontend,
+  testing, audit, conventions, translations).
 - **Exit criteria:** Every "Unresolved question" in SPEC.md that blocks Phase 1
   is answered by an accepted ADR.
 

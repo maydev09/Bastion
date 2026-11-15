@@ -63,6 +63,8 @@ pointless, repetitive work than do it by hand.
 ### Shared services
 - Background jobs: modules can register scheduled and manually triggered jobs.
   Every job run is recorded with its status, timing and errors.
+- Audit: each run has a summary and a timeline of events viewable in the UI;
+  technical logs go to the console and rolling files (ADR 0013).
 - Configuration, logging and health checks, shared by all modules.
 - Database access and schema migrations, with a separate schema per module.
 
@@ -101,7 +103,8 @@ work mode) and statuses (e.g. applied, interview scheduled, rejected), plus:
 ## Shared scraping toolkit
 
 Both scraper modules need the same technical building blocks (HTTP/browser fetching,
-rate limiting, offline sample files, error capture). These end up in a reusable
+rate limiting, offline sample files, error capture, storing every raw response
+compressed per run with retention, see ADR 0013). These end up in a reusable
 library that scraper modules use. It is not part of the platform core, because
 non-scraper modules do not need it. The code starts inside the flat offers module
 and is extracted into the library when the job offers module needs it.
