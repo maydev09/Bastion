@@ -54,8 +54,9 @@ Spend effort only on what solves a real problem the maintainer has today
   `timestamptz` + `DateTimeOffset` + `TimeProvider`, money as `numeric`/`decimal` with a
   currency column, enums as `text` + `CHECK` and as JSON strings, `ProblemDetails` with a
   `code`, paging via `PageRequest`/`PagedResult<T>`, expected errors as `TypedResults`.
-- UI texts only from i18next dictionaries by key, Polish only for now; no hardcoded
-  texts (docs/adr/0015-ui-translations.md).
+- UI texts only from i18next dictionaries by key; no hardcoded texts. Every new or
+  changed text goes to both `pl` (default) and `en` in the same change
+  (docs/adr/0015-ui-translations.md).
 - Tests: NUnit (not xUnit), Testcontainers for the database, no mocking library by
   default; Vitest in the frontend: docs/adr/0012-testing.md.
 - Module contract (`IModule`, `ModuleDefinition`, explicit module lists): docs/adr/0007-module-contract.md.
