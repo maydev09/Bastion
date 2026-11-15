@@ -53,13 +53,13 @@ IModule[] modules = [new FlatOffersModule(), new JobOffersModule()];
 Every module exports one definition from `src/Web/Modules/<Module>/index.tsx`:
 
 ```ts
-export const flatOffersModule: ModuleDefinition = {
+export const flatOffersModule = defineModule({
   name: "FlatOffers",
   routePrefix: "flat-offers",
   namespace: "flatOffers",          // i18next namespace; its "title" key names the module
   locales: { pl, en },
   routes: [{ path: "", element: <FlatOffersPage /> }],
-};
+});
 ```
 
 - The shell keeps an explicit list of all module definitions (the frontend equivalent of the Host list).
