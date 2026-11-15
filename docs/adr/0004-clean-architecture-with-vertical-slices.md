@@ -70,7 +70,7 @@ internal static class ChangeStatusEndpoint
 
     public static void Map(IEndpointRouteBuilder app) =>
         app.MapPut("/offers/{id:int}/status", async (int id, Request request, ChangeStatusHandler handler) =>
-            await handler.Handle(id, request.Status) ? Results.NoContent() : Results.NotFound());
+            await handler.Handle(id, request.Status) ? TypedResults.NoContent() : TypedResults.NotFound());
 }
 ```
 

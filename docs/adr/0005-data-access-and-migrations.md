@@ -48,7 +48,7 @@ internal sealed class OfferStore(NpgsqlDataSource db) : IOfferStore
   with a new migration.
 - An applied migration is never edited.
 - Values derived by business rules are calculated by the domain and stored in regular
-  columns. No generated columns.
+  columns. No generated columns (identity primary keys are allowed, ADR 0014).
 - Changes to existing data (backfills) are part of a regular SQL migration:
   add the column, update existing rows, then add constraints.
 - There is no dry-run mode; instead CI applies all migrations to a fresh database

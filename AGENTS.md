@@ -73,9 +73,8 @@ Spend effort only on what solves a real problem the maintainer has today
   `Application/Abstractions/`, implemented in `Infrastructure/`.
 - Data access: Dapper with plain SQL in Infrastructure stores; no EF Core, no generic `IRepository<T>`.
   Migrations are `.sql` files run by dbmate (with `migrate:down`), one folder and schema per module.
-  Never edit an applied migration. No generated columns; the domain calculates derived values.
+  Never edit an applied migration. No generated columns (identity keys are fine); the domain calculates derived values.
 - Handlers are plain classes called by endpoints. No MediatR, CQRS frameworks or AutoMapper.
-- Other interfaces only for multiple implementations (e.g. one scraper per portal).
 
 ## Language
 

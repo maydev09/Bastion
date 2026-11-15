@@ -24,7 +24,7 @@ A phase is complete only when all its exit criteria are met.
 - **Included work:** .NET solution with platform host and module contract, React shell
   with navigation, flat offers module with one source in offline mode, local database
   via Docker Compose, architecture tests, GitHub Actions (build, test, lint),
-  branch protection on `master`.
+  required as status checks in the existing `master` ruleset.
 - **Risks:** Designing the module contract too broadly. Keep it to what this module
   needs now and extend it later.
 - **Exit criteria:** A manual import from the sample file shows offers in the UI;

@@ -60,27 +60,9 @@ frontend, internally split into strictly independent modules.
   references another module's internals, or when the platform references a module.
 - A lint rule enforces the same boundaries in the frontend.
 
-### Initial layout
+### Layout
 
-```text
-src/
-  Platform/            host, module contract, shared services
-  BuildingBlocks/      technical libraries without business logic (e.g. Scraping)
-  Modules/
-    FlatOffers/
-      Bastion.Modules.FlatOffers            internal implementation
-      Bastion.Modules.FlatOffers.Contracts  public API (only if needed)
-tests/
-  Architecture/        boundary rules
-  Modules/<Module>/    module tests
-web/
-  src/shell/           layout, navigation, home page
-  src/shared/ui/       generic UI components (no business logic)
-  src/modules/<module>/
-```
-
-The exact module contract (what a module registers and how the frontend discovers
-module pages) is decided in a separate ADR.
+The solution and folder layout is defined in ADR 0003, the module contract in ADR 0007.
 
 ## Alternatives considered
 

@@ -24,7 +24,8 @@ our own way.
 - **Headless components:** **Base UI** (`@base-ui/react`) provides behavior and
   accessibility of dialogs, menus, selects, comboboxes etc., with no styles.
   **TanStack Table** does the same for data tables (sorting, filtering, paging).
-  Our own styled components built on them live in `web/src/ui/`; modules use only those.
+  Our own styled components built on them live in the shared UI library
+  `web/src/shared/ui/` (ADR 0002); modules use only those.
 - **Styling:** plain, native CSS in **CSS Modules** (`Button.module.css` next to
   `Button.tsx`, built into Vite). Colors, spacing and fonts are CSS custom properties
   (`--color-primary`) defined once. No Tailwind, no SCSS: native CSS already has
