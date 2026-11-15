@@ -1,0 +1,132 @@
+# AGENTS.md
+
+Operating instructions for coding agents working in this repository. Read this file before every task.
+
+## Project
+
+Bastion is a personal headquarters: a modular platform (C# / .NET backend, React web frontend)
+that hosts independent modules behind one web UI. The first two modules (flat offers,
+job offers) replace older private scrapers; later modules need not be scrapers.
+
+## Non-negotiables
+
+1. **Never fabricate.** Do not invent file paths, APIs, command output or test results. Read the file or run the command.
+2. **Disagree when the premise is wrong.** Say what is wrong before acting on it.
+3. **Stop when genuinely ambiguous.** If two interpretations lead to materially different changes, ask first.
+4. **Touch only what the task requires.** No drive-by refactors or formatting sweeps.
+5. **Verify before saying done.** Run the build and relevant tests; report failures honestly.
+6. **Do not commit or push unless the maintainer explicitly asks.**
+7. **Do not break the architecture rules below.** If a task seems to require it, stop and ask.
+
+## Focus on the core problem
+
+Spend effort only on what solves a real problem the maintainer has today
+(YAGNI: "you aren't gonna need it").
+
+- Build for one user on one instance, not for a million users. No login screen,
+  user management, multi-tenancy, horizontal scaling or "enterprise" infrastructure.
+- Before adding anything, ask: does it help collect, browse or act on the data now?
+  If not, leave it out and note it as a possible later idea instead.
+- Start with plain .NET and simple code. Adopt a bigger tool only when a real need
+  appears that the simple solution cannot cover (example: ADR 0009 keeps Quartz.NET
+  as the upgrade path for background jobs).
+- The UI must still be usable by a person without technical knowledge: simple for one
+  user does not mean only understandable by developers.
+
+## Architecture (modular monolith, see docs/adr/0002-use-modular-monolith.md)
+
+- Every module works on its own; the app runs with any subset of modules enabled.
+- A module never references another module's code or data. Cooperation, if ever needed,
+  goes only through the other module's `Contracts` project.
+- Each module owns its database schema and migrations.
+  No cross-module joins, foreign keys or transactions.
+- The platform never contains module-specific code. Building blocks contain no business logic.
+- A whole module is switched on/off in configuration; feature flags work inside a module.
+- Module internals are `internal`; only the registration entry point and contracts are `public`.
+- Frontend: `web/src/modules/<module>` folders never import from each other.
+- Module contract (`IModule`, `ModuleDefinition`, explicit module lists): docs/adr/0007-module-contract.md.
+- Solution layout and versions (.NET 11, React 19): docs/adr/0003-solution-structure-and-versions.md.
+
+## Code style (see docs/adr/0004 and 0005)
+
+- KISS: simple, readable code over abstraction. Avoid boilerplate.
+  Find the balance: an abstraction or pattern (interface, factory, wrapper) is welcome
+  when it makes the code easier to read or change, and unwelcome when it only adds
+  layers and indirection. When unsure, start with the plain version and extract later.
+- Module layers are folders: `Domain/` -> nothing; `Application/` -> Domain;
+  `Infrastructure/` and `Api/` -> Application. Use cases are vertical slices in `Application/<UseCase>/`.
+- Application never uses SQL, Dapper, Npgsql or ASP.NET Core; it uses interfaces from
+  `Application/Abstractions/`, implemented in `Infrastructure/`.
+- Data access: Dapper with plain SQL in Infrastructure stores; no EF Core, no generic `IRepository<T>`.
+  Migrations are `.sql` files run by dbmate (with `migrate:down`), one folder and schema per module.
+  Never edit an applied migration. No generated columns; the domain calculates derived values.
+- Handlers are plain classes called by endpoints. No MediatR, CQRS frameworks or AutoMapper.
+- Other interfaces only for multiple implementations (e.g. one scraper per portal).
+
+## Language
+
+- This is a public repository. All code, identifiers, comments, commit messages,
+  pull requests, issues and documentation are written in English.
+- Conversation can be in English or Polish; reply in the language of the message.
+
+## Documentation
+
+- Planning documents (read them when a task touches requirements, scope or priorities):
+  - `docs/SPEC.md`: what the system must do, non-goals, acceptance criteria.
+  - `docs/ROADMAP.md`: phases in order, with exit criteria.
+- Open doubts and undecided questions go to `Unresolved questions` in `docs/SPEC.md`
+  (one bullet: the question, known options, when it must be decided). When a question is
+  answered, remove the bullet and record the answer in an ADR or in the spec text.
+- Architecture decisions are recorded as ADRs in `docs/adr/`
+  (`NNNN-short-title.md`, based on `docs/adr/template.md`).
+- Read the relevant ADRs before changing architecture. Propose a new ADR
+  instead of silently changing an accepted decision.
+
+## Keeping these files up to date
+
+Update the matching file in the same change that makes it outdated:
+
+| When this changes                                      | Update                         |
+|--------------------------------------------------------|--------------------------------|
+| How we work: rules, workflow, commands, conventions    | `AGENTS.md`                    |
+| What the system does, non-goals, acceptance criteria   | `docs/SPEC.md`                 |
+| A technical decision is made or reversed               | new ADR in `docs/adr/`         |
+| A phase starts, finishes or changes scope              | `docs/ROADMAP.md`              |
+| A new build, test or run command exists                | `Commands` in `AGENTS.md`      |
+
+- Do not duplicate content: `AGENTS.md` keeps short rules and links to ADRs for the reasons.
+- At the end of every task, check this table and say which files you updated,
+  or propose the update if it needs the maintainer's decision.
+
+## Git workflow
+
+- Trunk-based development: `master` is the trunk and must always build and pass tests.
+- Never commit directly to `master`. Work on short-lived branches cut from `master`:
+  `feature-<short-name>`, `fix-<short-name>`, `docs-<short-name>`, `chore-<short-name>`.
+- Merge back into `master` through a pull request; delete the branch afterwards.
+- Unfinished functionality is merged behind a feature flag, never left on a long-lived branch.
+- Rationale: docs/adr/0001-use-trunk-based-development.md.
+- Keep changes small and focused; one concern per commit.
+- Use Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`).
+
+## Data and privacy
+
+- Never commit secrets, `.env` files or real scraped data. Secrets are Docker secrets read
+  from `/run/secrets`, never TOML values or container env vars (docs/adr/0010-secrets.md).
+  Test samples contain no personal data (e.g. seller names, phone numbers).
+- Scraped portals are named by their real names in code (enums, scraper classes).
+- Never hardcode user-specific preferences (search criteria, cities, price ranges,
+  filters) in code or configuration files. They are data, managed by the user through the UI.
+  Code and configuration only hold technical settings (e.g. delays, timeouts, URLs).
+- VPN is mandatory for live scraping (see `docs/SPEC.md`, Security and privacy).
+  Before any request to a scraped portal (running a live scrape, `curl`, a browser),
+  check that traffic goes through a tunnel (`ip route get <host>` shows a `wg*`/`tun*`/`proton*`
+  device); if not, stop and ask.
+  Never set `Scraping:RequireVpn` to `false` in committed configuration or remove the check.
+  Offline runs from sample files need no VPN.
+
+## Commands
+
+<!-- Fill in once the solution and frontend exist. -->
+- Build: `dotnet build`
+- Test: `dotnet test`
