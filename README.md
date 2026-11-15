@@ -17,34 +17,42 @@ Bastion is the next step:
 
 ## Running locally
 
-Requires the .NET 10 SDK.
+**Requirements**
+- [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
+- [Node.js 24 LTS](https://nodejs.org/) with npm 12 (`npm install -g npm@12`)
+- A VPN for live scraping (Proton, WireGuard or any tunnel)
 
-```bash
-dotnet run --project src/Host/Bastion.Host --launch-profile http
-```
-
-The API listens on http://localhost:5080 (`/api/platform/modules` lists the enabled modules);
-Swagger UI is at http://localhost:5080/swagger in Development.
-
-Live scraping reads the browser User-Agent from Playwright's Firefox; install it once:
-
-```bash
-scripts/install-playwright-firefox.sh
-```
-
-The web UI needs Node.js 24 LTS; run from the repository root:
+**First run** (repository root)
 
 ```bash
 npm install
-npm run dev
+dotnet build Bastion.slnx
 ```
 
-It runs at http://localhost:5173 and forwards `/api` to the backend.
-In Rider, the shared run configuration **API + Web** (`.run/`) starts the backend and Vite together.
-`npm run build` puts the UI into the Host, which then serves it at http://localhost:5080.
-Configuration is in TOML, not `appsettings.json`: `src/Host/Bastion.Host/bastion.toml`, with
-overrides in `bastion.<Environment>.toml` and a git-ignored `bastion.local.toml`.
-Environment variables override files, e.g. `Modules__JobOffers__Enabled=false`.
+Playwright Firefox, needed for live scraping (the User-Agent is read from it):
+
+```bash
+scripts/install-playwright-firefox.sh                                                       # Linux
+pwsh src/BuildingBlocks/Bastion.BuildingBlocks.Scraping/bin/Debug/net10.0/playwright.ps1 install firefox   # Windows
+```
+
+**Run**
+
+| What | Command | URL |
+|---|---|---|
+| Backend | `dotnet run --project src/Host/Bastion.Host --launch-profile http` | http://localhost:5080 (Swagger: `/swagger`) |
+| UI with hot reload | `npm run dev` | http://localhost:5173 |
+| UI served by the backend | `npm run build`, then the backend | http://localhost:5080 |
+
+In Rider: run configuration **API + Web** starts both.
+
+**Tests**: `dotnet test Bastion.slnx` and `npm test`; lint: `npm run lint`.
+
+**Configuration**: `src/Host/Bastion.Host/bastion.toml` (not `appsettings.json`); local overrides
+in the git-ignored `bastion.local.toml`; environment variables win, e.g. `Modules__JobOffers__Enabled=false`.
+
+**Windows**: everything runs except live scraping, because the VPN check uses Linux `ip route`
+and fails closed. Use Linux (or WSL) for the OtoDom smoke test.
 
 ## License
 
