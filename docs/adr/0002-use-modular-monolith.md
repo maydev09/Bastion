@@ -46,9 +46,9 @@ frontend, internally split into strictly independent modules.
 
 ### Frontend
 - One React application (no micro-frontends); modules are separated by folders, not deployments.
-- Each module's UI lives in its own folder (`web/src/modules/<module>`).
+- Each module's UI lives in its own folder (`src/Modules/<Module>/Web`).
 - Module folders never import from each other; they use only the shell and the shared UI library.
-- The shared UI library (`web/src/shared/ui`) holds generic, reusable components
+- The shared UI library (`src/Web/Shared/ui`) holds generic, reusable components
   (buttons, inputs, dropdowns, tables, dialogs, layout) so all modules look and behave
   the same. It is the frontend equivalent of a building block: no business logic,
   no knowledge of any module, never imports from `modules/`.

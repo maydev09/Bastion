@@ -32,21 +32,26 @@ instead of inventing our own, and we want current, supported runtime and fronten
 ```text
 src/
   Host/Bastion.Host                          ASP.NET Core app; the only composition root
+  Web/App                                    React shell: navigation, routes, i18n setup
+  Web/Shared                                 shared UI library, typed API client
   Platform/Bastion.Platform.Abstractions     module contract and shared service interfaces
   Platform/Bastion.Platform                  shared service implementations
   BuildingBlocks/Bastion.BuildingBlocks.*    technical libraries, created when needed
   Modules/<Module>/Bastion.Modules.<Module>              the whole module
   Modules/<Module>/Bastion.Modules.<Module>.Contracts    public API, only when needed
+  Modules/<Module>/Web                                  the module's UI
 tests/
   Bastion.ArchitectureTests
   Bastion.Modules.<Module>.Tests
   Bastion.IntegrationTests
-web/                                          React app
 ```
 
 - **One project per module.** Inside it, Clean Architecture layers as folders:
   `Domain/`, `Application/` (vertical slices), `Infrastructure/`, `Api/` (see ADR 0004). Everything is `internal` except the module's entry point class,
   so the compiler protects the module boundary.
+- A module is one folder: its backend project and its UI (`Web/`) live side by side.
+  All frontend code is one npm project with its tooling at the repository root
+  (`package.json`, `vite.config.ts`); imports use the aliases `@shared/*` and `@modules/*`.
 - Only the Host references modules. It enables the modules listed in configuration.
 - First two modules: `FlatOffers` and `JobOffers`.
 
