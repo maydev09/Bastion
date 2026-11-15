@@ -13,7 +13,7 @@ builder.Configuration.UseTomlConfiguration(builder.Environment);
 
 var logs = builder.Configuration.GetSection(LogsOptions.Section).Get<LogsOptions>() ?? new LogsOptions();
 var logsPath = Path.Combine(builder.Environment.ContentRootPath, logs.Path);
-const string logLine = "{Timestamp:yyyy-MM-dd HH:mm:ss.fff} {Level:u3} {Module} {Message:lj}{NewLine}{Exception}";
+const string logLine = $"{{Timestamp:yyyy-MM-dd HH:mm:ss.fff}} {{Level:u3}} {{{ModuleLogScope.Property}}} {{Message:lj}}{{NewLine}}{{Exception}}";
 builder.Services.AddSerilog(logger => logger
     .ReadFrom.Configuration(builder.Configuration)
     .Enrich.FromLogContext()

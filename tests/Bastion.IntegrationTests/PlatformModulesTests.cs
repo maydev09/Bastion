@@ -23,7 +23,7 @@ public class PlatformModulesTests
     [Test]
     public async Task Disabled_module_is_not_listed_and_app_still_starts()
     {
-        await using var factory = TestApp.WithAllModules(b => b.UseSetting("Modules:JobOffers:Enabled", "false"));
+        await using var factory = TestApp.WithAllModules(b => b.UseSetting(ModuleOptions.EnabledKey("JobOffers"), "false"));
 
         var modules = await GetModules(factory);
 
@@ -35,8 +35,8 @@ public class PlatformModulesTests
     {
         await using var factory = TestApp.WithAllModules(b =>
         {
-            b.UseSetting("Modules:FlatOffers:Enabled", "false");
-            b.UseSetting("Modules:JobOffers:Enabled", "false");
+            b.UseSetting(ModuleOptions.EnabledKey("FlatOffers"), "false");
+            b.UseSetting(ModuleOptions.EnabledKey("JobOffers"), "false");
         });
 
         var modules = await GetModules(factory);
@@ -48,7 +48,7 @@ public class PlatformModulesTests
     public void Unknown_module_in_configuration_stops_startup()
     {
         using var factory = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(b => b.UseSetting("Modules:FlatOfers:Enabled", "true"));
+            .WithWebHostBuilder(b => b.UseSetting(ModuleOptions.EnabledKey("FlatOfers"), "true"));
 
         var error = Assert.Throws<InvalidOperationException>(() => factory.CreateClient());
 

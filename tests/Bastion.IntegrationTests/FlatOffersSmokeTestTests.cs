@@ -1,3 +1,4 @@
+using Bastion.Host;
 using System.Net;
 using System.Net.Http.Json;
 using Bastion.BuildingBlocks.Scraping;
@@ -35,7 +36,7 @@ public class FlatOffersSmokeTestTests
     [Test]
     public async Task Disabled_module_has_no_endpoints()
     {
-        await using var factory = TestApp.WithAllModules(b => b.UseSetting("Modules:FlatOffers:Enabled", "false"));
+        await using var factory = TestApp.WithAllModules(b => b.UseSetting(ModuleOptions.EnabledKey("FlatOffers"), "false"));
         using var client = factory.CreateClient();
 
         var response = await client.PostAsync(new Uri("/api/flat-offers/smoke-test", UriKind.Relative), null);

@@ -11,7 +11,7 @@ internal static class TestApp
         {
             foreach (var module in new[] { "FlatOffers", "JobOffers" })
             {
-                builder.UseSetting($"{ModuleOptions.Section}:{module}:Enabled", "true");
+                builder.UseSetting(ModuleOptions.EnabledKey(module), "true");
             }
 
             configure?.Invoke(builder);

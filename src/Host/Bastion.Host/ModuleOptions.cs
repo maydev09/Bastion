@@ -6,6 +6,8 @@ internal sealed class ModuleOptions
 
     public bool Enabled { get; set; }
 
+    public static string EnabledKey(string moduleName) => $"{Section}:{moduleName}:{nameof(Enabled)}";
+
     public static IConfigurationSection SectionOf(IConfiguration configuration, string moduleName) =>
         configuration.GetSection(Section).GetSection(moduleName);
 }

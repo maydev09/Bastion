@@ -12,7 +12,7 @@ public class ModuleLoaderTests
     public void Fails_when_an_enabled_module_depends_on_a_disabled_one()
     {
         IModule[] modules = [new FakeModule("A"), new FakeModule("B", dependsOn: "A")];
-        var configuration = Config(("Modules:A:Enabled", "false"), ("Modules:B:Enabled", "true"));
+        var configuration = Config((ModuleOptions.EnabledKey("A"), "false"), (ModuleOptions.EnabledKey("B"), "true"));
 
         var error = Assert.Throws<InvalidOperationException>(() => ModuleLoader.GetEnabled(modules, configuration));
 
@@ -23,7 +23,7 @@ public class ModuleLoaderTests
     public void Missing_enabled_setting_means_disabled()
     {
         IModule[] modules = [new FakeModule("A"), new FakeModule("B")];
-        var configuration = Config(("Modules:B:Enabled", "true"));
+        var configuration = Config((ModuleOptions.EnabledKey("B"), "true"));
 
         var enabled = ModuleLoader.GetEnabled(modules, configuration);
 

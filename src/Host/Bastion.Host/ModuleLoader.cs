@@ -38,16 +38,7 @@ internal static class ModuleLoader
         {
             var group = app.MapGroup($"/api/{module.RoutePrefix}")
                 .WithTags(module.Name)
-                .AddEndpointFilter(async (context, next) =>
-                {
-                    var logger = context.HttpContext.RequestServices
-                        .GetRequiredService<ILoggerFactory>()
-                        .CreateLogger("Bastion.Modules");
-                    using (logger.BeginScope(new Dictionary<string, object> { ["Module"] = module.Name }))
-                    {
-                        return await next(context);
-                    }
-                });
+                .AddEndpointFilter(new ModuleLogScope(module.Name));
             module.MapEndpoints(group);
         }
     }
