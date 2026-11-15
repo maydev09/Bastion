@@ -25,7 +25,7 @@ our own way.
   accessibility of dialogs, menus, selects, comboboxes etc., with no styles.
   **TanStack Table** does the same for data tables (sorting, filtering, paging).
   Our own styled components built on them live in the shared UI library
-  `web/src/shared/ui/` (ADR 0002); modules use only those.
+  `src/Web/Shared/ui/` (ADR 0002); modules use only those.
 - **Styling:** plain, native CSS in **CSS Modules** (`Button.module.css` next to
   `Button.tsx`, built into Vite). Colors, spacing and fonts are CSS custom properties
   (`--color-primary`) defined once. No Tailwind, no SCSS: native CSS already has
@@ -37,7 +37,7 @@ our own way.
 - The Host publishes an OpenAPI document with the built-in ASP.NET Core OpenAPI
   support. It is written to a file during the build.
 - **openapi-typescript** generates TypeScript types from that file into
-  `web/src/api/schema.ts`; **openapi-fetch** is a small typed `fetch` wrapper that uses
+  `src/Web/Shared/api/schema.ts`; **openapi-fetch** is a small typed `fetch` wrapper that uses
   them. No generated client classes.
 - The generated file is committed. CI regenerates it and fails if it differs, so a
   backend change cannot silently break the frontend.
@@ -46,6 +46,14 @@ our own way.
 const { data } = await api.GET("/api/flat-offers/offers", { params: { query: { page: 1 } } });
 //      ^ typed from the C# endpoint's response
 ```
+
+### The UI is only a client of the API
+- The frontend holds no business logic: calculations, filtering, validation rules and
+  decisions live in the backend and are reached through the API. The UI shows data and
+  calls endpoints.
+- The backend never renders HTML for the UI. So another client (e.g. a desktop app that
+  wraps this frontend, or a native one with a client generated from the same OpenAPI
+  document) can be added without changing the backend.
 
 ### One container
 - In production the Host serves the built frontend as static files from `wwwroot`,

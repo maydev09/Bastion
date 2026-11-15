@@ -19,6 +19,10 @@ the scraping toolkit, so a module cannot forget them.
 - Pages are fetched with a regular browser driven by **Playwright**, or with a plain
   HTTP client where a portal serves the data that way. No stealth plugins and no
   fingerprint manipulation.
+- Plain HTTP requests send the `User-Agent` of the Firefox that Playwright ships, read
+  from the browser itself (`navigator.userAgent`) and never typed into configuration.
+  Headless Firefox reports the same string as a regular Firefox. robots.txt rules are
+  read from the `*` group.
 
 ### robots.txt
 - Before requesting a URL, the toolkit checks it against the portal's `robots.txt`

@@ -1,0 +1,156 @@
+{
+  "openapi": "3.1.1",
+  "info": {
+    "title": "Bastion.Host | v1",
+    "version": "1.0.0"
+  },
+  "paths": {
+    "/api/platform/modules": {
+      "get": {
+        "tags": [
+          "Platform"
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ModuleInfo"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/flat-offers/smoke-test": {
+      "post": {
+        "tags": [
+          "FlatOffers"
+        ],
+        "summary": "Fetches one live OtoDom results page and returns the number of parsed offers. Stores nothing.",
+        "operationId": "RunFlatOffersSmokeTest",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SmokeTestResult"
+                }
+              }
+            }
+          },
+          "502": {
+            "description": "Bad Gateway",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ModuleInfo": {
+        "required": [
+          "name",
+          "routePrefix"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "routePrefix": {
+            "type": "string"
+          }
+        }
+      },
+      "ProblemDetails": {
+        "type": "object",
+        "properties": {
+          "type": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "status": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "detail": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "SmokeTestResult": {
+        "required": [
+          "source",
+          "offerCount",
+          "skippedCount"
+        ],
+        "type": "object",
+        "properties": {
+          "source": {
+            "type": "string"
+          },
+          "offerCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "skippedCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Platform"
+    },
+    {
+      "name": "FlatOffers"
+    }
+  ]
+}

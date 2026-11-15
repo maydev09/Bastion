@@ -1,0 +1,9 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../../../Platform/Bastion.Platform.Abstractions/Bastion.Platform.Abstractions.csproj" />
+    <ProjectReference Include="../../../BuildingBlocks/Bastion.BuildingBlocks.Scraping/Bastion.BuildingBlocks.Scraping.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Bastion.Modules.FlatOffers.Tests" />
+  </ItemGroup>
+</Project>

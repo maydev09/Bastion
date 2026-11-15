@@ -1,0 +1,33 @@
+{
+  "app": {
+    "title": "Bastion"
+  },
+  "nav": {
+    "home": "Home",
+    "toggle": "Show or hide the menu",
+    "disabled": "off",
+    "disabledHint": "Module disabled in configuration (shown only in development)"
+  },
+  "home": {
+    "title": "Modules"
+  },
+  "language": {
+    "label": "Language"
+  },
+  "status": {
+    "loading": "Loading…",
+    "modulesFailed": "Could not load the list of modules. Is the backend running?",
+    "notFound": "This page does not exist."
+  },
+  "errors": {
+    "unknown": "Something went wrong.",
+    "scraping": {
+      "vpnRequired": "No VPN connection. Connect the VPN and try again.",
+      "disallowedByRobots": "The portal does not allow fetching this page (robots.txt).",
+      "rateLimited": "The portal asks for slower requests. Try again in a few minutes.",
+      "httpError": "The portal returned an error.",
+      "networkError": "Could not connect to the portal.",
+      "browserUnavailable": "Playwright browser (Firefox) is missing. Install it: scripts/install-playwright-firefox.sh."
+    }
+  }
+}

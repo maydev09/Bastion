@@ -24,8 +24,8 @@ const { t } = useTranslation("flatOffers");
 
 - Dictionaries are JSON files per language and module (one i18next namespace per module),
   so modules stay independent (ADR 0002):
-  - `web/src/locales/{pl,en}/common.json`: shared texts (buttons, errors, paging).
-  - `web/src/modules/<module>/locales/{pl,en}.json`: the module's texts.
+  - `src/Web/App/locales/{pl,en}/common.json`: shared texts (buttons, errors, paging).
+  - `src/Web/Modules/<Module>/locales/{pl,en}.json`: the module's texts.
 - Keys are English and describe meaning, not wording (`offers.emptyState`).
 - Languages: **Polish** (default) and **English**. Every new or changed text is added
   to both dictionaries in the same change.

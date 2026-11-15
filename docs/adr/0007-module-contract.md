@@ -50,22 +50,23 @@ IModule[] modules = [new FlatOffersModule(), new JobOffersModule()];
 
 ### Frontend
 
-Every module exports one definition from `web/src/modules/<module>/index.ts`:
+Every module exports one definition from `src/Web/Modules/<Module>/index.tsx`:
 
 ```ts
-export const flatOffersModule: ModuleDefinition = {
+export const flatOffersModule = defineModule({
   name: "FlatOffers",
   routePrefix: "flat-offers",
-  title: "Flats",
-  routes: [/* module pages under /flat-offers */],
-  SummaryCard: FlatOffersSummaryCard,
-};
+  namespace: "flatOffers",          // i18next namespace; its "title" key names the module
+  locales: { pl, en },
+  routes: [{ path: "", element: <FlatOffersPage /> }],
+});
 ```
 
 - The shell keeps an explicit list of all module definitions (the frontend equivalent of the Host list).
-- On start the shell calls `/api/platform/modules` and shows navigation, routes and
-  home page cards only for enabled modules.
-- A summary card is a normal module component that calls its module's own API.
+- On start the shell calls `/api/platform/modules` and shows navigation and routes
+  only for enabled modules.
+- Home page summary cards (SPEC) are added to the definition when the first module has
+  something to summarize; a card is a normal module component that calls its module's own API.
 
 ### Migrations
 

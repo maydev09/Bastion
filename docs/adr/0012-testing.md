@@ -23,8 +23,13 @@ without switching tools or writing our own extensions.
     `Assert.Multiple`. No separate assertion library.
 - Database tests use **Testcontainers** with the same PostgreSQL image as production
   (ADR 0006).
-- No mocking library by default. Tests use real implementations or small hand-written
-  fakes; a mocking library is added only when a real case needs it.
+- **Integration tests are the main coverage**: the real Host through
+  `WebApplicationFactory`, real configuration, a real database in Testcontainers.
+  Unit tests are for focused logic with many cases (parsers, robots.txt rules, the module loader),
+  not for every class.
+- **NSubstitute** replaces dependencies that would reach the outside world or are slow
+  (VPN check, browser, portal responses). Things we own and that are fast (configuration,
+  in-memory collections) stay real.
 - Frontend tests use **Vitest** (ADR 0011).
 
 ## Alternatives considered
@@ -35,6 +40,10 @@ without switching tools or writing our own extensions.
   built-in features for complex tests.
 - **MSTest:** improved a lot recently, but less common in open source and with fewer
   examples than NUnit.
+- **Moq:** the most widely known mocking library, but it lost trust after it shipped
+  SponsorLink (collecting developers' e-mail hashes) in 2023. **FakeItEasy:** fine, less common.
+- **No mocking library, only hand-written fakes:** works for small interfaces, but
+  becomes boilerplate as soon as calls need to be checked or several behaviors set up.
 - **FluentAssertions:** readable assertions, but a commercial license since version 8;
   NUnit's built-in assertions are enough.
 

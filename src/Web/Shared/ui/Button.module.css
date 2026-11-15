@@ -1,0 +1,22 @@
+.button {
+  padding: var(--space-2) var(--space-4);
+  border: none;
+  border-radius: var(--radius);
+  font: inherit;
+  font-weight: 600;
+  color: var(--color-on-accent);
+  cursor: pointer;
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: wait;
+  }
+}
+
+.primary {
+  background: var(--color-accent);
+}
+
+.success {
+  background: var(--color-success);
+}
