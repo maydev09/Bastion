@@ -15,61 +15,50 @@ A phase is complete only when all its exit criteria are met.
 - **Exit criteria:** Every "Unresolved question" in SPEC.md that blocks Phase 1
   is answered by an accepted ADR.
 
-## Phase 1: Walking skeleton with the flat offers module
+## Phase 1: Modular skeleton with a scraping smoke test
 
 - **Status:** Planned
-- **Outcome:** The smallest working headquarters: the platform loads the flat offers
-  module, which imports offers of one source from a saved sample file, stores them,
-  and lists them in the web UI.
-- **Included work:** .NET solution with platform host and module contract, React shell
-  with navigation, flat offers module with one source in offline mode, local database
-  via Docker Compose, architecture tests, GitHub Actions (build, test, lint),
-  required as status checks in the existing `master` ruleset.
-- **Risks:** Designing the module contract too broadly. Keep it to what this module
-  needs now and extend it later.
-- **Exit criteria:** A manual import from the sample file shows offers in the UI;
-  disabling the module in configuration removes its pages and endpoints and the app
-  still starts; architecture tests and CI pass.
+- **Outcome:** The modular platform runs end-to-end. Both modules exist in code; the
+  flat offers module can read one live page of offers from OtoDom on demand.
+- **Included work:** .NET solution with Host and module contract (ADR 0007); modules
+  registered in this order: `FlatOffers`, then `JobOffers` (empty, it only registers);
+  React shell with navigation of enabled modules; on the flat offers page a button
+  that fetches one OtoDom results page and shows how many offers were parsed, with
+  nothing stored; VPN check before the request; parser tests on a saved sample page;
+  architecture tests; GitHub Actions (build, test, lint) required as status checks in
+  the existing `master` ruleset.
+- **Risks:** Designing the module contract too broadly. Keep it to what this phase needs.
+- **Exit criteria:** The smoke test shows parsed offers through a VPN and refuses to run
+  without one; disabling a module in configuration removes its pages and endpoints
+  and the app still starts; architecture tests and CI pass.
 
-## Phase 2: Flat offers, live scraping and history
-
-- **Status:** Planned
-- **Outcome:** The flat offers module scrapes the live source and keeps history.
-- **Included work:** Live fetching with rate limiting and VPN check, error capture, run history with
-  statistics, change tracking with changelog.
-- **Exit criteria:** A manual live run stores new offers and records changes of known ones;
-  a parsing failure is captured without crashing the app.
-
-## Phase 3: Flat offers, triage and scheduling
+## Phase 2: Database foundations
 
 - **Status:** Planned
-- **Outcome:** The flat offers module fully replaces the legacy flat scraper.
-- **Included work:** Statuses, bookmarks, notes, filters and sorting, changelog view,
-  scheduled runs through platform background jobs, summary card on the home page.
-- **Exit criteria:** All flat offers requirements from SPEC.md work; the legacy flat
-  scraper can be retired.
+- **Outcome:** PostgreSQL runs with separated roles and migrations; the app proves it
+  can connect, without storing business data yet.
+- **Included work:** PostgreSQL in Docker Compose; separate database roles for
+  administration, migrations and the application (ADR 0006); dbmate migrations per
+  module schema (ADR 0005); secrets as Docker secrets (ADR 0010); a database smoke
+  test in the UI (connected as the application role, schema version); Testcontainers
+  setup for tests.
+- **Exit criteria:** A fresh setup creates the database, roles and schemas with one
+  command; the UI reports a successful connection; the application role cannot
+  change the schema; CI runs migrations on a fresh database.
 
-## Phase 4: Job offers module, first source
-
-- **Status:** Planned
-- **Outcome:** A second, independent module runs alongside flat offers.
-- **Included work:** Job offers module with one source; scraping code shared with flat
-  offers is extracted into the scraping building block at this point.
-- **Risks:** The module contract may need changes to fit a second module. That is
-  expected; this phase is the real test of the modular design.
-- **Exit criteria:** Both modules work; each can be disabled without affecting the other;
-  no platform code is specific to either module.
-
-## Phase 5: Job offers module, complete
+## Phase 3: Storing flat offers
 
 - **Status:** Planned
-- **Outcome:** The job offers module fully replaces the legacy job scraper.
-- **Included work:** Remaining sources, scheduling, triage, run statistics, duplicate
-  detection, summary card.
-- **Exit criteria:** All job offers requirements from SPEC.md work; a failure in one
-  source does not stop the others; the legacy job scraper can be retired.
+- **Outcome:** The flat offers smoke test becomes a real import: basic offer data is
+  saved and listed in the UI.
+- **Included work:** Offer table with basic fields, unique per source and external id;
+  saving new offers and updating known ones; a simple offer list with paging.
+- **Exit criteria:** Running the import twice stores each offer once; the list shows
+  the stored offers.
 
 ## Later
 
-New modules, chosen when Phase 5 is done. They follow the same contract and need
-not be scrapers.
+Planned in detail when Phase 3 is done. Known candidates, in no fixed order:
+run history and audit (ADR 0013), search profiles managed in the UI, triage
+(statuses, notes, bookmarks), scheduled runs (ADR 0009), the job offers module,
+and new modules that need not be scrapers.

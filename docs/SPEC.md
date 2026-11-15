@@ -155,8 +155,9 @@ and is extracted into the library when the job offers module needs it.
 - VPN check: is the route check (`ip route get`) the right method? Inside Docker it sees only
   the container's `eth0`. Alternatives: route scraping traffic through a WireGuard container,
   or compare the public egress IP with the home IP (needs an external IP service).
-  Decide together with deployment, before Phase 2.
+  Phase 1 runs the app directly on the desktop, where the route check works; the Docker
+  case is decided together with deployment.
 - AI support (later phase): e.g. "find the offers that fit me best" over the collected data.
   Options: an MCP server over the database used from an existing Claude subscription
   (no API cost), or Claude API calls on offers pre-filtered with SQL (pay per token).
-  Preferred direction: MCP (read-only access to the data). Not needed before Phase 5.
+  Preferred direction: MCP (read-only access to the data). Not needed soon.
