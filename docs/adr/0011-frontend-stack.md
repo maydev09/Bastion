@@ -47,6 +47,14 @@ const { data } = await api.GET("/api/flat-offers/offers", { params: { query: { p
 //      ^ typed from the C# endpoint's response
 ```
 
+### The UI is only a client of the API
+- The frontend holds no business logic: calculations, filtering, validation rules and
+  decisions live in the backend and are reached through the API. The UI shows data and
+  calls endpoints.
+- The backend never renders HTML for the UI. So another client (e.g. a desktop app that
+  wraps this frontend, or a native one with a client generated from the same OpenAPI
+  document) can be added without changing the backend.
+
 ### One container
 - In production the Host serves the built frontend as static files from `wwwroot`,
   with a fallback to `index.html` for client-side routes. Bastion is one container

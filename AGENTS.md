@@ -44,6 +44,7 @@ Spend effort only on what solves a real problem the maintainer has today
 - The platform never contains module-specific code. Building blocks contain no business logic.
 - A whole module is switched on/off in configuration; feature flags work inside a module.
 - Module internals are `internal`; only the registration entry point and contracts are `public`.
+- The UI holds no business logic; everything goes through the API (docs/adr/0011-frontend-stack.md).
 - Frontend: a module's UI lives in `src/Web/Modules/<Module>`; module UIs never import from
   each other or from the shell (`src/Web/App`), only from `src/Web/Shared` (`@shared/*`).
   Stack (Vite, React Router, TanStack Query/Table, Base UI + CSS Modules, no Tailwind, API types
@@ -169,6 +170,9 @@ Update the matching file in the same change that makes it outdated:
   to the backend), `npm run build` (into the Host's `wwwroot`), `npm run lint`, `npm test`.
 - API types: `dotnet build` writes `src/Web/Shared/api/openapi.json`; then `npm run api`
   regenerates `src/Web/Shared/api/schema.ts`. Commit both.
+- npm packages: `.npmrc` blocks install scripts, saves exact versions and installs only
+  versions older than 7 days (`min-release-age`). Never override these flags; CI installs
+  with `npm ci` and checks registry signatures. Add a package only when it is really needed.
 - Playwright Firefox (needed for live scraping): `scripts/install-playwright-firefox.sh`.
 - CI (`.github/workflows/ci.yml`) runs the backend build and tests, frontend lint, tests and
   build, and fails when the committed OpenAPI document or `schema.ts` is out of date.
