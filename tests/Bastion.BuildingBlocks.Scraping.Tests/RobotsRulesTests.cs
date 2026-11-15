@@ -77,4 +77,20 @@ public class RobotsRulesTests
     {
         Assert.That(RobotsRules.Parse("", Browser).IsAllowed("/anything"), Is.True);
     }
+
+    [Test]
+    public void Compares_paths_percent_encoded()
+    {
+        var rules = RobotsRules.Parse("User-agent: *\nDisallow: /pl/sprzedaż", Browser);
+
+        Assert.That(rules.IsAllowed(new Uri("https://portal.example/pl/sprzedaż/1").PathAndQuery), Is.False);
+    }
+
+    [Test]
+    public void Dollar_inside_a_pattern_is_a_literal()
+    {
+        var rules = RobotsRules.Parse("User-agent: *\nDisallow: /price$list", Browser);
+
+        Assert.That(rules.IsAllowed("/price$list"), Is.False);
+    }
 }

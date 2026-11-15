@@ -32,16 +32,31 @@ internal sealed partial class RouteVpnCheck(IOptions<ScrapingOptions> options, I
             throw Fail(host, $"cannot resolve the host: {e.Message}");
         }
 
-        // Every address is checked: HttpClient may connect to any of them. Anything unclear fails closed.
+        // Every routable address is checked: HttpClient may connect to any of them. An address with
+        // no route (typically IPv6 behind a VPN) cannot carry traffic, so it is skipped. Anything else fails closed.
+        var checkedAddresses = 0;
         foreach (var address in addresses)
         {
-            var device = ParseRouteDevice(await RunIp(host, cancellationToken, "route", "get", address.ToString()))
+            var route = await RunIp(host, cancellationToken, "route", "get", address.ToString());
+            if (route.ExitCode != 0 && IsNoRoute(route.Error))
+            {
+                continue;
+            }
+
+            var device = ParseRouteDevice(Succeeded(host, route))
                 ?? throw Fail(host, $"cannot find the network interface for {address}");
-            var link = await RunIp(host, cancellationToken, "-d", "-o", "link", "show", "dev", device);
-            if (!IsTunnel(device, link, options.Value.VpnInterfacePrefixes))
+            var link = Succeeded(host, await RunIp(host, cancellationToken, "-d", "-o", "link", "show", "dev", device));
+            if (!IsTunnel(device, link, options.Value.VpnInterfacePrefixList))
             {
                 throw Fail(host, $"traffic to {address} goes through '{device}', which is not a VPN tunnel");
             }
+
+            checkedAddresses++;
+        }
+
+        if (checkedAddresses == 0)
+        {
+            throw Fail(host, "no address of the host is reachable");
         }
     }
 
@@ -51,11 +66,13 @@ internal sealed partial class RouteVpnCheck(IOptions<ScrapingOptions> options, I
         return match.Success ? match.Groups[1].Value : null;
     }
 
+    internal static bool IsNoRoute(string ipError) => ipError.Contains("unreachable", StringComparison.OrdinalIgnoreCase);
+
     internal static bool IsTunnel(string device, string ipLinkDetails, IEnumerable<string> namePrefixes) =>
         namePrefixes.Any(p => device.StartsWith(p, StringComparison.OrdinalIgnoreCase))
         || LinkTypeRegex().IsMatch(ipLinkDetails);
 
-    private static async Task<string> RunIp(string host, CancellationToken cancellationToken, params string[] arguments)
+    private static async Task<IpResult> RunIp(string host, CancellationToken cancellationToken, params string[] arguments)
     {
         var startInfo = new ProcessStartInfo("ip") { RedirectStandardOutput = true, RedirectStandardError = true };
         foreach (var argument in arguments)
@@ -66,11 +83,11 @@ internal sealed partial class RouteVpnCheck(IOptions<ScrapingOptions> options, I
         try
         {
             using var process = Process.Start(startInfo)!;
-            var output = await process.StandardOutput.ReadToEndAsync(cancellationToken);
+            var output = process.StandardOutput.ReadToEndAsync(cancellationToken);
+            var error = process.StandardError.ReadToEndAsync(cancellationToken);
+            await Task.WhenAll(output, error);
             await process.WaitForExitAsync(cancellationToken);
-            return process.ExitCode == 0
-                ? output
-                : throw Fail(host, $"'ip {string.Join(' ', arguments)}' failed: {await process.StandardError.ReadToEndAsync(cancellationToken)}");
+            return new IpResult(string.Join(' ', arguments), process.ExitCode, output.Result, error.Result);
         }
         catch (Win32Exception e)
         {
@@ -78,8 +95,13 @@ internal sealed partial class RouteVpnCheck(IOptions<ScrapingOptions> options, I
         }
     }
 
+    private static string Succeeded(string host, IpResult result) =>
+        result.ExitCode == 0 ? result.Output : throw Fail(host, $"'ip {result.Command}' failed: {result.Error.Trim()}");
+
     private static ScrapingException Fail(string host, string reason) =>
         new(ScrapingException.VpnRequired, $"VPN check failed for {host}: {reason}. Connect the VPN and try again.");
+
+    private sealed record IpResult(string Command, int ExitCode, string Output, string Error);
 
     [GeneratedRegex(@"\bdev\s+(\S+)")]
     private static partial Regex DevRegex();

@@ -6,7 +6,10 @@ public sealed class ScrapingOptions
 
     public bool RequireVpn { get; set; } = true;
 
-    public IList<string> VpnInterfacePrefixes { get; } = ["wg", "tun", "proton"];
+    public string VpnInterfacePrefixes { get; set; } = "wg,tun,proton";
+
+    public IReadOnlyList<string> VpnInterfacePrefixList =>
+        VpnInterfacePrefixes.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
     public double MinDelaySeconds { get; set; } = 3;
 

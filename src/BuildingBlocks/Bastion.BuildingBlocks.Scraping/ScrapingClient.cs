@@ -34,21 +34,31 @@ public sealed partial class ScrapingClient : IDisposable
     public async Task<string> GetStringAsync(Uri url, CancellationToken cancellationToken)
     {
         await _vpnCheck.EnsureTunnelAsync(url.Host, cancellationToken);
+        var userAgent = await _userAgent.GetAsync(cancellationToken);
 
-        var rules = await GetRobotsRulesAsync(url, cancellationToken);
+        var rules = await GetRobotsRulesAsync(url, userAgent, cancellationToken);
         if (!rules.IsAllowed(url.PathAndQuery))
         {
             throw new ScrapingException(ScrapingException.DisallowedByRobots, $"robots.txt of {url.Host} does not allow {url.PathAndQuery}.");
         }
 
-        using var response = await SendAsync(url, cancellationToken);
-        if (!response.IsSuccessStatusCode)
+        var gate = Gate(url);
+        await gate.Lock.WaitAsync(cancellationToken);
+        try
         {
-            throw new ScrapingException(ScrapingException.HttpError, $"{url} returned HTTP {(int)response.StatusCode}.");
-        }
+            using var response = await SendAsync(gate, url, userAgent, cancellationToken);
+            if (!response.IsSuccessStatusCode)
+            {
+                throw new ScrapingException(ScrapingException.HttpError, $"{url} returned HTTP {(int)response.StatusCode}.");
+            }
 
-        LogFetched(_logger, url, (int)response.StatusCode);
-        return await response.Content.ReadAsStringAsync(cancellationToken);
+            LogFetched(_logger, url, (int)response.StatusCode);
+            return await response.Content.ReadAsStringAsync(cancellationToken);
+        }
+        finally
+        {
+            gate.Lock.Release();
+        }
     }
 
     public void Dispose()
@@ -60,76 +70,42 @@ public sealed partial class ScrapingClient : IDisposable
         }
     }
 
-    private async Task<RobotsRules> GetRobotsRulesAsync(Uri url, CancellationToken cancellationToken)
+    private async Task<RobotsRules> GetRobotsRulesAsync(Uri url, string userAgent, CancellationToken cancellationToken)
     {
-        var now = _time.GetUtcNow();
-        if (_robots.TryGetValue(url.Host, out var cached) && now - cached.FetchedAt < TimeSpan.FromHours(_options.RobotsCacheHours))
+        if (FreshRobots(url) is { } cached)
         {
-            return cached.Rules;
+            return cached;
         }
 
-        using var response = await SendAsync(new Uri(url, "/robots.txt"), cancellationToken);
-        var status = (int)response.StatusCode;
-
-        // RFC 9309: 4xx = everything allowed; 5xx = nothing allowed (fail closed, not cached).
-        RobotsRules rules;
-        if (response.IsSuccessStatusCode)
-        {
-            rules = RobotsRules.Parse(await response.Content.ReadAsStringAsync(cancellationToken), await _userAgent.GetAsync(cancellationToken));
-        }
-        else if (status is >= 400 and < 500)
-        {
-            rules = RobotsRules.AllowAll;
-        }
-        else
-        {
-            throw new ScrapingException(ScrapingException.DisallowedByRobots, $"robots.txt of {url.Host} returned HTTP {status}, so nothing is allowed.");
-        }
-
-        _robots[url.Host] = (rules, now);
-        return rules;
-    }
-
-    private async Task<HttpResponseMessage> SendAsync(Uri url, CancellationToken cancellationToken)
-    {
-        var gate = _gates.GetOrAdd(url.Host, _ => new HostGate());
+        var gate = Gate(url);
         await gate.Lock.WaitAsync(cancellationToken);
         try
         {
-            var wait = gate.NextRequestAt - _time.GetUtcNow();
-            if (wait > TimeSpan.Zero)
+            if (FreshRobots(url) is { } fetchedMeanwhile)
             {
-                await Task.Delay(wait, _time, cancellationToken);
+                return fetchedMeanwhile;
             }
 
-            HttpResponseMessage response;
-            try
+            using var response = await SendAsync(gate, new Uri(url, "/robots.txt"), userAgent, cancellationToken);
+            var status = (int)response.StatusCode;
+
+            // RFC 9309: 4xx = everything allowed; 5xx = nothing allowed (fail closed, not cached).
+            RobotsRules rules;
+            if (response.IsSuccessStatusCode)
             {
-                using var request = new HttpRequestMessage(HttpMethod.Get, url);
-                request.Headers.UserAgent.ParseAdd(await _userAgent.GetAsync(cancellationToken));
-                response = await _http.SendAsync(request, cancellationToken);
+                rules = RobotsRules.Parse(await response.Content.ReadAsStringAsync(cancellationToken), userAgent);
             }
-            catch (Exception e) when (e is HttpRequestException || (e is TaskCanceledException && !cancellationToken.IsCancellationRequested))
+            else if (status is >= 400 and < 500)
             {
-                throw new ScrapingException(ScrapingException.NetworkError, $"Request to {url} failed: {e.Message}", e);
+                rules = RobotsRules.AllowAll;
             }
-            finally
+            else
             {
-                gate.NextRequestAt = _time.GetUtcNow() + RandomDelay();
+                throw new ScrapingException(ScrapingException.DisallowedByRobots, $"robots.txt of {url.Host} returned HTTP {status}, so nothing is allowed.");
             }
 
-            if (response.StatusCode is HttpStatusCode.TooManyRequests or HttpStatusCode.ServiceUnavailable)
-            {
-                var backoff = RetryAfter(response) ?? Backoff(gate.SlowDowns);
-                gate.SlowDowns++;
-                gate.NextRequestAt = _time.GetUtcNow() + backoff;
-                var status = (int)response.StatusCode;
-                response.Dispose();
-                throw new ScrapingException(ScrapingException.RateLimited, $"{url.Host} returned HTTP {status}; next request to it waits {backoff}.");
-            }
-
-            gate.SlowDowns = 0;
-            return response;
+            _robots[url.Host] = (rules, _time.GetUtcNow());
+            return rules;
         }
         finally
         {
@@ -137,11 +113,56 @@ public sealed partial class ScrapingClient : IDisposable
         }
     }
 
+    private RobotsRules? FreshRobots(Uri url) =>
+        _robots.TryGetValue(url.Host, out var cached) && _time.GetUtcNow() - cached.FetchedAt < TimeSpan.FromHours(_options.RobotsCacheHours)
+            ? cached.Rules
+            : null;
+
+    private HostGate Gate(Uri url) => _gates.GetOrAdd(url.Host, _ => new HostGate());
+
+    private async Task<HttpResponseMessage> SendAsync(HostGate gate, Uri url, string userAgent, CancellationToken cancellationToken)
+    {
+        var wait = gate.NextRequestAt - _time.GetUtcNow();
+        if (wait > TimeSpan.Zero)
+        {
+            await Task.Delay(wait, _time, cancellationToken);
+        }
+
+        HttpResponseMessage response;
+        try
+        {
+            using var request = new HttpRequestMessage(HttpMethod.Get, url);
+            request.Headers.UserAgent.ParseAdd(userAgent);
+            response = await _http.SendAsync(request, cancellationToken);
+        }
+        catch (Exception e) when (e is HttpRequestException || (e is TaskCanceledException && !cancellationToken.IsCancellationRequested))
+        {
+            throw new ScrapingException(ScrapingException.NetworkError, $"Request to {url} failed: {e.Message}", e);
+        }
+        finally
+        {
+            gate.NextRequestAt = _time.GetUtcNow() + RandomDelay();
+        }
+
+        if (response.StatusCode is HttpStatusCode.TooManyRequests or HttpStatusCode.ServiceUnavailable)
+        {
+            var backoff = RetryAfter(response) ?? Backoff(gate.SlowDowns);
+            gate.SlowDowns++;
+            gate.NextRequestAt = _time.GetUtcNow() + backoff;
+            var status = (int)response.StatusCode;
+            response.Dispose();
+            throw new ScrapingException(ScrapingException.RateLimited, $"{url.Host} returned HTTP {status}; next request to it waits {backoff}.");
+        }
+
+        gate.SlowDowns = 0;
+        return response;
+    }
+
     private TimeSpan RandomDelay()
     {
         var min = _options.MinDelaySeconds;
         var max = Math.Max(min, _options.MaxDelaySeconds);
-#pragma warning disable CA5394 // Not security related: only spreads requests in _time.
+#pragma warning disable CA5394 // not security related
         return TimeSpan.FromSeconds(min + (Random.Shared.NextDouble() * (max - min)));
 #pragma warning restore CA5394
     }

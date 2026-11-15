@@ -1,3 +1,5 @@
+using Microsoft.Extensions.Configuration;
+
 namespace Bastion.BuildingBlocks.Scraping.Tests;
 
 public class RouteVpnCheckTests
@@ -20,5 +22,22 @@ public class RouteVpnCheckTests
     public void Recognizes_tunnels_by_name_or_link_type(string device, string linkDetails, bool isTunnel)
     {
         Assert.That(RouteVpnCheck.IsTunnel(device, linkDetails, Prefixes), Is.EqualTo(isTunnel));
+    }
+
+    [Test]
+    public void Configured_prefixes_replace_the_defaults()
+    {
+        var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection([new($"{ScrapingOptions.Section}:{nameof(ScrapingOptions.VpnInterfacePrefixes)}", "proton")])
+            .Build();
+        var options = configuration.GetSection(ScrapingOptions.Section).Get<ScrapingOptions>()!;
+
+        Assert.That(RouteVpnCheck.IsTunnel("tun0", "", options.VpnInterfacePrefixList), Is.False);
+    }
+
+    [Test]
+    public void Recognizes_an_address_without_a_route()
+    {
+        Assert.That(RouteVpnCheck.IsNoRoute("RTNETLINK answers: Network is unreachable"), Is.True);
     }
 }

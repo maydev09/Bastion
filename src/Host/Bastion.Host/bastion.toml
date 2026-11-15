@@ -19,6 +19,7 @@ SmokeTestUrl = "https://www.otodom.pl/pl/wyniki/wynajem/mieszkanie/cala-polska?b
 
 [Scraping]
 RequireVpn = true
+VpnInterfacePrefixes = "wg,tun,proton"
 MinDelaySeconds = 3
 MaxDelaySeconds = 6
 TimeoutSeconds = 30

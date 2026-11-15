@@ -1,3 +1,5 @@
+using System.Globalization;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Bastion.BuildingBlocks.Scraping;
@@ -78,16 +80,47 @@ internal sealed class RobotsRules
         public List<Rule> Rules { get; } = [];
     }
 
-    private sealed class Rule(string pattern, bool allow)
+    private sealed class Rule
     {
-        private readonly Regex _regex = new(
-            "^" + Regex.Escape(pattern).Replace(@"\*", ".*", StringComparison.Ordinal).Replace(@"\$", "$", StringComparison.Ordinal),
-            RegexOptions.CultureInvariant);
+        private readonly Regex _regex;
 
-        public string Pattern => pattern;
+        public Rule(string pattern, bool allow)
+        {
+            // RFC 9309: paths are compared percent-encoded (request URLs already are), and '$'
+            // means "end of URL" only as the last character; elsewhere it is a literal.
+            Pattern = PercentEncodeNonAscii(pattern);
+            Allow = allow;
+            var anchored = Pattern.EndsWith('$');
+            var body = anchored ? Pattern[..^1] : Pattern;
+            _regex = new Regex(
+                "^" + Regex.Escape(body).Replace(@"\*", ".*", StringComparison.Ordinal) + (anchored ? "$" : ""),
+                RegexOptions.CultureInvariant);
+        }
 
-        public bool Allow => allow;
+        public string Pattern { get; }
+
+        public bool Allow { get; }
 
         public bool Matches(string pathAndQuery) => _regex.IsMatch(pathAndQuery);
+
+        private static string PercentEncodeNonAscii(string value)
+        {
+            var result = new StringBuilder(value.Length);
+            foreach (var rune in value.EnumerateRunes())
+            {
+                if (rune.IsAscii)
+                {
+                    result.Append((char)rune.Value);
+                    continue;
+                }
+
+                foreach (var b in Encoding.UTF8.GetBytes(rune.ToString()))
+                {
+                    result.Append(CultureInfo.InvariantCulture, $"%{b:X2}");
+                }
+            }
+
+            return result.ToString();
+        }
     }
 }
