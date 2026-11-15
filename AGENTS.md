@@ -170,3 +170,5 @@ Update the matching file in the same change that makes it outdated:
 - API types: `dotnet build` writes `src/Web/Shared/api/openapi.json`; then `npm run api`
   regenerates `src/Web/Shared/api/schema.ts`. Commit both.
 - Playwright Firefox (needed for live scraping): `scripts/install-playwright-firefox.sh`.
+- CI (`.github/workflows/ci.yml`) runs the backend build and tests, frontend lint, tests and
+  build, and fails when the committed OpenAPI document or `schema.ts` is out of date.
