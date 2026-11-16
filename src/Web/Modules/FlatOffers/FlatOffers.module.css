@@ -1,0 +1,53 @@
+.card {
+  padding: var(--space-4);
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+}
+
+.result {
+  font-weight: 600;
+  color: var(--color-success);
+}
+
+.error {
+  color: var(--color-error);
+  font-weight: 600;
+}
+
+.card + .card {
+  margin-top: var(--space-4);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+
+  & th,
+  & td {
+    padding: var(--space-2);
+    text-align: left;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  & th {
+    color: var(--color-text-secondary);
+    font-weight: 600;
+  }
+}
+
+.number {
+  white-space: nowrap;
+  text-align: right !important;
+}
+
+.pager {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: var(--space-3);
+}
+
+.muted {
+  color: var(--color-muted);
+}

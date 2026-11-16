@@ -56,7 +56,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/flat-offers/smoke-test": {
+    "/api/flat-offers/import": {
         parameters: {
             query?: never;
             header?: never;
@@ -65,8 +65,25 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Fetches one live OtoDom results page and returns the number of parsed offers. Stores nothing. */
-        post: operations["RunFlatOffersSmokeTest"];
+        /** Fetches one live OtoDom results page, saves new offers and updates changed ones. */
+        post: operations["ImportFlatOffers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/flat-offers/offers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns stored offers, newest first. */
+        get: operations["ListFlatOffers"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -83,9 +100,60 @@ export interface components {
             canChangeSchema: boolean;
             migrations: components["schemas"]["SchemaMigration"][];
         };
+        HttpValidationProblemDetails: {
+            type?: null | string;
+            title?: null | string;
+            /** Format: int32 */
+            status?: null | number;
+            detail?: null | string;
+            instance?: null | string;
+            errors?: {
+                [key: string]: string[];
+            };
+        };
+        ImportResult: {
+            source: components["schemas"]["OfferSource"];
+            /** Format: int32 */
+            addedCount: number;
+            /** Format: int32 */
+            updatedCount: number;
+            /** Format: int32 */
+            unchangedCount: number;
+            /** Format: int32 */
+            skippedCount: number;
+        };
         ModuleInfo: {
             name: string;
             routePrefix: string;
+        };
+        OfferListItem: {
+            /** Format: int32 */
+            id: number;
+            source: components["schemas"]["OfferSource"];
+            title: string;
+            url: string;
+            /** Format: double */
+            price?: null | number;
+            priceCurrency?: null | string;
+            /** Format: double */
+            areaM2?: null | number;
+            /** Format: int32 */
+            rooms?: null | number;
+            /** Format: date-time */
+            firstSeenAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        /** @enum {unknown} */
+        OfferSource: "OtoDom";
+        PagedResultOfOfferListItem: {
+            items: components["schemas"]["OfferListItem"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /** Format: int32 */
+            totalCount: number;
         };
         ProblemDetails: {
             type?: null | string;
@@ -98,13 +166,6 @@ export interface components {
         SchemaMigration: {
             schema: string;
             version: null | string;
-        };
-        SmokeTestResult: {
-            source: string;
-            /** Format: int32 */
-            offerCount: number;
-            /** Format: int32 */
-            skippedCount: number;
         };
     };
     responses: never;
@@ -144,7 +205,7 @@ export interface operations {
             };
         };
     };
-    RunFlatOffersSmokeTest: {
+    ImportFlatOffers: {
         parameters: {
             query?: never;
             header?: never;
@@ -159,7 +220,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SmokeTestResult"];
+                    "application/json": components["schemas"]["ImportResult"];
                 };
             };
             /** @description Bad Gateway */
@@ -178,6 +239,38 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ListFlatOffers: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagedResultOfOfferListItem"];
+                };
+            };
+            /** @description Bad Request */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["HttpValidationProblemDetails"];
                 };
             };
         };

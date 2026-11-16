@@ -47,7 +47,7 @@ scripts/dev-up.sh
 Starts PostgreSQL 18 on `127.0.0.1:5432` (database `bastion`) and applies all migrations.
 It is safe to run again: applied migrations are skipped. On the first run it generates random
 passwords for the roles `postgres`, `bastion_owner` (migrations) and `bastion_app` (application)
-and keeps them in your keyring (`secret-tool lookup app bastion key db-app`); no password is
+and keeps them in your keyring (`secret-tool lookup service Bastion account db-app-password`); no password is
 written to a file.
 
 - Stop: `docker compose stop`. Delete the database: `docker compose down -v`.

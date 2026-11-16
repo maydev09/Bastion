@@ -1,7 +1,7 @@
 # Bastion specification
 
 - **Status:** Draft
-- **Last updated:** 2026-11-15
+- **Last updated:** 2026-11-16
 
 ## Problem
 
@@ -27,7 +27,8 @@ pointless, repetitive work than do it by hand.
   regularly and clicking through the same filters. The portals offer little useful automation,
   and every one of them shows the data differently.
 - Bastion does that work: it collects offers from many portals into one normalized database
-  owned by the user.
+  owned by the user, and recognizes the same offer published on several portals, so the
+  user sees it once instead of three times.
 - Owning the data is the point. The user has full access to it, can run their own
   analytics on it, and finds what they are looking for faster than on any single portal.
 - The machine does the collecting; the human only makes decisions.
@@ -86,6 +87,9 @@ Replaces the legacy flat offers scraper.
 - Every run records its parameters and counts of new, unchanged and total offers.
 - Offers are unique per source by the source's external id. Changes to known offers
   are applied and recorded in a changelog.
+- **Duplicates across portals:** offers that are probably the same flat on different
+  portals (or posted twice on one) are grouped, so the list shows one entry with links
+  to every source. A grouping is a suggestion: the user can confirm or split it.
 - Triage: browse, filter and sort offers; change status (e.g. not interested,
   waiting, visit scheduled, still interested after visit), bookmark, add notes.
   Every manual change is recorded in the changelog.
@@ -99,7 +103,8 @@ work mode) and statuses (e.g. applied, interview scheduled, rejected), plus:
 - Search profiles use job-specific criteria (e.g. work mode, specialization, sorting).
   The legacy scraper hardcoded these combinations; here they are managed in the UI.
 - Run statistics also count updated offers and can be viewed per run, per hour and per day.
-- Offers that look like duplicates across sources (same content checksum) are flagged.
+- Duplicates across portals are grouped as for flat offers. The legacy scraper only
+  flagged offers with the same checksum of company and title (`duplicate_possible`).
 
 ## Shared scraping toolkit
 
@@ -161,6 +166,10 @@ and is extracted into the library when the job offers module needs it.
   or compare the public egress IP with the home IP (needs an external IP service).
   Phase 1 runs the app directly on the desktop, where the route check works; the Docker
   case is decided together with deployment.
+- Duplicate matching: which signals decide that two offers are the same (exact
+  checksum of key fields, or a similarity score over address, price, area, rooms,
+  title), and is a group stored or derived from the data? Decide in an ADR before the
+  second portal of a module is added.
 - AI support (later phase): e.g. "find the offers that fit me best" over the collected data.
   Options: an MCP server over the database used from an existing Claude subscription
   (no API cost), or Claude API calls on offers pre-filtered with SQL (pay per token).

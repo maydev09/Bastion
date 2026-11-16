@@ -20,6 +20,9 @@ public class OtoDomListingParserTests
             Assert.That(offers[0].ExternalId, Is.EqualTo("10000001"));
             Assert.That(offers[0].Title, Is.EqualTo("Sample flat 30 m2, first rental"));
             Assert.That(offers[0].Url, Is.EqualTo(new Uri("https://www.otodom.pl/pl/oferta/sample-flat-1-ID0SAMPLE1")));
+            Assert.That((offers[0].Price, offers[0].PriceCurrency), Is.EqualTo((2200m, "PLN")));
+            Assert.That(offers[0].AreaM2, Is.EqualTo(30m));
+            Assert.That(offers[0].Rooms, Is.EqualTo(1));
         });
     }
 

@@ -1,8 +1,9 @@
 using Bastion.BuildingBlocks.Scraping;
 using Bastion.Modules.FlatOffers.Api;
 using Bastion.Modules.FlatOffers.Application.Abstractions;
-using Bastion.Modules.FlatOffers.Application.RunSmokeTest;
+using Bastion.Modules.FlatOffers.Application.ImportOffers;
 using Bastion.Modules.FlatOffers.Infrastructure.OtoDom;
+using Bastion.Modules.FlatOffers.Infrastructure.Storage;
 using Bastion.Platform.Abstractions;
 using Microsoft.AspNetCore.Routing;
 using Microsoft.Extensions.Configuration;
@@ -21,11 +22,12 @@ public sealed class FlatOffersModule : IModule
         services.AddScraping();
         services.Configure<OtoDomOptions>(moduleSection.GetSection(OtoDomOptions.Section));
         services.AddSingleton<IListingSource, OtoDomListingSource>();
-        services.AddTransient<RunSmokeTestHandler>();
+        services.AddSingleton<IOfferStore, OfferStore>();
+        services.AddTransient<ImportOffersHandler>();
     }
 
     public void MapEndpoints(IEndpointRouteBuilder moduleGroup)
     {
-        RunSmokeTestEndpoint.Map(moduleGroup);
+        OfferEndpoints.Map(moduleGroup);
     }
 }

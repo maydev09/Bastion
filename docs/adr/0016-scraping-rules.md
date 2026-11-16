@@ -1,7 +1,7 @@
 # 0016. Scraping rules
 
 - **Status:** Accepted
-- **Date:** 2026-11-15
+- **Date:** 2026-11-15, updated 2026-11-16 (accounts, portal review)
 
 ## Context
 
@@ -14,6 +14,20 @@ the scraping toolkit, so a module cannot forget them.
 
 ### Scope
 - We start with publicly accessible pages.
+- **No accounts:** scrapers never log in, register or accept a portal's terms. Data
+  behind a login is out of scope.
+
+### Review before adding a portal
+- No scraper for a new portal is written before its review is recorded in
+  `docs/portals/<portal>.md`. The review checks and links:
+  - the portal's terms of service: clauses on automated access, bots, copying,
+    aggregating or reusing content;
+  - `robots.txt`: whether the paths we need are allowed, crawl delay, AI or content signals;
+  - whether the data is public or needs an account (then it is out of scope);
+  - which personal data the pages contain and how we avoid storing it;
+  - anti-bot measures the portal uses (CAPTCHA, `403` for data centers).
+- The review records facts with links; whether to build the scraper is the
+  maintainer's decision. It is updated when the portal's terms or `robots.txt` change.
 
 ### Browser
 - Pages are fetched with a regular browser driven by **Playwright**, or with a plain
@@ -100,6 +114,8 @@ LIMIT 30;
   being blocked; run time is not critical for us.
 - **Storing contact details:** convenient, but personal data we do not need (GDPR
   data minimization); the portal already shows them.
+- **Scraping with a portal account:** more data, but logging in means accepting the
+  portal's terms.
 
 ## Consequences
 

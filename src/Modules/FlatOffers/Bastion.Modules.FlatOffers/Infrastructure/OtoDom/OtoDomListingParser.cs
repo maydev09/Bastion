@@ -30,10 +30,15 @@ internal static partial class OtoDomListingParser
                 && item.TryGetProperty("title", out var title) && title.ValueKind == JsonValueKind.String
                 && item.TryGetProperty("slug", out var slug) && slug.ValueKind == JsonValueKind.String)
             {
+                var price = Money(item, "totalPrice");
                 offers.Add(new ListingOffer(
                     id.GetRawText(),
                     title.GetString()!,
-                    new Uri(baseUrl, $"/pl/oferta/{slug.GetString()}")));
+                    new Uri(baseUrl, $"/pl/oferta/{slug.GetString()}"),
+                    price?.Value,
+                    price?.Currency,
+                    Number(item, "areaInSquareMeters"),
+                    Rooms(item)));
             }
             else
             {
@@ -42,6 +47,43 @@ internal static partial class OtoDomListingParser
         }
 
         return (offers, skipped);
+    }
+
+    // totalPrice is null when the advertiser hides the price; for rentals it is the monthly rent.
+    private static (decimal Value, string Currency)? Money(JsonElement item, string name) =>
+        item.TryGetProperty(name, out var money) && money.ValueKind == JsonValueKind.Object
+        && Number(money, "value") is { } value
+        && money.TryGetProperty("currency", out var currency) && currency.ValueKind == JsonValueKind.String
+            ? (value, currency.GetString()!)
+            : null;
+
+    private static decimal? Number(JsonElement element, string name) =>
+        element.TryGetProperty(name, out var number) && number.ValueKind == JsonValueKind.Number
+            ? number.GetDecimal()
+            : null;
+
+    // roomsNumber is a word ("ONE" … "TEN"); "MORE" (over ten) has no exact count.
+    private static int? Rooms(JsonElement item)
+    {
+        if (!item.TryGetProperty("roomsNumber", out var rooms) || rooms.ValueKind != JsonValueKind.String)
+        {
+            return null;
+        }
+
+        return rooms.GetString() switch
+        {
+            "ONE" => 1,
+            "TWO" => 2,
+            "THREE" => 3,
+            "FOUR" => 4,
+            "FIVE" => 5,
+            "SIX" => 6,
+            "SEVEN" => 7,
+            "EIGHT" => 8,
+            "NINE" => 9,
+            "TEN" => 10,
+            _ => null,
+        };
     }
 
     private static JsonDocument ParseJson(string json)

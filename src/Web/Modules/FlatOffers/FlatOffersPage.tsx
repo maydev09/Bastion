@@ -1,5 +1,6 @@
 import { useTranslation } from "react-i18next";
-import { SmokeTest } from "./SmokeTest";
+import { ImportOffers } from "./ImportOffers";
+import { OfferList } from "./OfferList";
 
 export function FlatOffersPage() {
   const { t } = useTranslation("flatOffers");
@@ -7,7 +8,8 @@ export function FlatOffersPage() {
   return (
     <>
       <h1>{t("title")}</h1>
-      <SmokeTest />
+      <ImportOffers />
+      <OfferList />
     </>
   );
 }

@@ -15,7 +15,7 @@ Default = "Information"
 
 [Modules.FlatOffers.OtoDom]
 BaseUrl = "https://www.otodom.pl"
-SmokeTestUrl = "https://www.otodom.pl/pl/wyniki/wynajem/mieszkanie/cala-polska?by=LATEST&direction=DESC&limit=72"
+ListingUrl = "https://www.otodom.pl/pl/wyniki/wynajem/mieszkanie/cala-polska?by=LATEST&direction=DESC&limit=72"
 
 [Scraping]
 RequireVpn = true

@@ -77,6 +77,16 @@ Spend effort only on what solves a real problem the maintainer has today
   Find the balance: an abstraction or pattern (interface, factory, wrapper) is welcome
   when it makes the code easier to read or change, and unwelcome when it only adds
   layers and indirection. When unsure, start with the plain version and extract later.
+- Write the direct version: code must be understandable at first glance. No clever tricks
+  such as finding objects by type (`OfType<T>()`), juggling indexes or inserting/removing
+  items in lists built by the framework to keep some default order. Prefer a plain `switch`,
+  `if` or an explicit list (e.g. configuration is `Sources.Clear()` followed by the sources
+  in order). Ordinary tools for their normal job are fine (`IndexOf(':')` to split a line).
+  If the direct version is not possible, explain why before writing a workaround.
+- Names are short but say what the thing is, and never repeat their parent: the hierarchy
+  gives the context (`Bastion/bastion_app password`, not `Bastion/Bastion: password of the
+  bastion_app role`; `db-app-password`, not `db-app`). This applies to identifiers, files,
+  folders, configuration keys and secret-store entries.
 - Module layers are folders: `Domain/` -> nothing; `Application/` -> Domain;
   `Infrastructure/` and `Api/` -> Application. Use cases are vertical slices in `Application/<UseCase>/`.
 - Application never uses SQL, Dapper, Npgsql or ASP.NET Core; it uses interfaces from
@@ -85,7 +95,7 @@ Spend effort only on what solves a real problem the maintainer has today
   Migrations are `.sql` files run by dbmate (with `migrate:down`), one folder and schema per module.
   Never edit an applied migration. No generated columns (identity keys are fine); the domain calculates derived values.
 - Handlers are plain classes called by endpoints. No MediatR, CQRS frameworks or AutoMapper.
-- No project name in identifiers (`UseTomlConfiguration`, not `UseBastionToml`); the
+- No project name in identifiers (`UseConfigurationSources`, not `UseBastionConfiguration`); the
   `Bastion.*` namespaces already give the context.
 - Configuration keys are never typed as strings in code: each section has an options
   class with `public const string Section` and code binds through it.
@@ -152,7 +162,10 @@ Update the matching file in the same change that makes it outdated:
 - Scraping rules (docs/adr/0016-scraping-rules.md): every request goes through the
   scraping toolkit (robots.txt check, one request at a time per host, backoff on
   429/503). Never store personal data of private persons; store the link to the
-  portal's offer or contact page instead.
+  portal's offer or contact page instead. Scrapers never log in to a portal.
+- Before writing a scraper for a new portal, research its terms of service, `robots.txt`,
+  account requirements, personal data and anti-bot measures, and record the facts in
+  `docs/portals/<portal>.md` (checklist in ADR 0016). No review, no scraper.
 - Never hardcode user-specific preferences (search criteria, cities, price ranges,
   filters) in code or configuration files. They are data, managed by the user through the UI.
   Code and configuration only hold technical settings (e.g. delays, timeouts, URLs).

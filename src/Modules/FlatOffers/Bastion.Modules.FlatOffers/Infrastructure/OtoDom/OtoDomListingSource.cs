@@ -1,5 +1,6 @@
 using Bastion.BuildingBlocks.Scraping;
 using Bastion.Modules.FlatOffers.Application.Abstractions;
+using Bastion.Modules.FlatOffers.Domain;
 using Microsoft.Extensions.Options;
 
 namespace Bastion.Modules.FlatOffers.Infrastructure.OtoDom;
@@ -8,12 +9,12 @@ internal sealed class OtoDomListingSource(ScrapingClient client, IOptions<OtoDom
 {
     public const string ParseFailed = "flatOffers.parseFailed";
 
-    public string Name => "OtoDom";
+    public OfferSource Source => OfferSource.OtoDom;
 
-    public async Task<ListingFetchResult> FetchSmokeTestPageAsync(CancellationToken cancellationToken)
+    public async Task<ListingFetchResult> FetchListingPageAsync(CancellationToken cancellationToken)
     {
-        var url = options.Value.SmokeTestUrl
-            ?? throw new InvalidOperationException("Modules:FlatOffers:OtoDom:SmokeTestUrl is not configured.");
+        var url = options.Value.ListingUrl
+            ?? throw new InvalidOperationException("Modules:FlatOffers:OtoDom:ListingUrl is not configured.");
 
         string html;
         try

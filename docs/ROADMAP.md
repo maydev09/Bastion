@@ -48,7 +48,7 @@ A phase is complete only when all its exit criteria are met.
 
 ## Phase 3: Storing flat offers
 
-- **Status:** Planned
+- **Status:** In progress (branch `feature-store-flat-offers`)
 - **Outcome:** The flat offers smoke test becomes a real import: basic offer data is
   saved and listed in the UI.
 - **Included work:** Offer table with basic fields, unique per source and external id;
@@ -60,5 +60,6 @@ A phase is complete only when all its exit criteria are met.
 
 Planned in detail when Phase 3 is done. Known candidates, in no fixed order:
 run history and audit (ADR 0013), search profiles managed in the UI, triage
-(statuses, notes, bookmarks), scheduled runs (ADR 0009), the job offers module,
-and new modules that need not be scrapers.
+(statuses, notes, bookmarks), scheduled runs (ADR 0009), more portals per module
+with grouping of duplicate offers across portals, the job offers module, and new
+modules that need not be scrapers.

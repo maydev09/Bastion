@@ -4,19 +4,22 @@ using Bastion.Host;
 using Bastion.Modules.FlatOffers;
 using Bastion.Modules.JobOffers;
 using Bastion.Platform.Abstractions;
+using Dapper;
 using Serilog;
 
 IModule[] allModules = [new FlatOffersModule(), new JobOffersModule()];
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Configuration.UseTomlConfiguration(builder.Environment);
-builder.Configuration.UseSecretFiles();
+builder.Configuration.UseConfigurationSources(builder.Environment, args);
 
 var connectionString = builder.Configuration.GetConnectionString(DatabaseStatusEndpoint.ConnectionStringName);
 if (!string.IsNullOrEmpty(connectionString))
 {
     builder.Services.AddNpgsqlDataSource(connectionString);
 }
+
+DefaultTypeMap.MatchNamesWithUnderscores = true;
+builder.Services.AddSingleton(TimeProvider.System);
 
 var logs = builder.Configuration.GetSection(LogsOptions.Section).Get<LogsOptions>() ?? new LogsOptions();
 var logsPath = Path.Combine(builder.Environment.ContentRootPath, logs.Path);
@@ -32,7 +35,11 @@ builder.Services.AddSerilog(logger => logger
         rollingInterval: RollingInterval.Day,
         retainedFileCountLimit: 14));
 
-builder.Services.ConfigureHttpJsonOptions(options => options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict);
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.NumberHandling = JsonNumberHandling.Strict;
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
 

@@ -3,7 +3,7 @@ set -euo pipefail
 
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 
-if ! password="$(secret-tool lookup app bastion key db-app)" || [[ -z "$password" ]]; then
+if ! password="$(secret-tool lookup service Bastion account db-app-password)" || [[ -z "$password" ]]; then
   echo "No database password in the local secret store. Run scripts/dev-up.sh first." >&2
   exit 1
 fi

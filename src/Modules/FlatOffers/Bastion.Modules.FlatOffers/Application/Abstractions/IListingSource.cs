@@ -4,9 +4,9 @@ namespace Bastion.Modules.FlatOffers.Application.Abstractions;
 
 internal interface IListingSource
 {
-    string Name { get; }
+    OfferSource Source { get; }
 
-    Task<ListingFetchResult> FetchSmokeTestPageAsync(CancellationToken cancellationToken);
+    Task<ListingFetchResult> FetchListingPageAsync(CancellationToken cancellationToken);
 }
 
 internal sealed record ListingFetchResult(IReadOnlyList<ListingOffer> Offers, int SkippedCount, string? ErrorCode = null, string? ErrorDetail = null)
