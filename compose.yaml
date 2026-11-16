@@ -1,0 +1,47 @@
+name: bastion
+
+services:
+  db:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: bastion
+      POSTGRES_PASSWORD_FILE: /run/secrets/db_postgres_password
+    secrets:
+      - db_postgres_password
+      - db_owner_password
+      - db_app_password
+    volumes:
+      - db-data:/var/lib/postgresql
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "127.0.0.1:5432:5432"
+    healthcheck:
+      test: pg_isready --host 127.0.0.1 --username postgres --dbname bastion
+      interval: 2s
+      timeout: 5s
+      retries: 15
+
+  migrate:
+    image: ghcr.io/amacneil/dbmate:2.38.1
+    entrypoint: ["/bin/sh", "/migrate.sh"]
+    command: ["up"]
+    secrets:
+      - db_owner_password
+    volumes:
+      - ./db/migrate.sh:/migrate.sh:ro
+      - ./src/Modules:/modules:ro
+    depends_on:
+      db:
+        condition: service_healthy
+    profiles: ["tools"]
+
+secrets:
+  db_postgres_password:
+    environment: DB_POSTGRES_PASSWORD
+  db_owner_password:
+    environment: DB_OWNER_PASSWORD
+  db_app_password:
+    environment: DB_APP_PASSWORD
+
+volumes:
+  db-data:

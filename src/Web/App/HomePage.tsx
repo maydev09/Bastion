@@ -2,6 +2,7 @@ import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 import { ModuleTitle } from "@shared/ModuleTitle";
 import type { ModuleDefinition } from "@shared/moduleDefinition";
+import { DatabaseStatus } from "./DatabaseStatus";
 
 export function HomePage({ modules }: { modules: ModuleDefinition[] }) {
   const { t } = useTranslation();
@@ -18,6 +19,7 @@ export function HomePage({ modules }: { modules: ModuleDefinition[] }) {
           </li>
         ))}
       </ul>
+      <DatabaseStatus />
     </>
   );
 }

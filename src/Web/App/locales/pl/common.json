@@ -28,6 +28,18 @@
       "httpError": "Portal zwrócił błąd.",
       "networkError": "Nie udało się połączyć z portalem.",
       "browserUnavailable": "Brak przeglądarki Playwright (Firefox). Zainstaluj ją: scripts/install-playwright-firefox.sh."
+    },
+    "database": {
+      "notConfigured": "Połączenie z bazą nie jest skonfigurowane. Uruchom backend przez scripts/dev-run.sh.",
+      "unavailable": "Nie udało się połączyć z bazą. Czy działa (scripts/dev-up.sh)?"
     }
+  },
+  "database": {
+    "title": "Baza danych",
+    "description": "Łączy się z bazą danych i sprawdza, czy aplikacja ma do niej dostęp. Niczego nie zapisuje.",
+    "run": "Sprawdź bazę danych",
+    "running": "Sprawdzam…",
+    "ok": "Połączenie z bazą danych działa.",
+    "canChangeSchema": "Uwaga: aplikacja ma za szerokie uprawnienia w bazie (może zmieniać schemat)."
   }
 }

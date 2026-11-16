@@ -28,6 +28,18 @@
       "httpError": "The portal returned an error.",
       "networkError": "Could not connect to the portal.",
       "browserUnavailable": "Playwright browser (Firefox) is missing. Install it: scripts/install-playwright-firefox.sh."
+    },
+    "database": {
+      "notConfigured": "The database connection is not configured. Start the backend with scripts/dev-run.sh.",
+      "unavailable": "Could not connect to the database. Is it running (scripts/dev-up.sh)?"
     }
+  },
+  "database": {
+    "title": "Database",
+    "description": "Connects to the database and checks that the application has access. Stores nothing.",
+    "run": "Check database",
+    "running": "Checking…",
+    "ok": "Database connection works.",
+    "canChangeSchema": "Warning: the application has too many database privileges (it can change the schema)."
   }
 }

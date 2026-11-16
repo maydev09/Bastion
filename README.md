@@ -21,6 +21,9 @@ Bastion is the next step:
 - [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 - [Node.js 24 LTS](https://nodejs.org/) with npm 12 (`npm install -g npm@12`)
 - A VPN for live scraping (Proton, WireGuard or any tunnel)
+- Database (Linux): [Docker Engine](https://docs.docker.com/engine/install/) with the Compose plugin
+  (tested with Compose 5.7), `secret-tool` (Debian: `apt install libsecret-tools`) with a running
+  desktop keyring, and `openssl`. PostgreSQL and dbmate run in containers, nothing else to install.
 
 **First run** (repository root)
 
@@ -32,27 +35,58 @@ dotnet build Bastion.slnx
 Playwright Firefox, needed for live scraping (the User-Agent is read from it):
 
 ```bash
-scripts/install-playwright-firefox.sh                                                       # Linux
-pwsh src/BuildingBlocks/Bastion.BuildingBlocks.Scraping/bin/Debug/net10.0/playwright.ps1 install firefox   # Windows
+scripts/install-playwright-firefox.sh
 ```
+
+**Database**
+
+```bash
+scripts/dev-up.sh
+```
+
+Starts PostgreSQL 18 on `127.0.0.1:5432` (database `bastion`) and applies all migrations.
+It is safe to run again: applied migrations are skipped. On the first run it generates random
+passwords for the roles `postgres`, `bastion_owner` (migrations) and `bastion_app` (application)
+and keeps them in your keyring (`secret-tool lookup app bastion key db-app`); no password is
+written to a file.
+
+- Stop: `docker compose stop`. Delete the database: `docker compose down -v`.
+- Roles and privileges come from `db/init/01-roles.sh`, which PostgreSQL runs only when it
+  creates an empty database. After changing it, delete the database and run `scripts/dev-up.sh` again.
+- Migrations: plain SQL files in each module's `Infrastructure/Migrations/`, named
+  `YYYYMMDDHHMMSS_description.sql` with `-- migrate:up` and `-- migrate:down` sections.
+  They are found automatically; the schema is the module folder name in snake_case
+  (`src/Modules/FlatOffers` → `flat_offers`), and each schema has its own `schema_migrations` table.
 
 **Run**
 
 | What | Command | URL |
 |---|---|---|
-| Backend | `dotnet run --project src/Host/Bastion.Host --launch-profile http` | http://localhost:5080 (Swagger: `/swagger`) |
+| Backend | `scripts/dev-run.sh` | http://localhost:5080 (Swagger: `/swagger`) |
 | UI with hot reload | `npm run dev` | http://localhost:5173 |
 | UI served by the backend | `npm run build`, then the backend | http://localhost:5080 |
 
-In Rider: run configuration **API + Web** starts both.
+`scripts/dev-run.sh` reads the application role's password from the keyring and passes the
+connection string to the backend as the environment variable `ConnectionStrings__Bastion`.
+Without it the backend still starts, and the home page says the database is not configured.
+In containers the same key comes from the file `/run/secrets/ConnectionStrings__Bastion`.
 
-**Tests**: `dotnet test Bastion.slnx` and `npm test`; lint: `npm run lint`.
+In Rider: run configuration **API + Web** starts both. Rider only passes the connection
+string on if it was started through the script, so close Rider and run
+`scripts/dev-run.sh rider .` (with the Toolbox, the `rider` launcher is in
+`~/.local/share/JetBrains/Toolbox/scripts/`).
+
+**Tests**: `dotnet test Bastion.slnx` and `npm test`; lint: `npm run lint`. Backend tests need
+a running Docker: database tests start their own PostgreSQL with Testcontainers, set up the roles
+and run the migrations exactly as Compose does (same images, read from `compose.yaml`).
 
 **Configuration**: `src/Host/Bastion.Host/bastion.toml` (not `appsettings.json`); local overrides
 in the git-ignored `bastion.local.toml`; environment variables win, e.g. `Modules__JobOffers__Enabled=false`.
 
-**Windows**: everything runs except live scraping, because the VPN check uses Linux `ip route`
-and fails closed. Use Linux (or WSL) for the OtoDom smoke test.
+**Windows** is not documented or tested. Bastion can run there too, but the scripts (bash,
+`secret-tool`) would have to be rewritten (e.g. PowerShell with the Windows Credential Manager),
+or run in WSL 2 with a Secret Service such as `gnome-keyring`. Live scraping also needs the VPN
+check (`ip route`) to see the VPN interface, which WSL 2 does not by default.
 
 ## License
 
