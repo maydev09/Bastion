@@ -10,6 +10,13 @@ IModule[] allModules = [new FlatOffersModule(), new JobOffersModule()];
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.UseTomlConfiguration(builder.Environment);
+builder.Configuration.UseSecretFiles();
+
+var connectionString = builder.Configuration.GetConnectionString(DatabaseStatusEndpoint.ConnectionStringName);
+if (!string.IsNullOrEmpty(connectionString))
+{
+    builder.Services.AddNpgsqlDataSource(connectionString);
+}
 
 var logs = builder.Configuration.GetSection(LogsOptions.Section).Get<LogsOptions>() ?? new LogsOptions();
 var logsPath = Path.Combine(builder.Environment.ContentRootPath, logs.Path);
@@ -49,6 +56,7 @@ if (app.Environment.IsDevelopment())
 
 app.MapGet("/api/platform/modules", () => TypedResults.Ok(modules.Select(m => new ModuleInfo(m.Name, m.RoutePrefix))))
     .WithTags("Platform");
+app.MapDatabaseStatus();
 app.MapModuleEndpoints(modules);
 app.MapFallback("/api/{**path}", () => TypedResults.NotFound());
 app.MapFallbackToFile("index.html");

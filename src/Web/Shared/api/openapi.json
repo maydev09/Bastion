@@ -27,6 +27,37 @@
         }
       }
     },
+    "/api/platform/database": {
+      "get": {
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Connects as the application role and returns the server version, whether the role can change the schema, and the last migration of every module.",
+        "operationId": "GetDatabaseStatus",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DatabaseStatus"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Service Unavailable",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/flat-offers/smoke-test": {
       "post": {
         "tags": [
@@ -71,6 +102,32 @@
   },
   "components": {
     "schemas": {
+      "DatabaseStatus": {
+        "required": [
+          "user",
+          "serverVersion",
+          "canChangeSchema",
+          "migrations"
+        ],
+        "type": "object",
+        "properties": {
+          "user": {
+            "type": "string"
+          },
+          "serverVersion": {
+            "type": "string"
+          },
+          "canChangeSchema": {
+            "type": "boolean"
+          },
+          "migrations": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SchemaMigration"
+            }
+          }
+        }
+      },
       "ModuleInfo": {
         "required": [
           "name",
@@ -115,6 +172,24 @@
             ]
           },
           "instance": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        }
+      },
+      "SchemaMigration": {
+        "required": [
+          "schema",
+          "version"
+        ],
+        "type": "object",
+        "properties": {
+          "schema": {
+            "type": "string"
+          },
+          "version": {
             "type": [
               "null",
               "string"
