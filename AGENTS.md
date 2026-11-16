@@ -166,8 +166,13 @@ Update the matching file in the same change that makes it outdated:
 ## Commands
 
 - Build: `dotnet build Bastion.slnx`
-- Test: `dotnet test Bastion.slnx`
-- Run: `dotnet run --project src/Host/Bastion.Host --launch-profile http` (http://localhost:5080)
+- Test: `dotnet test Bastion.slnx` (needs Docker: database tests use Testcontainers)
+- Database: `scripts/dev-up.sh` starts PostgreSQL and applies all migrations (passwords from
+  the local secret store). Migrations: `src/Modules/<Module>/<project>/Infrastructure/Migrations/`,
+  `YYYYMMDDHHMMSS_description.sql` with `-- migrate:up` / `-- migrate:down`; schema = module
+  folder in snake_case. Never edit an applied migration.
+- Run: `scripts/dev-run.sh` (http://localhost:5080); it passes the connection string from the
+  local secret store to `dotnet run`. Without it the backend starts without a database.
 - Frontend (repository root): `npm install`, `npm run dev` (http://localhost:5173, proxies `/api`
   to the backend), `npm run build` (into the Host's `wwwroot`), `npm run lint`, `npm test`.
 - API types: `dotnet build` writes `src/Web/Shared/api/openapi.json`; then `npm run api`
@@ -176,5 +181,5 @@ Update the matching file in the same change that makes it outdated:
   versions older than 7 days (`min-release-age`). Never override these flags; CI installs
   with `npm ci` and checks registry signatures. Add a package only when it is really needed.
 - Playwright Firefox (needed for live scraping): `scripts/install-playwright-firefox.sh`.
-- CI (`.github/workflows/ci.yml`) runs the backend build and tests, frontend lint, tests and
+- CI (`.github/workflows/ci.yml`) runs the backend build, migrations on a fresh database and tests, frontend lint, tests and
   build, and fails when the committed OpenAPI document or `schema.ts` is out of date.
