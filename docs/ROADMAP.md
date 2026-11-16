@@ -34,7 +34,7 @@ A phase is complete only when all its exit criteria are met.
 
 ## Phase 2: Database foundations
 
-- **Status:** Planned
+- **Status:** Done (2026-11-16, PR #5)
 - **Outcome:** PostgreSQL runs with separated roles and migrations; the app proves it
   can connect, without storing business data yet.
 - **Included work:** PostgreSQL in Docker Compose; separate database roles for
