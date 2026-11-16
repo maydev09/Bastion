@@ -35,8 +35,7 @@ dotnet build Bastion.slnx
 Playwright Firefox, needed for live scraping (the User-Agent is read from it):
 
 ```bash
-scripts/install-playwright-firefox.sh                                                       # Linux
-pwsh src/BuildingBlocks/Bastion.BuildingBlocks.Scraping/bin/Debug/net10.0/playwright.ps1 install firefox   # Windows
+scripts/install-playwright-firefox.sh
 ```
 
 **Database**
@@ -84,8 +83,10 @@ and run the migrations exactly as Compose does (same images, read from `compose.
 **Configuration**: `src/Host/Bastion.Host/bastion.toml` (not `appsettings.json`); local overrides
 in the git-ignored `bastion.local.toml`; environment variables win, e.g. `Modules__JobOffers__Enabled=false`.
 
-**Windows**: everything runs except live scraping, because the VPN check uses Linux `ip route`
-and fails closed. Use Linux (or WSL) for the OtoDom smoke test.
+**Windows** is not documented or tested. Bastion can run there too, but the scripts (bash,
+`secret-tool`) would have to be rewritten (e.g. PowerShell with the Windows Credential Manager),
+or run in WSL 2 with a Secret Service such as `gnome-keyring`. Live scraping also needs the VPN
+check (`ip route`) to see the VPN interface, which WSL 2 does not by default.
 
 ## License
 
