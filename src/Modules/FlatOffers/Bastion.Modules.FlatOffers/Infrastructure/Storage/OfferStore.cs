@@ -14,10 +14,11 @@ internal sealed class OfferStore(NpgsqlDataSource? dataSource = null) : IOfferSt
     // otherwise whether the row was inserted (xmax = 0) or updated.
     private const string SaveSql = """
         INSERT INTO flat_offers.offer AS o
-            (source, external_id, title, url, price, price_currency, area_m2, rooms, listing_json, listing_hash, first_seen_at, updated_at)
+            (source_id, external_id, title, url, price, price_currency, area_m2, rooms, listing_json, listing_hash, first_seen_at, updated_at)
         VALUES
-            (@Source, @ExternalId, @Title, @Url, @Price, @PriceCurrency, @AreaM2, @Rooms, CAST(@ListingJson AS jsonb), @ListingHash, @Now, @Now)
-        ON CONFLICT (source, external_id) DO UPDATE SET
+            ((SELECT id FROM flat_offers.source WHERE name = @Source),
+             @ExternalId, @Title, @Url, @Price, @PriceCurrency, @AreaM2, @Rooms, CAST(@ListingJson AS jsonb), @ListingHash, @Now, @Now)
+        ON CONFLICT (source_id, external_id) DO UPDATE SET
             title = excluded.title,
             url = excluded.url,
             price = excluded.price,
@@ -32,9 +33,11 @@ internal sealed class OfferStore(NpgsqlDataSource? dataSource = null) : IOfferSt
         """;
 
     private const string ListSql = """
-        SELECT id, source, title, url, price, price_currency, area_m2, rooms, first_seen_at, updated_at
-        FROM flat_offers.offer
-        ORDER BY first_seen_at DESC, id DESC
+        SELECT o.id, s.name AS source, o.title, o.url, o.price, o.price_currency, o.area_m2, o.rooms,
+               o.first_seen_at, o.updated_at
+        FROM flat_offers.offer o
+        JOIN flat_offers.source s ON s.id = o.source_id
+        ORDER BY o.first_seen_at DESC, o.id DESC
         LIMIT @PageSize OFFSET @Offset;
 
         SELECT count(*)::int FROM flat_offers.offer;
