@@ -1,35 +1,52 @@
 using System.Globalization;
+using System.Reflection;
 using System.Text.Json.Serialization;
 using Bastion.Host;
-using Bastion.Modules.FlatOffers;
+using Bastion.Modules.Housing;
 using Bastion.Modules.JobOffers;
 using Bastion.Platform.Abstractions;
 using Dapper;
+using Microsoft.Extensions.Options;
 using Serilog;
 
-IModule[] allModules = [new FlatOffersModule(), new JobOffersModule()];
+IModule[] allModules = [new HousingModule(), new JobOffersModule()];
 
 var builder = WebApplication.CreateBuilder(args);
 builder.Configuration.UseConfigurationSources(builder.Environment, args);
 
 var connectionString = builder.Configuration.GetConnectionString(DatabaseStatusEndpoint.ConnectionStringName);
-if (!string.IsNullOrEmpty(connectionString))
+
+// The build-time OpenAPI generator starts the app without secrets; nothing connects to this placeholder.
+if (Assembly.GetEntryAssembly()?.GetName().Name == "GetDocument.Insider")
 {
-    builder.Services.AddNpgsqlDataSource(connectionString);
+    connectionString = "Host=localhost;Database=openapi";
 }
+
+if (string.IsNullOrEmpty(connectionString))
+{
+    throw new InvalidOperationException(
+        $"ConnectionStrings:{DatabaseStatusEndpoint.ConnectionStringName} is not set. Run scripts/dev-up.sh, which stores it in the .NET user secrets.");
+}
+
+builder.Services.AddNpgsqlDataSource(connectionString);
 
 DefaultTypeMap.MatchNamesWithUnderscores = true;
 builder.Services.AddSingleton(TimeProvider.System);
 
-var logs = builder.Configuration.GetSection(LogsOptions.Section).Get<LogsOptions>() ?? new LogsOptions();
-var logsPath = Path.Combine(builder.Environment.ContentRootPath, logs.Path);
+builder.Services.AddOptions<LogsOptions>()
+    .BindConfiguration(LogsOptions.Section)
+    .ValidateDataAnnotations()
+    .ValidateOnStart();
 const string logLine = $"{{Timestamp:yyyy-MM-dd HH:mm:ss.fff}} {{Level:u3}} {{{ModuleLogScope.Property}}} {{Message:lj}}{{NewLine}}{{Exception}}";
-builder.Services.AddSerilog(logger => logger
+builder.Services.AddSerilog((services, logger) => logger
     .ReadFrom.Configuration(builder.Configuration)
     .Enrich.FromLogContext()
     .WriteTo.Console(outputTemplate: logLine, formatProvider: CultureInfo.InvariantCulture)
     .WriteTo.File(
-        Path.Combine(logsPath, "bastion-.log"),
+        Path.Combine(
+            builder.Environment.ContentRootPath,
+            services.GetRequiredService<IOptions<LogsOptions>>().Value.Path,
+            "bastion-.log"),
         outputTemplate: logLine,
         formatProvider: CultureInfo.InvariantCulture,
         rollingInterval: RollingInterval.Day,
@@ -42,6 +59,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 });
 builder.Services.AddOpenApi();
 builder.Services.AddProblemDetails();
+builder.Services.AddValidation();
 
 var modules = ModuleLoader.GetEnabled(allModules, builder.Configuration);
 foreach (var module in modules)
@@ -53,7 +71,7 @@ var app = builder.Build();
 
 app.UseExceptionHandler();
 app.UseStatusCodePages();
-app.UseStaticFiles();
+app.MapStaticAssets();
 
 if (app.Environment.IsDevelopment())
 {

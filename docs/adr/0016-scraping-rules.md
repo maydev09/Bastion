@@ -96,8 +96,9 @@ LIMIT 30;
   addresses or photos of people. Names of agencies and companies as published are kept.
 - Instead of contact details we store the link to the offer or its contact page.
   The UI has a "Contact" link that opens the portal, where the user sees the details.
-- Raw pages may contain personal data, so they are only kept for the retention period
-  (ADR 0013) and never leave the server. Samples for tests are anonymized (AGENTS.md).
+- Personal data in raw pages is anonymized before they are stored (ADR 0013). What the masking
+  misses (e.g. a name in a description) is limited by the retention period, and raw pages
+  never leave the server. Samples for tests are anonymized (AGENTS.md).
 
 ## Alternatives considered
 

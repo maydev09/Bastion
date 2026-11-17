@@ -1,4 +1,4 @@
-import { flatOffersModule } from "@modules/FlatOffers";
+import { housingModule } from "@modules/Housing";
 import { jobOffersModule } from "@modules/JobOffers";
 
-export const allModules = [flatOffersModule, jobOffersModule] as const;
+export const allModules = [housingModule, jobOffersModule] as const;

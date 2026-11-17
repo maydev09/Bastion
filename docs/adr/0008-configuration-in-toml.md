@@ -25,12 +25,12 @@ get noisy quickly. The maintainer prefers TOML, which is easy to read and edit b
     overrides per environment, no secrets.
   - `bastion.local.toml`: local overrides, git-ignored.
 - Environment variables override files, using the standard .NET form
-  (`Modules__FlatOffers__Enabled=false`). Secrets (passwords, connection strings
+  (`Modules__Housing__Enabled=false`). Secrets (passwords, connection strings
   with passwords) never go into TOML files; they come from secret files (ADR 0010).
 - TOML tables map to configuration sections, so keys stay the same as in the other ADRs:
 
 ```toml
-[Modules.FlatOffers]
+[Modules.Housing]
 Enabled = true
 
 [Scraping]

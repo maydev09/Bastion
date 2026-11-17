@@ -1,0 +1,33 @@
+{
+  "title": "Nieruchomości",
+  "import": {
+    "description": "Pobiera najnowszą stronę ogłoszeń z OtoDom, zapisuje nowe oferty i aktualizuje zmienione.",
+    "run": "Importuj z OtoDom",
+    "running": "Importuję…",
+    "result": "{{source}}: nowe {{added}}, zmienione {{updated}}, bez zmian {{unchanged}}.",
+    "skipped": "Pominięte (niepełne dane): {{count}}."
+  },
+  "reparse": {
+    "description": "Odczytuje oferty ponownie z zapisanych stron OtoDom, bez pobierania czegokolwiek. Przydaje się po poprawce parsera.",
+    "run": "Przetwórz zapisane strony",
+    "running": "Przetwarzam…",
+    "result": "Stron: {{captures}}. Nowe {{added}}, zmienione {{updated}}, bez zmian {{unchanged}}.",
+    "failed": "Nieudane strony: {{count}}."
+  },
+  "list": {
+    "title": "Zapisane oferty ({{total}})",
+    "loading": "Wczytywanie ofert…",
+    "empty": "Nie ma jeszcze zapisanych ofert. Użyj przycisku importu powyżej.",
+    "offer": "Oferta",
+    "price": "Cena",
+    "area": "Powierzchnia",
+    "rooms": "Pokoje",
+    "firstSeen": "Dodano",
+    "previous": "Poprzednia",
+    "next": "Następna",
+    "page": "Strona {{page}} z {{pageCount}}"
+  },
+  "errors": {
+    "parseFailed": "OtoDom zmienił wygląd strony, nie udało się odczytać ofert."
+  }
+}

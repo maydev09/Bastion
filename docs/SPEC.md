@@ -69,11 +69,11 @@ pointless, repetitive work than do it by hand.
 - Configuration, logging and health checks, shared by all modules.
 - Database access and schema migrations, with a separate schema per module.
 
-## Module: Flat offers (first module)
+## Module: Housing (first module)
 
 Replaces the legacy flat offers scraper.
 
-- Collects flat offers (title, area, rooms, price, rent, agency, flags, description)
+- Collects housing offers: flats, houses and rooms, for rent or for sale (title, area, rooms, price, rent, agency, flags, description)
   from sources; each source is a separate, pluggable scraper.
 - The user manages **search profiles** in the UI: which source to scrape and with what
   criteria (e.g. rent or buy, city, price range, rooms). Each run executes the enabled
@@ -96,14 +96,14 @@ Replaces the legacy flat offers scraper.
 
 ## Module: Job offers (second module)
 
-Replaces the legacy job offers scraper. Everything listed for flat offers applies,
+Replaces the legacy job offers scraper. Everything listed for housing applies,
 with job-specific data (company, salary range, seniority, skills, contract type,
 work mode) and statuses (e.g. applied, interview scheduled, rejected), plus:
 
 - Search profiles use job-specific criteria (e.g. work mode, specialization, sorting).
   The legacy scraper hardcoded these combinations; here they are managed in the UI.
 - Run statistics also count updated offers and can be viewed per run, per hour and per day.
-- Duplicates across portals are grouped as for flat offers. The legacy scraper only
+- Duplicates across portals are grouped as for housing. The legacy scraper only
   flagged offers with the same checksum of company and title (`duplicate_possible`).
 
 ## Shared scraping toolkit
@@ -112,7 +112,7 @@ Both scraper modules need the same technical building blocks (HTTP/browser fetch
 rate limiting, offline sample files, error capture, storing every raw response
 compressed per run with retention, see ADR 0013). These end up in a reusable
 library that scraper modules use. It is not part of the platform core, because
-non-scraper modules do not need it. The code starts inside the flat offers module
+non-scraper modules do not need it. The code starts inside the housing module
 and is extracted into the library when the job offers module needs it.
 
 ## Security and privacy

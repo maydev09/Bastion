@@ -1,6 +1,6 @@
 # 0007. Module contract
 
-- **Status:** Accepted
+- **Status:** Accepted; partly superseded by [0017](0017-module-layers-as-projects.md)
 - **Date:** 2026-11-15
 
 ## Context
@@ -18,8 +18,8 @@ Every module has one public class implementing `IModule` from `Bastion.Platform.
 ```csharp
 public interface IModule
 {
-    string Name { get; }          // "FlatOffers": configuration section and identifier
-    string RoutePrefix { get; }   // "flat-offers": URL segment for API and UI routes
+    string Name { get; }          // "Housing": configuration section and identifier
+    string RoutePrefix { get; }   // "housing": URL segment for API and UI routes
     IReadOnlyList<string> DependsOn => [];  // names of modules whose Contracts it uses
 
     void AddServices(IServiceCollection services, IConfiguration configuration);
@@ -30,7 +30,7 @@ public interface IModule
 - The Host keeps an explicit list of all modules (no assembly scanning):
 
 ```csharp
-IModule[] modules = [new FlatOffersModule(), new JobOffersModule()];
+IModule[] modules = [new HousingModule(), new JobOffersModule()];
 ```
 
 - A module is enabled with `Modules:<Name>:Enabled` in configuration. For each enabled
@@ -53,12 +53,12 @@ IModule[] modules = [new FlatOffersModule(), new JobOffersModule()];
 Every module exports one definition from `src/Web/Modules/<Module>/index.tsx`:
 
 ```ts
-export const flatOffersModule = defineModule({
-  name: "FlatOffers",
-  routePrefix: "flat-offers",
-  namespace: "flatOffers",          // i18next namespace; its "title" key names the module
+export const housingModule = defineModule({
+  name: "Housing",
+  routePrefix: "housing",
+  namespace: "housing",          // i18next namespace; its "title" key names the module
   locales: { pl, en },
-  routes: [{ path: "", element: <FlatOffersPage /> }],
+  routes: [{ path: "", element: <HousingPage /> }],
 });
 ```
 

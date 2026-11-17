@@ -5,12 +5,15 @@ using Microsoft.Extensions.Options;
 
 namespace Bastion.BuildingBlocks.Scraping;
 
+// Singleton because it keeps the per-host pacing and the robots.txt cache.
 public sealed partial class ScrapingClient : IDisposable
 {
+    public const string HttpClientName = "Scraping";
+
     private static readonly TimeSpan FirstBackoff = TimeSpan.FromSeconds(30);
     private static readonly TimeSpan MaxBackoff = TimeSpan.FromMinutes(15);
 
-    private readonly HttpClient _http;
+    private readonly IHttpClientFactory _httpClients;
     private readonly IVpnCheck _vpnCheck;
     private readonly IUserAgentSource _userAgent;
     private readonly TimeProvider _time;
@@ -19,19 +22,17 @@ public sealed partial class ScrapingClient : IDisposable
     private readonly ConcurrentDictionary<string, HostGate> _gates = new(StringComparer.OrdinalIgnoreCase);
     private readonly ConcurrentDictionary<string, (RobotsRules Rules, DateTimeOffset FetchedAt)> _robots = new(StringComparer.OrdinalIgnoreCase);
 
-    internal ScrapingClient(HttpMessageHandler handler, IVpnCheck vpnCheck, IUserAgentSource userAgent, TimeProvider time, IOptions<ScrapingOptions> options, ILogger<ScrapingClient> logger)
+    internal ScrapingClient(IHttpClientFactory httpClients, IVpnCheck vpnCheck, IUserAgentSource userAgent, TimeProvider time, IOptions<ScrapingOptions> options, ILogger<ScrapingClient> logger)
     {
+        _httpClients = httpClients;
         _vpnCheck = vpnCheck;
         _userAgent = userAgent;
         _time = time;
         _options = options.Value;
         _logger = logger;
-        _http = new HttpClient(handler) { Timeout = TimeSpan.FromSeconds(_options.TimeoutSeconds) };
-        _http.DefaultRequestHeaders.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-        _http.DefaultRequestHeaders.AcceptLanguage.ParseAdd("pl,en;q=0.5");
     }
 
-    public async Task<string> GetStringAsync(Uri url, CancellationToken cancellationToken)
+    public async Task<ScrapedResponse> GetAsync(Uri url, CancellationToken cancellationToken)
     {
         await _vpnCheck.EnsureTunnelAsync(url.Host, cancellationToken);
         var userAgent = await _userAgent.GetAsync(cancellationToken);
@@ -53,7 +54,11 @@ public sealed partial class ScrapingClient : IDisposable
             }
 
             LogFetched(_logger, url, (int)response.StatusCode);
-            return await response.Content.ReadAsStringAsync(cancellationToken);
+            return new ScrapedResponse(
+                url,
+                (int)response.StatusCode,
+                response.Content.Headers.ContentType?.ToString() ?? "application/octet-stream",
+                await response.Content.ReadAsByteArrayAsync(cancellationToken));
         }
         finally
         {
@@ -63,7 +68,6 @@ public sealed partial class ScrapingClient : IDisposable
 
     public void Dispose()
     {
-        _http.Dispose();
         foreach (var gate in _gates.Values)
         {
             gate.Lock.Dispose();
@@ -133,7 +137,10 @@ public sealed partial class ScrapingClient : IDisposable
         {
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.UserAgent.ParseAdd(userAgent);
-            response = await _http.SendAsync(request, cancellationToken);
+            request.Headers.Accept.ParseAdd("text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+            request.Headers.AcceptLanguage.ParseAdd("pl,en;q=0.5");
+            using var http = _httpClients.CreateClient(HttpClientName);
+            response = await http.SendAsync(request, cancellationToken);
         }
         catch (Exception e) when (e is HttpRequestException || (e is TaskCanceledException && !cancellationToken.IsCancellationRequested))
         {
@@ -161,7 +168,7 @@ public sealed partial class ScrapingClient : IDisposable
     private TimeSpan RandomDelay()
     {
         var min = _options.MinDelaySeconds;
-        var max = Math.Max(min, _options.MaxDelaySeconds);
+        var max = _options.MaxDelaySeconds;
 #pragma warning disable CA5394 // not security related
         return TimeSpan.FromSeconds(min + (Random.Shared.NextDouble() * (max - min)));
 #pragma warning restore CA5394

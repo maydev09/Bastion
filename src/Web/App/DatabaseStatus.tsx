@@ -7,7 +7,7 @@ import styles from "./DatabaseStatus.module.css";
 
 export function DatabaseStatus() {
   const { t } = useTranslation();
-  const errorMessage = useErrorMessage("common");
+  const errorMessage = useErrorMessage();
   const check = useMutation({
     mutationFn: async () => {
       const { data, error } = await api.GET("/api/platform/database");

@@ -1,7 +1,7 @@
 # 0013. Audit, logging and raw data
 
 - **Status:** Accepted
-- **Date:** 2026-11-15
+- **Date:** 2026-11-15, updated 2026-11-17 (raw captures as built)
 
 ## Context
 
@@ -35,21 +35,36 @@ Audit has three levels, from overview to evidence, plus technical logs.
 14:30:21  error  Page 3: __NEXT_DATA__ not found               [raw data]
 ```
 
-### 3. Raw data (scraping toolkit)
-- Every fetched page or API response is stored, not only failed ones, so parsers can
-  be fixed and old data re-parsed without scraping again. Stored pages also serve as
-  samples for offline mode and tests.
-- Files live on a Docker volume, outside the database:
-  `/data/raw/<module>/<yyyy-MM-dd>/run-<id>/`. During a run, pages are written as plain
-  files. When the run ends, the folder is packed into one `run-<id>.tar.zst` and the plain
-  files are deleted. Folders left by crashed runs are packed by the cleanup job.
-- Compression is **Zstandard** with long distance matching, so similar pages of one run
-  compress well together. Tar packing is built in (`System.Formats.Tar`); Zstandard
-  comes from ZstdSharp (MIT) until we move to .NET 11, which has `ZstandardStream` built in. The archives can also be opened with
-  standard Linux tools (`tar --zstd -xf`).
-- Each module has a `raw_capture` table (run, URL, time, HTTP status, size, SHA-256,
-  archive path) in its own schema. Timeline events link to it, and the UI can show
-  the raw content.
+### 3. Raw data (module)
+- Every fetched page or API response is stored **before** parsing, not only failed ones,
+  so parsers can be fixed and old data re-parsed without scraping again. Stored pages also
+  serve as samples for offline mode and tests. A raw capture is what one request returned,
+  in any format (HTML, JSON, a browser snapshot), not one offer.
+- **Personal data is anonymized before a page is stored.** Each portal's
+  `IOfferSource.Anonymize` replaces the values of personal fields (names and photos of owners
+  and agents) wherever the page repeats them, phone numbers and e-mails in free text, and our
+  own session ids with a configured mask (`[Modules.Housing.RawCaptures] AnonymizationMask`,
+  default `***`). Every other field stays as it was; the parser reads the anonymized page on
+  import and re-parse.
+  A stored page is therefore not byte-for-byte what the portal sent, and its SHA-256 is of
+  the anonymized content. Company names (agencies) are not masked.
+- Each module has a `raw_capture` table in its own schema: source, kind, content type, URL,
+  HTTP status, fetch time, size and SHA-256. An offer links to the capture that last changed
+  it (`raw_capture_id`). Timeline events will link to captures, and the UI can show the content.
+- The content is a file on a Docker volume, outside the database:
+  `/data/raw/<module>/<yyyy-MM-dd>/<id>.zst`, one file per capture, one folder per day (UTC).
+  The path is configured per module (`[Modules.Housing.RawCaptures] Path`).
+- Compression is **Zstandard** from ZstdSharp (MIT) until we move to .NET 11, which has
+  `ZstandardStream` built in. Files open with standard tools (`zstd -dc <id>.zst`).
+- Once job runs exist (ADR 0009), the captures of one run are packed into one
+  `run-<id>.tar.zst` with long distance matching, so similar pages compress well together
+  (tar is built in, `System.Formats.Tar`). Until then each capture is its own file.
+- In the module: `RawCaptureRepository` (table), `RawCaptureFileStorage` (files) and
+  `RawCaptureService` (keeps a row and its file together, reads them back, applies retention);
+  use cases use only the service. Each portal is an `IOfferSource` strategy with `FetchAsync`
+  (raw pages) and `Parse(RawPage)` (offers); the `OfferSources` registry picks it by source.
+- **Re-parse** parses every stored capture again, oldest first, saves the offers with the
+  capture's fetch time and fetches nothing (`POST /api/housing/reparse`, a button in the UI).
 - Offers record the run in which they were first seen and last seen. Their changelog
   links to the run that made each change.
 
@@ -57,6 +72,9 @@ Audit has three levels, from overview to evidence, plus technical logs.
 - A daily cleanup job (ADR 0009) deletes raw data older than 30 days, raw data of failed
   runs older than 180 days, and timeline events older than 180 days. A total size limit
   for raw data is a safety net. All limits are configurable.
+- Until that job exists, raw data older than `RetentionDays` (default 30) is deleted, rows and
+  day folders together, at the start of every import and re-parse. Raw pages contain personal
+  data (ADR 0016), so re-parsing works only within the retention period.
 
 ### Technical logs
 - Code logs only through `ILogger<T>`. **Serilog** is configured once in the Host as
@@ -73,8 +91,12 @@ Audit has three levels, from overview to evidence, plus technical logs.
 
 - **Raw data in the database (`bytea`):** one place for everything, but the database
   and its backups grow quickly.
+- **Selected fields as JSON per offer** (`listing_json`, used before raw captures): small, but
+  only for JSON portals and only for the fields chosen in advance.
 - **Compressing each file separately with gzip:** simple, but gzip only looks 32 KB back,
   so it cannot use the similarity between pages.
+- **`tar.zst` per import before job runs exist:** needs a temporary run concept; files expire
+  after 30 days, so packing them later is cheap.
 - **Packing by folder size** (legacy approach): works, but a run is the natural unit
   and is easy to find from the audit.
 - **xz:** slightly smaller archives, but much slower, especially when opening raw data from the UI.
@@ -91,3 +113,4 @@ Audit has three levels, from overview to evidence, plus technical logs.
 - Disk usage is predictable thanks to compression and retention.
 - The Docker setup needs a `/data` volume and it should be backed up together with the database.
 - Raw data compression needs one package (ZstdSharp) until the move to .NET 11.
+- A new portal is one new `IOfferSource` class and one DI line.

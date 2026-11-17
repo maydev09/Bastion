@@ -5,7 +5,7 @@
 
 ## Context
 
-Earlier ADRs require tests in several places: stores against a real database
+Earlier ADRs require tests in several places: repositories against a real database
 (ADR 0005), architecture tests for module boundaries (ADR 0002, 0004), scraper tests
 on saved sample files without network access (SPEC). We need one backend test framework.
 

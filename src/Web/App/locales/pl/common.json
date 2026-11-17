@@ -30,7 +30,6 @@
       "browserUnavailable": "Brak przeglądarki Playwright (Firefox). Zainstaluj ją: scripts/install-playwright-firefox.sh."
     },
     "database": {
-      "notConfigured": "Połączenie z bazą nie jest skonfigurowane. Uruchom backend przez scripts/dev-run.sh.",
       "unavailable": "Nie udało się połączyć z bazą. Czy działa (scripts/dev-up.sh)?"
     }
   },

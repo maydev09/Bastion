@@ -19,10 +19,10 @@ A phase is complete only when all its exit criteria are met.
 
 - **Status:** Done (2026-11-15, PR #3)
 - **Outcome:** The modular platform runs end-to-end. Both modules exist in code; the
-  flat offers module can read one live page of offers from OtoDom on demand.
+  housing module can read one live page of offers from OtoDom on demand.
 - **Included work:** .NET solution with Host and module contract (ADR 0007); modules
-  registered in this order: `FlatOffers`, then `JobOffers` (empty, it only registers);
-  React shell with navigation of enabled modules; on the flat offers page a button
+  registered in this order: `Housing`, then `JobOffers` (empty, it only registers);
+  React shell with navigation of enabled modules; on the housing page a button
   that fetches one OtoDom results page and shows how many offers were parsed, with
   nothing stored; VPN check before the request; parser tests on a saved sample page;
   architecture tests; GitHub Actions (build, test, lint) required as status checks in
@@ -46,13 +46,15 @@ A phase is complete only when all its exit criteria are met.
   command; the UI reports a successful connection; the application role cannot
   change the schema; CI runs migrations on a fresh database.
 
-## Phase 3: Storing flat offers
+## Phase 3: Storing housing offers
 
 - **Status:** In progress (branch `feature-store-flat-offers`)
-- **Outcome:** The flat offers smoke test becomes a real import: basic offer data is
+- **Outcome:** The housing smoke test becomes a real import: basic offer data is
   saved and listed in the UI.
 - **Included work:** Offer table with basic fields, unique per source and external id;
-  saving new offers and updating known ones; a simple offer list with paging.
+  saving new offers and updating known ones; a simple offer list with paging;
+  module layers split into projects (ADR 0017); raw captures of every fetched page with
+  re-parsing and retention (ADR 0013); built-in .NET features instead of custom code.
 - **Exit criteria:** Running the import twice stores each offer once; the list shows
   the stored offers.
 
@@ -63,3 +65,11 @@ run history and audit (ADR 0013), search profiles managed in the UI, triage
 (statuses, notes, bookmarks), scheduled runs (ADR 0009), more portals per module
 with grouping of duplicate offers across portals, the job offers module, and new
 modules that need not be scrapers.
+
+Known changes to work built in Phase 3:
+- **Raw data retention as a background job** (ADR 0009). Today it runs at the start of every
+  import and re-parse, so raw pages with personal data outlive the retention period when
+  nothing is imported. It must run on its own schedule, independent of imports.
+- **Long operations as background tasks with progress in the UI** (e.g. SignalR), once
+  real amounts of data are collected. Today re-parse and import run inside one HTTP request;
+  re-parse reads every retained page and saves offers one by one.

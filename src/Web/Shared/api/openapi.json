@@ -58,13 +58,23 @@
         }
       }
     },
-    "/api/flat-offers/import": {
+    "/api/housing/import/{source}": {
       "post": {
         "tags": [
-          "FlatOffers"
+          "Housing"
         ],
-        "summary": "Fetches one live OtoDom results page, saves new offers and updates changed ones.",
-        "operationId": "ImportFlatOffers",
+        "summary": "Fetches one live results page of the source, stores it as raw data, saves new offers and updates changed ones.",
+        "operationId": "ImportHousingOffers",
+        "parameters": [
+          {
+            "name": "source",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Source"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
@@ -72,6 +82,16 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ImportResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -99,18 +119,41 @@
         }
       }
     },
-    "/api/flat-offers/offers": {
+    "/api/housing/reparse": {
+      "post": {
+        "tags": [
+          "Housing"
+        ],
+        "summary": "Parses all stored raw pages again, oldest first, and saves the offers. Nothing is fetched.",
+        "operationId": "ReparseHousingOffers",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReparseResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/housing/offers": {
       "get": {
         "tags": [
-          "FlatOffers"
+          "Housing"
         ],
         "summary": "Returns stored offers, newest first.",
-        "operationId": "ListFlatOffers",
+        "operationId": "ListHousingOffers",
         "parameters": [
           {
             "name": "page",
             "in": "query",
             "schema": {
+              "maximum": 2147483647,
+              "minimum": 1,
               "type": "integer",
               "format": "int32",
               "default": 1
@@ -120,6 +163,8 @@
             "name": "pageSize",
             "in": "query",
             "schema": {
+              "maximum": 100,
+              "minimum": 1,
               "type": "integer",
               "format": "int32",
               "default": 50
@@ -136,16 +181,6 @@
                 }
               }
             }
-          },
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HttpValidationProblemDetails"
-                }
-              }
-            }
           }
         }
       }
@@ -153,6 +188,12 @@
   },
   "components": {
     "schemas": {
+      "Currency": {
+        "enum": [
+          "PLN",
+          null
+        ]
+      },
       "DatabaseStatus": {
         "required": [
           "user",
@@ -179,51 +220,6 @@
           }
         }
       },
-      "HttpValidationProblemDetails": {
-        "type": "object",
-        "properties": {
-          "type": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "title": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "status": {
-            "type": [
-              "null",
-              "integer"
-            ],
-            "format": "int32"
-          },
-          "detail": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "instance": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "errors": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "array",
-              "items": {
-                "type": "string"
-              }
-            }
-          }
-        }
-      },
       "ImportResult": {
         "required": [
           "source",
@@ -235,7 +231,7 @@
         "type": "object",
         "properties": {
           "source": {
-            "$ref": "#/components/schemas/OfferSource"
+            "$ref": "#/components/schemas/Source"
           },
           "addedCount": {
             "type": "integer",
@@ -276,6 +272,8 @@
           "source",
           "title",
           "url",
+          "propertyType",
+          "transaction",
           "firstSeenAt",
           "updatedAt"
         ],
@@ -286,13 +284,19 @@
             "format": "int32"
           },
           "source": {
-            "$ref": "#/components/schemas/OfferSource"
+            "$ref": "#/components/schemas/Source"
           },
           "title": {
             "type": "string"
           },
           "url": {
             "type": "string"
+          },
+          "propertyType": {
+            "$ref": "#/components/schemas/PropertyType"
+          },
+          "transaction": {
+            "$ref": "#/components/schemas/Transaction"
           },
           "price": {
             "type": [
@@ -302,9 +306,13 @@
             "format": "double"
           },
           "priceCurrency": {
-            "type": [
-              "null",
-              "string"
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
             ]
           },
           "areaM2": {
@@ -330,11 +338,6 @@
             "format": "date-time"
           }
         }
-      },
-      "OfferSource": {
-        "enum": [
-          "OtoDom"
-        ]
       },
       "PagedResultOfOfferListItem": {
         "required": [
@@ -401,6 +404,48 @@
           }
         }
       },
+      "PropertyType": {
+        "enum": [
+          "Flat"
+        ]
+      },
+      "ReparseResult": {
+        "required": [
+          "captureCount",
+          "failedCount",
+          "addedCount",
+          "updatedCount",
+          "unchangedCount",
+          "skippedCount"
+        ],
+        "type": "object",
+        "properties": {
+          "captureCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "failedCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "addedCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "updatedCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unchangedCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "skippedCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "SchemaMigration": {
         "required": [
           "schema",
@@ -418,6 +463,16 @@
             ]
           }
         }
+      },
+      "Source": {
+        "enum": [
+          "OtoDom"
+        ]
+      },
+      "Transaction": {
+        "enum": [
+          "Rent"
+        ]
       }
     }
   },
@@ -426,7 +481,7 @@
       "name": "Platform"
     },
     {
-      "name": "FlatOffers"
+      "name": "Housing"
     }
   ]
 }

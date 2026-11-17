@@ -1,49 +1,61 @@
-using ArchUnitNET.Loader;
-using ArchUnitNET.NUnit;
-using static ArchUnitNET.Fluent.ArchRuleDefinition;
+using System.Reflection;
+using static Bastion.ArchitectureTests.Modules;
 
 namespace Bastion.ArchitectureTests;
 
 public class LayerTests
 {
-    private static readonly System.Reflection.Assembly[] ModuleAssemblies = Directory
-        .GetFiles(AppContext.BaseDirectory, "Bastion.Modules.*.dll")
-        .Select(System.Reflection.Assembly.LoadFrom)
-        .Where(a => !a.GetName().Name!.EndsWith(".Contracts", StringComparison.Ordinal))
-        .ToArray();
-
-    private static readonly ArchUnitNET.Domain.Architecture Architecture = new ArchLoader().LoadAssemblies(ModuleAssemblies).Build();
-
-    private static string[] ModuleNames => ModuleAssemblies.Select(a => a.GetName().Name!).ToArray();
-
-    [TestCaseSource(nameof(ModuleNames))]
-    public void Domain_depends_on_no_other_layer(string module)
+    private static readonly Dictionary<string, string[]> AllowedLayers = new()
     {
-        Types().That().ResideInNamespaceMatching(Layer(module, "Domain"))
-            .Should().NotDependOnAny(Types().That().ResideInNamespaceMatching(Layer(module, "(Application|Infrastructure|Api)")))
-            .AndShould().NotDependOnAny(Types().That().ResideInNamespaceMatching(@"^(Microsoft\.AspNetCore|Bastion\.BuildingBlocks)(\..*)?$"))
-            .WithoutRequiringPositiveResults()
-            .Check(Architecture);
+        [Root] = ["Domain", "Application", "Infrastructure", "Api"],
+        ["Domain"] = [],
+        ["Application"] = ["Domain"],
+        ["Infrastructure"] = ["Domain", "Application"],
+        ["Api"] = ["Domain", "Application"],
+        ["Contracts"] = [],
+    };
+
+    private static readonly string[] Frameworks = ["Microsoft.AspNetCore", "Npgsql", "Dapper", "Bastion.BuildingBlocks"];
+
+    private static readonly string[] InfrastructureLibraries = ["Npgsql", "Dapper", "Bastion.BuildingBlocks"];
+
+    private static Assembly[] ApiAssemblies => Assemblies.Where(a => LayerOf(NameOf(a)) == "Api").ToArray();
+
+    private static Assembly[] CoreAssemblies => Assemblies.Where(a => LayerOf(NameOf(a)) is "Domain" or "Application").ToArray();
+
+    [TestCaseSource(typeof(Modules), nameof(Assemblies))]
+    public void Project_name_uses_a_known_layer(Assembly assembly)
+    {
+        Assert.That(AllowedLayers.Keys, Does.Contain(LayerOf(NameOf(assembly))));
     }
 
-    [TestCaseSource(nameof(ModuleNames))]
-    public void Application_does_not_know_infrastructure_api_or_frameworks(string module)
+    [TestCaseSource(typeof(Modules), nameof(Assemblies))]
+    public void Layer_uses_only_allowed_layers_of_its_module(Assembly assembly)
     {
-        Types().That().ResideInNamespaceMatching(Layer(module, "Application"))
-            .Should().NotDependOnAny(Types().That().ResideInNamespaceMatching(Layer(module, "(Infrastructure|Api)")))
-            .AndShould().NotDependOnAny(Types().That().ResideInNamespaceMatching(@"^(Microsoft\.AspNetCore|Npgsql|Dapper|Bastion\.BuildingBlocks)(\..*)?$"))
-            .WithoutRequiringPositiveResults()
-            .Check(Architecture);
+        var name = NameOf(assembly);
+        var allowed = AllowedLayers.GetValueOrDefault(LayerOf(name), []);
+
+        var forbidden = ReferencedNames(assembly)
+            .Where(r => IsModule(r) && ModuleOf(r) == ModuleOf(name) && !allowed.Contains(LayerOf(r)));
+
+        Assert.That(forbidden, Is.Empty);
     }
 
-    [TestCaseSource(nameof(ModuleNames))]
-    public void Api_does_not_use_infrastructure(string module)
+    [TestCaseSource(nameof(CoreAssemblies))]
+    public void Domain_and_application_do_not_use_frameworks(Assembly assembly)
     {
-        Types().That().ResideInNamespaceMatching(Layer(module, "Api"))
-            .Should().NotDependOnAny(Types().That().ResideInNamespaceMatching(Layer(module, "Infrastructure")))
-            .WithoutRequiringPositiveResults()
-            .Check(Architecture);
+        var forbidden = ReferencedNames(assembly)
+            .Where(r => Frameworks.Any(f => r == f || r.StartsWith(f + ".", StringComparison.Ordinal)));
+
+        Assert.That(forbidden, Is.Empty);
     }
 
-    private static string Layer(string module, string layer) => $@"^{module.Replace(".", @"\.", StringComparison.Ordinal)}\.{layer}(\..*)?$";
+    [TestCaseSource(nameof(ApiAssemblies))]
+    public void Api_does_not_use_infrastructure_libraries(Assembly assembly)
+    {
+        var forbidden = ReferencedNames(assembly)
+            .Where(r => InfrastructureLibraries.Any(l => r == l || r.StartsWith(l + ".", StringComparison.Ordinal)));
+
+        Assert.That(forbidden, Is.Empty);
+    }
 }

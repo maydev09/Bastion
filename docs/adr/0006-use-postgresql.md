@@ -13,7 +13,7 @@ Both legacy projects already use PostgreSQL and the maintainer knows it well.
 
 - The database is **PostgreSQL 18** (latest stable major), accessed with **Npgsql**.
 - One database for the whole application. Each module has its own schema
-  (e.g. `flat_offers`, `job_offers`); platform tables live in the `platform` schema.
+  (e.g. `housing`, `job_offers`); platform tables live in the `platform` schema.
 - Local development runs PostgreSQL in Docker Compose; tests use Testcontainers
   with the same image version.
 - PostgreSQL features (e.g. `jsonb`, `timestamptz`) may be used freely; enums are

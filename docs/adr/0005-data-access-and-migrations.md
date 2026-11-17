@@ -14,25 +14,25 @@ fully open source without paid editions or restrictive licenses.
 
 ### Data access
 - Data access uses **Dapper** with plain SQL.
-- SQL lives only in `Infrastructure/`, in store classes that implement the interfaces
-  defined in `Application/Abstractions/` (e.g. `OfferStore : IOfferStore`).
-- Stores have methods named after what the use cases need. No generic `IRepository<T>`.
+- SQL lives only in `Infrastructure/`, in repository classes that implement the interfaces
+  defined in `Application/Abstractions/` (e.g. `OfferRepository : IOfferRepository`).
+- Repositories have methods named after what the use cases need. No generic `IRepository<T>`.
 - A module's SQL only touches its own schema.
 - Column names use `snake_case`; Dapper maps them to PascalCase properties
   (`MatchNamesWithUnderscores`).
-- Stores are tested against a real database in a container (Testcontainers), not mocks.
+- Repositories are tested against a real database in a container (Testcontainers), not mocks.
 
 Example:
 
 ```csharp
-// Infrastructure/OfferStore.cs
-internal sealed class OfferStore(NpgsqlDataSource db) : IOfferStore
+// Infrastructure/Repositories/OfferRepository.cs
+internal sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
 {
     public async Task<Offer?> Get(int id)
     {
         await using var connection = await db.OpenConnectionAsync();
         return await connection.QuerySingleOrDefaultAsync<Offer>(
-            "SELECT * FROM flat_offers.offer WHERE id = @id", new { id });
+            "SELECT * FROM housing.offer WHERE id = @id", new { id });
     }
 }
 ```
@@ -58,11 +58,11 @@ Example:
 
 ```sql
 -- migrate:up
-ALTER TABLE flat_offers.offer ADD COLUMN price_per_m2 int;
-UPDATE flat_offers.offer SET price_per_m2 = price_base / NULLIF(area, 0);
+ALTER TABLE housing.offer ADD COLUMN price_per_m2 int;
+UPDATE housing.offer SET price_per_m2 = price_base / NULLIF(area, 0);
 
 -- migrate:down
-ALTER TABLE flat_offers.offer DROP COLUMN price_per_m2;
+ALTER TABLE housing.offer DROP COLUMN price_per_m2;
 ```
 
 ## Alternatives considered
@@ -70,7 +70,7 @@ ALTER TABLE flat_offers.offer DROP COLUMN price_per_m2;
 - **EF Core:** less code for CRUD and built-in migrations, but hidden SQL, change tracking
   pitfalls and more framework behavior to keep in mind.
 - **Generic repository over Dapper:** forces every entity into the same CRUD shape;
-  use-case-specific store methods are clearer.
+  use-case-specific repository methods are clearer.
 - **Liquibase** (used by the legacy projects): since 5.0 licensed under FSL, which is not
   an OSI open source license.
 - **Flyway:** Apache 2.0 and an industry standard, but undo and dry-run are paid features.

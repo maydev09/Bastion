@@ -1,7 +1,7 @@
 # 0014. Data and API conventions
 
 - **Status:** Accepted
-- **Date:** 2026-11-15
+- **Date:** 2026-11-15, updated 2026-11-17 (lookup tables, enums without CHECK, currency enum and Money)
 
 ## Context
 
@@ -19,21 +19,38 @@ enums, the JSON shape, errors and paging. We fix them once, before the first mod
   time zone (`Europe/Warsaw` by default). Code takes the current time from
   `TimeProvider`, never `DateTime.Now`, so time is testable.
 - **Money:** `numeric(12,2)` in the database, `decimal` in C#, never `float`/`double`.
-  The currency is stored in its own column (ISO code, e.g. `PLN`, `EUR`), because
-  sources publish prices and salaries in several currencies.
-- **Enums:** stored as `text` with a `CHECK` constraint listing the allowed values,
-  not as native PostgreSQL enums (their values cannot be removed or renamed easily).
-  The text is the C# enum member name (`'Interested'`).
+  The currency is stored in its own column, because sources publish prices and salaries
+  in several currencies. It is a C# `Currency` enum stored as `integer` like other enums,
+  so every source maps to the same values; JSON shows the ISO code (`"PLN"`) through
+  `[JsonStringEnumMemberName]`. In the domain an amount and its currency are one type,
+  `Money(decimal Amount, Currency Currency)`, spread over two columns (`price`, `price_currency`).
+- **Enums:** stored as `integer` holding the C# enum value, without a `CHECK`
+  constraint and not as native PostgreSQL enums (their values cannot be removed or
+  renamed easily). Enum members have explicit values that never change, so a row
+  holds e.g. `status = 2`. C# keeps the values valid: code that inserts or updates the
+  column passes the enum type, never a bare number.
 
 ```sql
-status text NOT NULL CHECK (status IN ('Indexed', 'Interested', 'NotInterested'))
+status integer NOT NULL
+```
+
+- **Lookup tables:** a value list that will carry its own data, such as offer sources
+  (portals), is a table with an `id` and a unique `name`, referenced by a foreign key.
+  New settings become new columns of that table. Unlike other tables, the `id` is not
+  generated: a migration inserts the rows with fixed ids, and the C# enum has the same
+  explicit values (`OtoDom = 1`), so code uses the id directly.
+
+```sql
+CREATE TABLE housing.source (id integer PRIMARY KEY, name text NOT NULL UNIQUE);
+INSERT INTO housing.source (id, name) VALUES (1, 'OtoDom');
+source_id integer NOT NULL REFERENCES housing.source (id)
 ```
 
 ### API
-- JSON uses camelCase property names. Enums are serialized as strings (`"Interested"`,
-  not `2`), so the generated TypeScript types (ADR 0011) are string unions.
+- JSON uses camelCase property names. Enums are serialized as the member name,
+  not as the number (`2`), so the generated TypeScript types (ADR 0011) are string unions.
 - **Errors** use `ProblemDetails` (RFC 9457), built into ASP.NET Core. Expected errors
-  carry a stable `code` (e.g. `flatOffers.offerNotFound`) that the frontend translates
+  carry a stable `code` (e.g. `housing.offerNotFound`) that the frontend translates
   (ADR 0015); the `title`/`detail` text is for developers only.
 - **Paging:** list endpoints take `?page=1&pageSize=50` (1-based, maximum page size
   enforced) and return `{ items, page, pageSize, totalCount }`. The shared
@@ -54,12 +71,15 @@ status text NOT NULL CHECK (status IN ('Indexed', 'Interested', 'NotInterested')
   "which time zone is this?" bugs. Keeping the original offset of each value would need
   a second column, and we do not need it.
 - **Native PostgreSQL enums:** strict and compact, but painful to change.
+- **Enums as `text`:** readable in raw SQL, but renaming a member needs a data migration.
 - **Exceptions for expected errors:** shorter handlers, but hidden control flow.
 - **FluentValidation:** useful for large, reused rules; overkill for small requests.
 
 ## Consequences
 
 - Same shapes everywhere: frontend code for errors, paging and enums is written once.
-- Changing an enum means a migration that updates the `CHECK` constraint.
+- Adding or renaming an enum member needs no migration; changing a member's value is not allowed.
+- Raw SQL results show numbers, not names; the API still returns enum names as strings.
+- Adding a source means a new enum member and a migration that inserts its row.
 - Dapper may need a small type handler to read `timestamptz` as `DateTimeOffset`;
-  this is checked when the first store is written.
+  this is checked when the first repository is written.

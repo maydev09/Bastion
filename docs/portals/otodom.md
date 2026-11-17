@@ -1,7 +1,7 @@
 # Otodom
 
 - **Reviewed:** 2026-11-16
-- **Module:** FlatOffers
+- **Module:** Housing
 
 Checklist: ADR 0016, "Review before adding a portal".
 
@@ -30,6 +30,13 @@ Not needed: search results and offers are public. The scraper does not log in.
 Ads of private owners can contain names, phone numbers and photos of people. The listing
 data we store (title, URL, price, area, rooms) contains none; the UI links to the offer
 on Otodom for contact details.
+
+In `__NEXT_DATA__` each listing item has `advertOwner` (name, contacts, photo) and
+`organisationAssignedMember` (first and last name, ids and photo of an agency's agent);
+`shortDescription` is free text. `pageProps` also holds our own `userSessionId`,
+`unconfirmedUserAuthToken` and the ad-tracking `cookiesCategorisation.dfp_user_id`. The offer cards in the HTML repeat the names. `OtoDomAnonymizer`
+masks the names, photos, contacts in free text and session values before a raw page is stored;
+the other fields of these objects (ids, types) stay.
 
 ## Anti-bot measures
 

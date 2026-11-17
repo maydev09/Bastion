@@ -43,7 +43,7 @@ our own way.
   backend change cannot silently break the frontend.
 
 ```ts
-const { data } = await api.GET("/api/flat-offers/offers", { params: { query: { page: 1 } } });
+const { data } = await api.GET("/api/housing/offers", { params: { query: { page: 1 } } });
 //      ^ typed from the C# endpoint's response
 ```
 
