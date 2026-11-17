@@ -25,9 +25,10 @@ public class RouteVpnCheckTests
     }
 
     [Test]
-    public void Configured_prefixes_replace_the_defaults()
+    public void An_override_replaces_all_default_prefixes()
     {
         var configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection([new($"{ScrapingOptions.Section}:{nameof(ScrapingOptions.VpnInterfacePrefixes)}", "wg,tun,proton")])
             .AddInMemoryCollection([new($"{ScrapingOptions.Section}:{nameof(ScrapingOptions.VpnInterfacePrefixes)}", "proton")])
             .Build();
         var options = configuration.GetSection(ScrapingOptions.Section).Get<ScrapingOptions>()!;

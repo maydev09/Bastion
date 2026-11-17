@@ -1,0 +1,5 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../Bastion.Modules.Housing.Application/Bastion.Modules.Housing.Application.csproj" />
+  </ItemGroup>
+</Project>

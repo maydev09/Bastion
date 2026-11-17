@@ -1,12 +1,12 @@
 # 0002. Use a modular monolith
 
-- **Status:** Accepted
+- **Status:** Accepted; partly superseded by [0017](0017-module-layers-as-projects.md)
 - **Date:** 2026-11-15
 
 ## Context
 
 Bastion is a personal headquarters that hosts many unrelated feature areas
-(the first two are flat offers and job offers; later ones need not be scrapers).
+(the first two are housing and job offers; later ones need not be scrapers).
 It is built and run by one maintainer, so it must be simple to develop, deploy and
 operate. At the same time, modules must stay independent: adding, changing or
 removing one module must never break another.

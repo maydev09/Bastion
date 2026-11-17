@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Dapper" />
+    <PackageReference Include="Npgsql" />
+    <PackageReference Include="ZstdSharp.Port" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Bastion.Modules.Housing.Application/Bastion.Modules.Housing.Application.csproj" />
+    <ProjectReference Include="../../../BuildingBlocks/Bastion.BuildingBlocks.Scraping/Bastion.BuildingBlocks.Scraping.csproj" />
+  </ItemGroup>
+</Project>

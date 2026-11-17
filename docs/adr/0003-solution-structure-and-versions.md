@@ -1,6 +1,6 @@
 # 0003. Solution structure and platform versions
 
-- **Status:** Accepted
+- **Status:** Accepted; partly superseded by [0017](0017-module-layers-as-projects.md)
 - **Date:** 2026-11-15
 
 ## Context
@@ -51,9 +51,9 @@ tests/
   so the compiler protects the module boundary.
 - All frontend code is in `src/Web`: one npm project with its tooling at the repository
   root (`package.json`, `vite.config.ts`); imports use the aliases `@shared/*` and `@modules/*`.
-  A module's backend and UI share its name (`src/Modules/FlatOffers`, `src/Web/Modules/FlatOffers`).
+  A module's backend and UI share its name (`src/Modules/Housing`, `src/Web/Modules/Housing`).
 - Only the Host references modules. It enables the modules listed in configuration.
-- First two modules: `FlatOffers` and `JobOffers`.
+- First two modules: `Housing` and `JobOffers`.
 
 ## Alternatives considered
 

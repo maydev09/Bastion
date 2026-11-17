@@ -1,2 +1,5 @@
 [Logs]
 Path = "logs"
+
+[Modules.Housing.RawCaptures]
+Path = "data/raw/housing"

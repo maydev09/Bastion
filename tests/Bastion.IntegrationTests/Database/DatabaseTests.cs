@@ -19,15 +19,15 @@ public class DatabaseTests
         {
             Assert.That(status!.User, Is.EqualTo("bastion_app"));
             Assert.That(status.CanChangeSchema, Is.False);
-            Assert.That(status.Migrations.Select(m => m.Schema), Is.SupersetOf(new[] { "flat_offers", "job_offers" }));
+            Assert.That(status.Migrations.Select(m => m.Schema), Is.SupersetOf(new[] { "housing", "job_offers" }));
             Assert.That(status.Migrations.Select(m => m.Version), Has.None.Null);
         });
     }
 
-    [TestCase("CREATE TABLE flat_offers.probe (id int)")]
+    [TestCase("CREATE TABLE housing.probe (id int)")]
     [TestCase("CREATE TABLE public.probe (id int)")]
     [TestCase("CREATE SCHEMA probe")]
-    [TestCase("DROP TABLE flat_offers.schema_migrations")]
+    [TestCase("DROP TABLE housing.schema_migrations")]
     public async Task App_role_cannot_change_the_schema(string sql)
     {
         var error = await Assert.ThrowsAsync<PostgresException>(() => Execute(DatabaseSetup.AppConnectionString, sql));
@@ -38,18 +38,18 @@ public class DatabaseTests
     [Test]
     public async Task App_role_can_read_and_write_tables_created_by_migrations()
     {
-        await Execute(DatabaseSetup.OwnerConnectionString, "CREATE TABLE flat_offers.rw_probe (id int GENERATED ALWAYS AS IDENTITY, name text)");
+        await Execute(DatabaseSetup.OwnerConnectionString, "CREATE TABLE housing.rw_probe (id int GENERATED ALWAYS AS IDENTITY, name text)");
         try
         {
             await Execute(DatabaseSetup.AppConnectionString, """
-                INSERT INTO flat_offers.rw_probe (name) VALUES ('a');
-                UPDATE flat_offers.rw_probe SET name = 'b';
-                DELETE FROM flat_offers.rw_probe;
+                INSERT INTO housing.rw_probe (name) VALUES ('a');
+                UPDATE housing.rw_probe SET name = 'b';
+                DELETE FROM housing.rw_probe;
                 """);
         }
         finally
         {
-            await Execute(DatabaseSetup.OwnerConnectionString, "DROP TABLE flat_offers.rw_probe");
+            await Execute(DatabaseSetup.OwnerConnectionString, "DROP TABLE housing.rw_probe");
         }
     }
 

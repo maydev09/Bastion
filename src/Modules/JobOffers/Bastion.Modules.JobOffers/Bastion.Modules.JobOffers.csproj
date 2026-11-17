@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <ItemGroup>
     <ProjectReference Include="../../../Platform/Bastion.Platform.Abstractions/Bastion.Platform.Abstractions.csproj" />
+    <ProjectReference Include="../Bastion.Modules.JobOffers.Infrastructure/Bastion.Modules.JobOffers.Infrastructure.csproj" />
   </ItemGroup>
 </Project>

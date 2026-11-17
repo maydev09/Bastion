@@ -1,7 +1,7 @@
 # 0015. UI translations
 
 - **Status:** Accepted
-- **Date:** 2026-11-15
+- **Date:** 2026-11-15, updated 2026-11-17 (error keys per module)
 
 ## Context
 
@@ -18,7 +18,7 @@ like `.resx` resources in .NET.
 - Every user-visible text comes from a dictionary by key. No hardcoded texts in components.
 
 ```tsx
-const { t } = useTranslation("flatOffers");
+const { t } = useTranslation("housing");
 <h1>{t("offers.title")}</h1>
 ```
 
@@ -34,8 +34,10 @@ const { t } = useTranslation("flatOffers");
 - The user switches the language in the UI; the choice is remembered in the browser.
   Without a choice, the browser language is used if supported, otherwise Polish.
 - Enum values and error codes from the API (ADR 0014) are translated by key
-  (`status.Interested`, `errors.flatOffers.offerNotFound`). The backend does not
-  translate texts shown in the UI.
+  (`status.<member name>`). An error code is `<area>.<name>`: a module's error is
+  in that module's dictionary under `errors.<name>`, a shared one (scraping, database)
+  in `common` under `errors.<area>.<name>`. The backend does not translate texts
+  shown in the UI.
 - Dates, numbers and money are formatted with the built-in `Intl` API in the current
   language (`pl-PL`, `en-GB`), not by hand.
 

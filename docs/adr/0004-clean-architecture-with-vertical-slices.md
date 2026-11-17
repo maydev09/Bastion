@@ -1,6 +1,6 @@
 # 0004. Clean Architecture with vertical slices
 
-- **Status:** Accepted
+- **Status:** Accepted; partly superseded by [0017](0017-module-layers-as-projects.md)
 - **Date:** 2026-11-15
 
 ## Context
@@ -16,15 +16,15 @@ Inside each module we use **Clean Architecture layers**, and inside the Applicat
 we organize code as **vertical slices** (one folder per use case).
 
 ```text
-Bastion.Modules.FlatOffers/
+Bastion.Modules.Housing/
   Domain/                  entities, enums, business rules; depends on nothing
   Application/
     ChangeStatus/          one use case: handler + request/response types
     GetOffers/
-    Abstractions/          interfaces the use cases need (e.g. IOfferStore)
-  Infrastructure/          Dapper SQL stores, migrations, scrapers, external services
+    Abstractions/          interfaces the use cases need (e.g. IOfferRepository)
+  Infrastructure/          Dapper SQL repositories, migrations, scrapers, external services
   Api/                     minimal API endpoints, one file per use case
-  FlatOffersModule.cs      module entry point (registration)
+  HousingModule.cs      module entry point (registration)
 ```
 
 Dependency rule:
@@ -38,7 +38,7 @@ Infrastructure -> Application -> Domain
   stays `internal`. Architecture tests enforce the dependency rule between folders.
 - Application does not know SQL, Dapper, Npgsql or ASP.NET Core. It talks to the outside
   world through interfaces in `Application/Abstractions/`, implemented in `Infrastructure/`.
-- Those interfaces are specific to the module's needs (e.g. `IOfferStore` with the
+- Those interfaces are specific to the module's needs (e.g. `IOfferRepository` with the
   methods the use cases call). No generic `IRepository<T>`.
 - Handlers are plain classes registered in DI and called directly by the endpoint.
   No MediatR, no CQRS framework, no AutoMapper; mapping is explicit.
@@ -50,7 +50,7 @@ Example:
 
 ```csharp
 // Application/ChangeStatus/ChangeStatusHandler.cs
-internal sealed class ChangeStatusHandler(IOfferStore offers)
+internal sealed class ChangeStatusHandler(IOfferRepository offers)
 {
     public async Task<bool> Handle(int offerId, OfferStatus status)
     {

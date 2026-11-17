@@ -56,7 +56,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/flat-offers/smoke-test": {
+    "/api/housing/import/{source}": {
         parameters: {
             query?: never;
             header?: never;
@@ -65,8 +65,42 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Fetches one live OtoDom results page and returns the number of parsed offers. Stores nothing. */
-        post: operations["RunFlatOffersSmokeTest"];
+        /** Fetches one live results page of the source, stores it as raw data, saves new offers and updates changed ones. */
+        post: operations["ImportHousingOffers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/housing/reparse": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Parses all stored raw pages again, oldest first, and saves the offers. Nothing is fetched. */
+        post: operations["ReparseHousingOffers"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/housing/offers": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns stored offers, newest first. */
+        get: operations["ListHousingOffers"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -77,15 +111,57 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @enum {unknown} */
+        Currency: "PLN" | null;
         DatabaseStatus: {
             user: string;
             serverVersion: string;
             canChangeSchema: boolean;
             migrations: components["schemas"]["SchemaMigration"][];
         };
+        ImportResult: {
+            source: components["schemas"]["Source"];
+            /** Format: int32 */
+            addedCount: number;
+            /** Format: int32 */
+            updatedCount: number;
+            /** Format: int32 */
+            unchangedCount: number;
+            /** Format: int32 */
+            skippedCount: number;
+        };
         ModuleInfo: {
             name: string;
             routePrefix: string;
+        };
+        OfferListItem: {
+            /** Format: int32 */
+            id: number;
+            source: components["schemas"]["Source"];
+            title: string;
+            url: string;
+            propertyType: components["schemas"]["PropertyType"];
+            transaction: components["schemas"]["Transaction"];
+            /** Format: double */
+            price?: null | number;
+            priceCurrency?: null | components["schemas"]["Currency"];
+            /** Format: double */
+            areaM2?: null | number;
+            /** Format: int32 */
+            rooms?: null | number;
+            /** Format: date-time */
+            firstSeenAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        PagedResultOfOfferListItem: {
+            items: components["schemas"]["OfferListItem"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /** Format: int32 */
+            totalCount: number;
         };
         ProblemDetails: {
             type?: null | string;
@@ -95,17 +171,30 @@ export interface components {
             detail?: null | string;
             instance?: null | string;
         };
+        /** @enum {unknown} */
+        PropertyType: "Flat";
+        ReparseResult: {
+            /** Format: int32 */
+            captureCount: number;
+            /** Format: int32 */
+            failedCount: number;
+            /** Format: int32 */
+            addedCount: number;
+            /** Format: int32 */
+            updatedCount: number;
+            /** Format: int32 */
+            unchangedCount: number;
+            /** Format: int32 */
+            skippedCount: number;
+        };
         SchemaMigration: {
             schema: string;
             version: null | string;
         };
-        SmokeTestResult: {
-            source: string;
-            /** Format: int32 */
-            offerCount: number;
-            /** Format: int32 */
-            skippedCount: number;
-        };
+        /** @enum {unknown} */
+        Source: "OtoDom";
+        /** @enum {unknown} */
+        Transaction: "Rent";
     };
     responses: never;
     parameters: never;
@@ -144,11 +233,13 @@ export interface operations {
             };
         };
     };
-    RunFlatOffersSmokeTest: {
+    ImportHousingOffers: {
         parameters: {
             query?: never;
             header?: never;
-            path?: never;
+            path: {
+                source: components["schemas"]["Source"];
+            };
             cookie?: never;
         };
         requestBody?: never;
@@ -159,7 +250,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SmokeTestResult"];
+                    "application/json": components["schemas"]["ImportResult"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/problem+json": components["schemas"]["ProblemDetails"];
                 };
             };
             /** @description Bad Gateway */
@@ -178,6 +278,49 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    ReparseHousingOffers: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReparseResult"];
+                };
+            };
+        };
+    };
+    ListHousingOffers: {
+        parameters: {
+            query?: {
+                page?: number;
+                pageSize?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PagedResultOfOfferListItem"];
                 };
             };
         };

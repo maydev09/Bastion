@@ -15,7 +15,7 @@ public class PlatformModulesTests
 
         Assert.That(modules, Is.EqualTo(new[]
         {
-            new ModuleInfo("FlatOffers", "flat-offers"),
+            new ModuleInfo("Housing", "housing"),
             new ModuleInfo("JobOffers", "job-offers"),
         }));
     }
@@ -27,7 +27,7 @@ public class PlatformModulesTests
 
         var modules = await GetModules(factory);
 
-        Assert.That(modules.Select(m => m.Name), Is.EqualTo(new[] { "FlatOffers" }));
+        Assert.That(modules.Select(m => m.Name), Is.EqualTo(new[] { "Housing" }));
     }
 
     [Test]
@@ -35,7 +35,7 @@ public class PlatformModulesTests
     {
         await using var factory = TestApp.WithAllModules(b =>
         {
-            b.UseSetting(ModuleOptions.EnabledKey("FlatOffers"), "false");
+            b.UseSetting(ModuleOptions.EnabledKey("Housing"), "false");
             b.UseSetting(ModuleOptions.EnabledKey("JobOffers"), "false");
         });
 
@@ -47,8 +47,7 @@ public class PlatformModulesTests
     [Test]
     public void Unknown_module_in_configuration_stops_startup()
     {
-        using var factory = new WebApplicationFactory<Program>()
-            .WithWebHostBuilder(b => b.UseSetting(ModuleOptions.EnabledKey("FlatOfers"), "true"));
+        using var factory = TestApp.WithAllModules(b => b.UseSetting(ModuleOptions.EnabledKey("FlatOfers"), "true"));
 
         var error = Assert.Throws<InvalidOperationException>(() => factory.CreateClient());
 

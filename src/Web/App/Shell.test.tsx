@@ -10,7 +10,7 @@ describe("Shell", () => {
     stubApi({
       "/api/platform/modules": {
         status: 200,
-        body: [{ name: "FlatOffers", routePrefix: "flat-offers" }],
+        body: [{ name: "Housing", routePrefix: "housing" }],
       },
     });
   });
@@ -19,12 +19,12 @@ describe("Shell", () => {
     renderWithProviders(<Shell />);
 
     const nav = screen.getByRole("navigation");
-    await within(nav).findByRole("link", { name: i18n.t("title", { ns: "flatOffers" }) });
+    await within(nav).findByRole("link", { name: i18n.t("title", { ns: "housing" }) });
 
     const targets = within(nav)
       .getAllByRole("link")
       .map((link) => link.getAttribute("href"));
-    expect(targets).toEqual(["/", "/flat-offers"]);
+    expect(targets).toEqual(["/", "/housing"]);
   });
 
   it("does not open the page of a disabled module", async () => {

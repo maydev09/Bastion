@@ -17,7 +17,7 @@ internal static class ModuleLoader
                 $"Unknown module(s) in configuration: {string.Join(", ", unknown)}. Known modules: {string.Join(", ", knownNames)}.");
         }
 
-        var enabled = allModules.Where(m => ModuleOptions.SectionOf(configuration, m.Name).Get<ModuleOptions>()?.Enabled == true).ToList();
+        var enabled = allModules.Where(m => IsEnabled(configuration, m)).ToList();
         var enabledNames = enabled.Select(m => m.Name).ToHashSet();
         foreach (var module in enabled)
         {
@@ -42,6 +42,7 @@ internal static class ModuleLoader
             module.MapEndpoints(group);
         }
     }
-}
 
-internal sealed record ModuleInfo(string Name, string RoutePrefix);
+    private static bool IsEnabled(IConfiguration configuration, IModule module) =>
+        ModuleOptions.SectionOf(configuration, module.Name).Get<ModuleOptions>()?.Enabled == true;
+}

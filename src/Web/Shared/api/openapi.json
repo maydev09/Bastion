@@ -58,20 +58,40 @@
         }
       }
     },
-    "/api/flat-offers/smoke-test": {
+    "/api/housing/import/{source}": {
       "post": {
         "tags": [
-          "FlatOffers"
+          "Housing"
         ],
-        "summary": "Fetches one live OtoDom results page and returns the number of parsed offers. Stores nothing.",
-        "operationId": "RunFlatOffersSmokeTest",
+        "summary": "Fetches one live results page of the source, stores it as raw data, saves new offers and updates changed ones.",
+        "operationId": "ImportHousingOffers",
+        "parameters": [
+          {
+            "name": "source",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "$ref": "#/components/schemas/Source"
+            }
+          }
+        ],
         "responses": {
           "200": {
             "description": "OK",
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/SmokeTestResult"
+                  "$ref": "#/components/schemas/ImportResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
                 }
               }
             }
@@ -98,10 +118,82 @@
           }
         }
       }
+    },
+    "/api/housing/reparse": {
+      "post": {
+        "tags": [
+          "Housing"
+        ],
+        "summary": "Parses all stored raw pages again, oldest first, and saves the offers. Nothing is fetched.",
+        "operationId": "ReparseHousingOffers",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReparseResult"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/housing/offers": {
+      "get": {
+        "tags": [
+          "Housing"
+        ],
+        "summary": "Returns stored offers, newest first.",
+        "operationId": "ListHousingOffers",
+        "parameters": [
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "maximum": 2147483647,
+              "minimum": 1,
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer",
+              "format": "int32",
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedResultOfOfferListItem"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "Currency": {
+        "enum": [
+          "PLN",
+          null
+        ]
+      },
       "DatabaseStatus": {
         "required": [
           "user",
@@ -128,6 +220,37 @@
           }
         }
       },
+      "ImportResult": {
+        "required": [
+          "source",
+          "addedCount",
+          "updatedCount",
+          "unchangedCount",
+          "skippedCount"
+        ],
+        "type": "object",
+        "properties": {
+          "source": {
+            "$ref": "#/components/schemas/Source"
+          },
+          "addedCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "updatedCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unchangedCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "skippedCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "ModuleInfo": {
         "required": [
           "name",
@@ -140,6 +263,108 @@
           },
           "routePrefix": {
             "type": "string"
+          }
+        }
+      },
+      "OfferListItem": {
+        "required": [
+          "id",
+          "source",
+          "title",
+          "url",
+          "propertyType",
+          "transaction",
+          "firstSeenAt",
+          "updatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "source": {
+            "$ref": "#/components/schemas/Source"
+          },
+          "title": {
+            "type": "string"
+          },
+          "url": {
+            "type": "string"
+          },
+          "propertyType": {
+            "$ref": "#/components/schemas/PropertyType"
+          },
+          "transaction": {
+            "$ref": "#/components/schemas/Transaction"
+          },
+          "price": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "priceCurrency": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ]
+          },
+          "areaM2": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "rooms": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "firstSeenAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "updatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "PagedResultOfOfferListItem": {
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/OfferListItem"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -179,6 +404,48 @@
           }
         }
       },
+      "PropertyType": {
+        "enum": [
+          "Flat"
+        ]
+      },
+      "ReparseResult": {
+        "required": [
+          "captureCount",
+          "failedCount",
+          "addedCount",
+          "updatedCount",
+          "unchangedCount",
+          "skippedCount"
+        ],
+        "type": "object",
+        "properties": {
+          "captureCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "failedCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "addedCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "updatedCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unchangedCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "skippedCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "SchemaMigration": {
         "required": [
           "schema",
@@ -197,26 +464,15 @@
           }
         }
       },
-      "SmokeTestResult": {
-        "required": [
-          "source",
-          "offerCount",
-          "skippedCount"
-        ],
-        "type": "object",
-        "properties": {
-          "source": {
-            "type": "string"
-          },
-          "offerCount": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "skippedCount": {
-            "type": "integer",
-            "format": "int32"
-          }
-        }
+      "Source": {
+        "enum": [
+          "OtoDom"
+        ]
+      },
+      "Transaction": {
+        "enum": [
+          "Rent"
+        ]
       }
     }
   },
@@ -225,7 +481,7 @@
       "name": "Platform"
     },
     {
-      "name": "FlatOffers"
+      "name": "Housing"
     }
   ]
 }

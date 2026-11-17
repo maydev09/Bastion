@@ -1,4 +1,5 @@
 using System.Net;
+using System.Text;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
 using NSubstitute;
@@ -18,7 +19,7 @@ public class ScrapingClientTests
         var handler = new FakeHandler();
         var client = CreateClient(handler, vpnUp: false);
 
-        var error = (await Assert.ThrowsAsync<ScrapingException>(() => client.GetStringAsync(Page, CancellationToken.None)))!;
+        var error = (await Assert.ThrowsAsync<ScrapingException>(() => client.GetAsync(Page, CancellationToken.None)))!;
 
         Assert.Multiple(() =>
         {
@@ -37,12 +38,13 @@ public class ScrapingClientTests
         };
         var client = CreateClient(handler);
 
-        var first = await client.GetStringAsync(Page, CancellationToken.None);
-        await client.GetStringAsync(Page, CancellationToken.None);
+        var first = await client.GetAsync(Page, CancellationToken.None);
+        await client.GetAsync(Page, CancellationToken.None);
 
         Assert.Multiple(() =>
         {
-            Assert.That(first, Is.EqualTo("<html>page</html>"));
+            Assert.That(Encoding.UTF8.GetString(first.Content), Is.EqualTo("<html>page</html>"));
+            Assert.That((first.StatusCode, first.ContentType), Is.EqualTo((200, "text/plain; charset=utf-8")));
             Assert.That(handler.UserAgents, Has.All.EqualTo(BrowserUserAgent));
             Assert.That(handler.Requests, Is.EqualTo(new[] { "/robots.txt", "/pl/wyniki?page=1", "/pl/wyniki?page=1" }));
         });
@@ -54,7 +56,7 @@ public class ScrapingClientTests
         var handler = new FakeHandler { ["/robots.txt"] = Ok("User-agent: *\nDisallow: /pl/") };
         var client = CreateClient(handler);
 
-        var error = (await Assert.ThrowsAsync<ScrapingException>(() => client.GetStringAsync(Page, CancellationToken.None)))!;
+        var error = (await Assert.ThrowsAsync<ScrapingException>(() => client.GetAsync(Page, CancellationToken.None)))!;
 
         Assert.Multiple(() =>
         {
@@ -72,7 +74,9 @@ public class ScrapingClientTests
             ["/pl/wyniki?page=1"] = Ok("ok"),
         };
 
-        Assert.That(await CreateClient(handler).GetStringAsync(Page, CancellationToken.None), Is.EqualTo("ok"));
+        var response = await CreateClient(handler).GetAsync(Page, CancellationToken.None);
+
+        Assert.That(Encoding.UTF8.GetString(response.Content), Is.EqualTo("ok"));
     }
 
     [Test]
@@ -80,7 +84,7 @@ public class ScrapingClientTests
     {
         var handler = new FakeHandler { ["/robots.txt"] = () => new HttpResponseMessage(HttpStatusCode.InternalServerError) };
 
-        var error = (await Assert.ThrowsAsync<ScrapingException>(() => CreateClient(handler).GetStringAsync(Page, CancellationToken.None)))!;
+        var error = (await Assert.ThrowsAsync<ScrapingException>(() => CreateClient(handler).GetAsync(Page, CancellationToken.None)))!;
 
         Assert.That(error.Code, Is.EqualTo(ScrapingException.DisallowedByRobots));
     }
@@ -94,7 +98,7 @@ public class ScrapingClientTests
             ["/pl/wyniki?page=1"] = () => new HttpResponseMessage(HttpStatusCode.TooManyRequests),
         };
 
-        var error = (await Assert.ThrowsAsync<ScrapingException>(() => CreateClient(handler).GetStringAsync(Page, CancellationToken.None)))!;
+        var error = (await Assert.ThrowsAsync<ScrapingException>(() => CreateClient(handler).GetAsync(Page, CancellationToken.None)))!;
 
         Assert.That(error.Code, Is.EqualTo(ScrapingException.RateLimited));
     }
@@ -110,8 +114,11 @@ public class ScrapingClientTests
         var userAgent = Substitute.For<IUserAgentSource>();
         userAgent.GetAsync(default).ReturnsForAnyArgs(BrowserUserAgent);
 
+        var httpClients = Substitute.For<IHttpClientFactory>();
+        httpClients.CreateClient(ScrapingClient.HttpClientName).Returns(_ => new HttpClient(handler, disposeHandler: false));
+
         var options = Options.Create(new ScrapingOptions { MinDelaySeconds = 0, MaxDelaySeconds = 0 });
-        return new ScrapingClient(handler, vpn, userAgent, TimeProvider.System, options, NullLogger<ScrapingClient>.Instance);
+        return new ScrapingClient(httpClients, vpn, userAgent, TimeProvider.System, options, NullLogger<ScrapingClient>.Instance);
     }
 
     private static Func<HttpResponseMessage> Ok(string body) => () => new HttpResponseMessage(HttpStatusCode.OK) { Content = new StringContent(body) };

@@ -7,7 +7,6 @@ namespace Bastion.Host;
 internal static partial class DatabaseStatusEndpoint
 {
     public const string ConnectionStringName = "Bastion";
-    public const string NotConfigured = "database.notConfigured";
     public const string Unavailable = "database.unavailable";
 
     private const string ServerSql = """
@@ -27,14 +26,8 @@ internal static partial class DatabaseStatusEndpoint
 
     public static void MapDatabaseStatus(this IEndpointRouteBuilder app) =>
         app.MapGet("/api/platform/database", async Task<Results<Ok<DatabaseStatus>, ProblemHttpResult>> (
-            IServiceProvider services, ILoggerFactory loggerFactory, CancellationToken cancellationToken) =>
+            NpgsqlDataSource db, ILoggerFactory loggerFactory, CancellationToken cancellationToken) =>
         {
-            var db = services.GetService<NpgsqlDataSource>();
-            if (db is null)
-            {
-                return Failure(NotConfigured, $"Connection string '{ConnectionStringName}' is not set.");
-            }
-
             try
             {
                 return TypedResults.Ok(await Read(db, cancellationToken));
@@ -80,7 +73,3 @@ internal static partial class DatabaseStatusEndpoint
 
     private sealed record ServerInfo(string User, string ServerVersion, bool CanChangeSchema);
 }
-
-internal sealed record DatabaseStatus(string User, string ServerVersion, bool CanChangeSchema, IReadOnlyList<SchemaMigration> Migrations);
-
-internal sealed record SchemaMigration(string Schema, string? Version);

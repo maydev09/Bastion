@@ -1,7 +1,7 @@
 # 0010. Secrets with systemd credentials and Docker secrets
 
 - **Status:** Accepted
-- **Date:** 2026-11-15
+- **Date:** 2026-11-15, updated 2026-11-17 (user secrets for the local backend)
 
 ## Context
 
@@ -45,9 +45,15 @@ Secrets are stored encrypted outside the repository, delivered to containers as
 - Secret values come from the developer's local secret store. A dev script passes
   them to Compose as environment variables of the `docker compose` process only
   (Compose `secrets: ... environment:`); they are never written to files.
+- The backend run from the IDE or `dotnet run` gets its connection string from the
+  **.NET user secrets** (Development only), the standard ASP.NET Core way. `scripts/dev-up.sh`
+  writes it there. User secrets are plain text in the home folder, outside the repository;
+  this is accepted for the local database, which listens only on `127.0.0.1` and has random,
+  development-only passwords. Production never uses user secrets.
 
 ### Rules
 - No `.env` files with real values. No secrets in TOML files, Compose files or the repository.
+  The only plain-text secret on disk is the local connection string in the user secrets.
 - Exact service files and scripts are created together with the deployment setup.
 
 ## Alternatives considered

@@ -8,14 +8,22 @@
   <Folder Name="/src/BuildingBlocks/">
     <Project Path="src/BuildingBlocks/Bastion.BuildingBlocks.Scraping/Bastion.BuildingBlocks.Scraping.csproj" />
   </Folder>
-  <Folder Name="/src/Modules/">
-    <Project Path="src/Modules/FlatOffers/Bastion.Modules.FlatOffers/Bastion.Modules.FlatOffers.csproj" />
+  <Folder Name="/src/Modules/" />
+  <Folder Name="/src/Modules/Housing/">
+    <Project Path="src/Modules/Housing/Bastion.Modules.Housing/Bastion.Modules.Housing.csproj" />
+    <Project Path="src/Modules/Housing/Bastion.Modules.Housing.Domain/Bastion.Modules.Housing.Domain.csproj" />
+    <Project Path="src/Modules/Housing/Bastion.Modules.Housing.Application/Bastion.Modules.Housing.Application.csproj" />
+    <Project Path="src/Modules/Housing/Bastion.Modules.Housing.Infrastructure/Bastion.Modules.Housing.Infrastructure.csproj" />
+    <Project Path="src/Modules/Housing/Bastion.Modules.Housing.Api/Bastion.Modules.Housing.Api.csproj" />
+  </Folder>
+  <Folder Name="/src/Modules/JobOffers/">
     <Project Path="src/Modules/JobOffers/Bastion.Modules.JobOffers/Bastion.Modules.JobOffers.csproj" />
+    <Project Path="src/Modules/JobOffers/Bastion.Modules.JobOffers.Infrastructure/Bastion.Modules.JobOffers.Infrastructure.csproj" />
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Bastion.ArchitectureTests/Bastion.ArchitectureTests.csproj" />
     <Project Path="tests/Bastion.BuildingBlocks.Scraping.Tests/Bastion.BuildingBlocks.Scraping.Tests.csproj" />
     <Project Path="tests/Bastion.IntegrationTests/Bastion.IntegrationTests.csproj" />
-    <Project Path="tests/Bastion.Modules.FlatOffers.Tests/Bastion.Modules.FlatOffers.Tests.csproj" />
+    <Project Path="tests/Bastion.Modules.Housing.Tests/Bastion.Modules.Housing.Tests.csproj" />
   </Folder>
 </Solution>

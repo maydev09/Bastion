@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <ProjectReference Include="../../../Platform/Bastion.Platform.Abstractions/Bastion.Platform.Abstractions.csproj" />
+    <ProjectReference Include="../Bastion.Modules.Housing.Application/Bastion.Modules.Housing.Application.csproj" />
+    <ProjectReference Include="../Bastion.Modules.Housing.Infrastructure/Bastion.Modules.Housing.Infrastructure.csproj" />
+    <ProjectReference Include="../Bastion.Modules.Housing.Api/Bastion.Modules.Housing.Api.csproj" />
+  </ItemGroup>
+</Project>

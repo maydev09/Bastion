@@ -1,9 +1,3 @@
-[Modules.FlatOffers]
-Enabled = true
-
-[Modules.JobOffers]
-Enabled = false
-
 [Logs]
 Path = "/data/logs"
 
@@ -12,10 +6,19 @@ Default = "Information"
 
 [Serilog.MinimumLevel.Override]
 "Microsoft.AspNetCore" = "Warning"
+"System.Net.Http.HttpClient" = "Warning"
 
-[Modules.FlatOffers.OtoDom]
+[Modules.Housing]
+Enabled = true
+
+[Modules.Housing.OtoDom]
 BaseUrl = "https://www.otodom.pl"
-SmokeTestUrl = "https://www.otodom.pl/pl/wyniki/wynajem/mieszkanie/cala-polska?by=LATEST&direction=DESC&limit=72"
+ListingUrl = "https://www.otodom.pl/pl/wyniki/wynajem/mieszkanie/cala-polska?by=LATEST&direction=DESC&limit=72"
+
+[Modules.Housing.RawCaptures]
+Path = "/data/raw/housing"
+RetentionDays = 30
+AnonymizationMask = "***"
 
 [Scraping]
 RequireVpn = true
@@ -24,3 +27,6 @@ MinDelaySeconds = 3
 MaxDelaySeconds = 6
 TimeoutSeconds = 30
 RobotsCacheHours = 24
+
+[Modules.JobOffers]
+Enabled = false

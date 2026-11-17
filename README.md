@@ -47,38 +47,41 @@ scripts/dev-up.sh
 Starts PostgreSQL 18 on `127.0.0.1:5432` (database `bastion`) and applies all migrations.
 It is safe to run again: applied migrations are skipped. On the first run it generates random
 passwords for the roles `postgres`, `bastion_owner` (migrations) and `bastion_app` (application)
-and keeps them in your keyring (`secret-tool lookup app bastion key db-app`); no password is
-written to a file.
+and keeps them in your keyring (`secret-tool lookup service Bastion account db-app-password`).
+It also stores the backend's connection string in the .NET user secrets of `Bastion.Host`
+(`dotnet user-secrets list --project src/Host/Bastion.Host`), which the backend reads in Development.
 
 - Stop: `docker compose stop`. Delete the database: `docker compose down -v`.
+- Recreate it from scratch (all data lost, local raw captures too): `scripts/dev-reset-db.sh`. Useful to check that the
+  migrations alone build the schema you expect, e.g. after renaming tables in an unmerged migration.
 - Roles and privileges come from `db/init/01-roles.sh`, which PostgreSQL runs only when it
   creates an empty database. After changing it, delete the database and run `scripts/dev-up.sh` again.
-- Migrations: plain SQL files in each module's `Infrastructure/Migrations/`, named
+- Migrations: plain SQL files in each module's Infrastructure project
+  (`src/Modules/Housing/Bastion.Modules.Housing.Infrastructure/Migrations/`), named
   `YYYYMMDDHHMMSS_description.sql` with `-- migrate:up` and `-- migrate:down` sections.
   They are found automatically; the schema is the module folder name in snake_case
-  (`src/Modules/FlatOffers` → `flat_offers`), and each schema has its own `schema_migrations` table.
+  (`src/Modules/Housing` → `housing`), and each schema has its own `schema_migrations` table.
 
 **Run**
 
 | What | Command | URL |
 |---|---|---|
-| Backend | `scripts/dev-run.sh` | http://localhost:5080 (Swagger: `/swagger`) |
+| Backend | `dotnet run --project src/Host/Bastion.Host` | http://localhost:5080 (Swagger: `/swagger`) |
 | UI with hot reload | `npm run dev` | http://localhost:5173 |
 | UI served by the backend | `npm run build`, then the backend | http://localhost:5080 |
 
-`scripts/dev-run.sh` reads the application role's password from the keyring and passes the
-connection string to the backend as the environment variable `ConnectionStrings__Bastion`.
-Without it the backend still starts, and the home page says the database is not configured.
+Without a connection string the backend stops at startup and says to run `scripts/dev-up.sh`.
 In containers the same key comes from the file `/run/secrets/ConnectionStrings__Bastion`.
 
-In Rider: run configuration **API + Web** starts both. Rider only passes the connection
-string on if it was started through the script, so close Rider and run
-`scripts/dev-run.sh rider .` (with the Toolbox, the `rider` launcher is in
-`~/.local/share/JetBrains/Toolbox/scripts/`).
+In Rider: run configuration **API + Web** starts both.
 
 **Tests**: `dotnet test Bastion.slnx` and `npm test`; lint: `npm run lint`. Backend tests need
 a running Docker: database tests start their own PostgreSQL with Testcontainers, set up the roles
 and run the migrations exactly as Compose does (same images, read from `compose.yaml`).
+
+**Raw data**: every page fetched by an import is kept, with personal data anonymized as `***`, as a Zstandard file for 30 days, locally in
+`src/Host/Bastion.Host/data/raw/housing/<day>/<id>.zst` (git-ignored; open with `zstd -dc <id>.zst`).
+The folder is `[Modules.Housing.RawCaptures] Path` in the configuration.
 
 **Configuration**: `src/Host/Bastion.Host/bastion.toml` (not `appsettings.json`); local overrides
 in the git-ignored `bastion.local.toml`; environment variables win, e.g. `Modules__JobOffers__Enabled=false`.

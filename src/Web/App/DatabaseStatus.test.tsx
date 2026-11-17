@@ -15,7 +15,7 @@ const connected = {
   user: "bastion_app",
   serverVersion: "18.7",
   canChangeSchema: false,
-  migrations: [{ schema: "flat_offers", version: "20261116120000" }],
+  migrations: [{ schema: "housing", version: "20261116120000" }],
 };
 
 describe("DatabaseStatus", () => {

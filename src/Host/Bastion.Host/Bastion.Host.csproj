@@ -1,5 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
   <PropertyGroup>
+    <UserSecretsId>4549135c-95a5-47d2-a0d5-00bd21665dee</UserSecretsId>
     <OpenApiDocumentsDirectory>$(MSBuildProjectDirectory)/../../Web/Shared/api</OpenApiDocumentsDirectory>
     <OpenApiGenerateDocumentsOptions>--file-name openapi</OpenApiGenerateDocumentsOptions>
   </PropertyGroup>
@@ -18,7 +19,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../Platform/Bastion.Platform.Abstractions/Bastion.Platform.Abstractions.csproj" />
-    <ProjectReference Include="../../Modules/FlatOffers/Bastion.Modules.FlatOffers/Bastion.Modules.FlatOffers.csproj" />
+    <ProjectReference Include="../../Modules/Housing/Bastion.Modules.Housing/Bastion.Modules.Housing.csproj" />
     <ProjectReference Include="../../Modules/JobOffers/Bastion.Modules.JobOffers/Bastion.Modules.JobOffers.csproj" />
   </ItemGroup>
   <ItemGroup>
