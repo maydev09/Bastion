@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Bastion.Modules.FlatOffers.Infrastructure.OtoDom;
 
 namespace Bastion.Modules.FlatOffers.Tests;
@@ -44,6 +45,32 @@ public class OtoDomListingParserTests
         {
             Assert.That(offers.Select(o => o.ExternalId), Is.EqualTo(new[] { "1" }));
             Assert.That(skipped, Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public void Keeps_listing_data_without_people()
+    {
+        const string html = """
+            <script id="__NEXT_DATA__" type="application/json">
+            {"props":{"pageProps":{"data":{"searchAds":{"items":[
+              {"id":1,"title":"Flat","slug":"flat-ID1","floorNumber":"THIRD",
+               "totalPrice":{"value":2200,"currency":"PLN"},"agency":{"name":"Sample Agency"},
+               "advertOwner":{"name":"Jan Kowalski","contacts":[{"name":"Jan"}]},
+               "organisationAssignedMember":{"firstName":"Anna","lastName":"Nowak"},
+               "shortDescription":"Call 600 100 200"}
+            ]}}}}}
+            </script>
+            """;
+
+        var (offers, _) = OtoDomListingParser.Parse(html, BaseUrl);
+        using var json = JsonDocument.Parse(offers[0].ListingJson!);
+        var fields = json.RootElement.EnumerateObject().Select(p => p.Name).ToList();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(fields, Does.Contain("floorNumber").And.Contain("totalPrice").And.Contain("agency"));
+            Assert.That(fields, Has.None.EqualTo("advertOwner").Or.EqualTo("organisationAssignedMember").Or.EqualTo("shortDescription"));
         });
     }
 

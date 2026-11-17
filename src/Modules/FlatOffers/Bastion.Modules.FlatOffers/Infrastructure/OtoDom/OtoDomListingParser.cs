@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
 using Bastion.Modules.FlatOffers.Domain;
 
@@ -38,7 +39,8 @@ internal static partial class OtoDomListingParser
                     price?.Value,
                     price?.Currency,
                     Number(item, "areaInSquareMeters"),
-                    Rooms(item)));
+                    Rooms(item),
+                    ListingJson(item)));
             }
             else
             {
@@ -47,6 +49,36 @@ internal static partial class OtoDomListingParser
         }
 
         return (offers, skipped);
+    }
+
+    // Only these fields of a listing item are kept as listing_json, so later parser changes can
+    // fill new columns without fetching again. Left out on purpose: advertOwner and
+    // organisationAssignedMember (names and photos of private owners and agents) and
+    // shortDescription (free text that can contain contact details).
+    private static readonly string[] ListingJsonFields =
+    [
+        "id", "title", "slug", "estate", "transaction", "tags", "images", "totalPossibleImages",
+        "agency", "extendedAdvertiserType", "isPrivateOwner", "isExclusiveOffer", "isPromoted",
+        "areaInSquareMeters", "terrainAreaInSquareMeters", "floorNumber", "roomsNumber", "location",
+        "totalPrice", "rentPrice", "pricePerSquareMeter", "priceFromPerSquareMeter", "hidePrice",
+        "dateCreated", "createdAtFirst", "pushedUpAt", "specialOffer", "links",
+        "development", "developmentId", "developmentTitle", "developmentUrl",
+        "investmentState", "investmentEstimatedDelivery", "investmentUnitsNumber",
+        "investmentUnitsAreaInSquareMeters", "investmentUnitsRoomsNumber", "investmentUnitsFloorsRange",
+    ];
+
+    private static string ListingJson(JsonElement item)
+    {
+        var json = new JsonObject();
+        foreach (var name in ListingJsonFields)
+        {
+            if (item.TryGetProperty(name, out var value))
+            {
+                json[name] = JsonNode.Parse(value.GetRawText());
+            }
+        }
+
+        return json.ToJsonString();
     }
 
     // totalPrice is null when the advertiser hides the price; for rentals it is the monthly rent.

@@ -16,12 +16,13 @@ internal sealed record ListingOffer(
     decimal? Price = null,
     string? PriceCurrency = null,
     decimal? AreaM2 = null,
-    int? Rooms = null)
+    int? Rooms = null,
+    string? ListingJson = null)
 {
     // ADR 0016: an offer is updated only when the hash of the stored listing fields changes.
     public string ListingHash()
     {
-        var fields = string.Create(CultureInfo.InvariantCulture, $"{Title}\n{Url}\n{Price}\n{PriceCurrency}\n{AreaM2}\n{Rooms}");
+        var fields = string.Create(CultureInfo.InvariantCulture, $"{Title}\n{Url}\n{Price}\n{PriceCurrency}\n{AreaM2}\n{Rooms}\n{ListingJson}");
         var bytes = Encoding.UTF8.GetBytes(fields);
         return Convert.ToHexStringLower(SHA256.HashData(bytes));
     }

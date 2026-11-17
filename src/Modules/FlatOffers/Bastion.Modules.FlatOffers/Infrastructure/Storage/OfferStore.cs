@@ -14,9 +14,9 @@ internal sealed class OfferStore(NpgsqlDataSource? dataSource = null) : IOfferSt
     // otherwise whether the row was inserted (xmax = 0) or updated.
     private const string SaveSql = """
         INSERT INTO flat_offers.offer AS o
-            (source, external_id, title, url, price, price_currency, area_m2, rooms, listing_hash, first_seen_at, updated_at)
+            (source, external_id, title, url, price, price_currency, area_m2, rooms, listing_json, listing_hash, first_seen_at, updated_at)
         VALUES
-            (@Source, @ExternalId, @Title, @Url, @Price, @PriceCurrency, @AreaM2, @Rooms, @ListingHash, @Now, @Now)
+            (@Source, @ExternalId, @Title, @Url, @Price, @PriceCurrency, @AreaM2, @Rooms, CAST(@ListingJson AS jsonb), @ListingHash, @Now, @Now)
         ON CONFLICT (source, external_id) DO UPDATE SET
             title = excluded.title,
             url = excluded.url,
@@ -24,6 +24,7 @@ internal sealed class OfferStore(NpgsqlDataSource? dataSource = null) : IOfferSt
             price_currency = excluded.price_currency,
             area_m2 = excluded.area_m2,
             rooms = excluded.rooms,
+            listing_json = excluded.listing_json,
             listing_hash = excluded.listing_hash,
             updated_at = excluded.updated_at
         WHERE o.listing_hash <> excluded.listing_hash
@@ -60,6 +61,7 @@ internal sealed class OfferStore(NpgsqlDataSource? dataSource = null) : IOfferSt
                 offer.PriceCurrency,
                 offer.AreaM2,
                 offer.Rooms,
+                offer.ListingJson,
                 ListingHash = offer.ListingHash(),
                 Now = now,
             }, transaction, cancellationToken: cancellationToken));
