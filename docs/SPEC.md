@@ -62,8 +62,9 @@ pointless, repetitive work than do it by hand.
 - A home page (the "headquarters" view) shows a summary card from each enabled module.
 
 ### Shared services
-- Background jobs: modules can register scheduled and manually triggered jobs.
-  Every job run is recorded with its status, timing and errors.
+- Background jobs: modules that need them register scheduled and manually triggered jobs
+  through a building block, not the platform core (ADR 0018). Every job run is recorded in
+  the module's own schema with its status, timing and errors.
 - Audit: each run has a summary and a timeline of events viewable in the UI;
   technical logs go to the console and rolling files (ADR 0013).
 - Configuration, logging and health checks, shared by all modules.

@@ -1,6 +1,6 @@
 # 0013. Audit, logging and raw data
 
-- **Status:** Accepted
+- **Status:** Accepted; partly superseded by [0018](0018-background-jobs-as-building-block.md)
 - **Date:** 2026-11-15, updated 2026-11-17 (raw captures as built)
 
 ## Context
