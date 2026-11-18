@@ -7,14 +7,18 @@
 set -euo pipefail
 
 secrets=/run/bastion
-for name in db-postgres-password db-owner-password db-app-password wireguard-private-key; do
-  install -m 0444 "$CREDENTIALS_DIRECTORY/$name" "$secrets/$name"
-done
-(
-  umask 0222
-  printf 'Host=db;Port=5432;Database=bastion;Username=bastion_app;Password=%s' \
-    "$(cat "$CREDENTIALS_DIRECTORY/db-app-password")" >"$secrets/db-connection-string.tmp"
-  mv "$secrets/db-connection-string.tmp" "$secrets/db-connection-string"
-)
+# systemd sets CREDENTIALS_DIRECTORY for ExecStartPre/ExecStart but not for ExecStop; `down`
+# needs no secrets, and the copies in /run/bastion still exist at that point.
+if [[ -n "${CREDENTIALS_DIRECTORY:-}" ]]; then
+  for name in db-postgres-password db-owner-password db-app-password wireguard-private-key; do
+    install -m 0444 "$CREDENTIALS_DIRECTORY/$name" "$secrets/$name"
+  done
+  (
+    umask 0222
+    printf 'Host=db;Port=5432;Database=bastion;Username=bastion_app;Password=%s' \
+      "$(cat "$CREDENTIALS_DIRECTORY/db-app-password")" >"$secrets/db-connection-string.tmp"
+    mv "$secrets/db-connection-string.tmp" "$secrets/db-connection-string"
+  )
+fi
 
 exec docker compose "$@"

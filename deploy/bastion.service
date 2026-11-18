@@ -20,6 +20,8 @@ ExecStartPre=/opt/bastion/deploy/compose.sh run --rm migrate
 # Foreground, so container logs go to the journal.
 ExecStart=/opt/bastion/deploy/compose.sh up --remove-orphans
 ExecStop=/opt/bastion/deploy/compose.sh down
+# `compose up` exits with 130 when it is stopped; that is a clean stop, not a failure.
+SuccessExitStatus=130
 TimeoutStartSec=300
 Restart=on-failure
 
