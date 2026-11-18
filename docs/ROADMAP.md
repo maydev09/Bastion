@@ -60,14 +60,16 @@ A phase is complete only when all its exit criteria are met.
 
 ## Phase 4: First deployment to a home server
 
-- **Status:** Planned
+- **Status:** In progress
 - **Outcome:** Bastion runs on a small home-lab server, not only on the developer's desktop.
   Hardware limits show up early, while the design can still change.
 - **Included work:** Docker Compose started by systemd (SPEC); the VPN check inside Docker;
-  secrets on the server; resource use measured during an import. Server setup and backups
-  are decided at the start of the phase.
+  secrets on the server; resource use measured during an import. Safe updates without a
+  second environment on the server: versioned images, a database backup before every
+  deployment, and a check of the new image on the desktop against a copy of the production data.
 - **Exit criteria:** the server starts Bastion after a reboot; an import through the VPN
-  works there; memory, CPU and disk use during an import are measured.
+  works there; memory, CPU and disk use during an import are measured; a production backup
+  restored on the desktop runs with the image that goes to the server.
 
 ## Phase 5: Background jobs
 
