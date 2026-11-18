@@ -231,6 +231,10 @@ Update the matching file in the same change that makes it outdated:
 - Playwright Firefox (needed for live scraping): `scripts/install-playwright-firefox.sh`.
 - Server: `scripts/server-setup.sh` (as root, repository cloned to `/opt/bastion`) installs Docker, creates
   the encrypted secrets and the `bastion` systemd service (`deploy/`). Idempotent; run it again after changes.
+  The server runs the image CI published for the commit checked out in `/opt/bastion`
+  (`ghcr.io/maydev09/bastion:<commit>`): deploy = `git pull` + `systemctl restart bastion`,
+  rollback = `git checkout <commit>` + restart. Run Compose there only through `deploy/compose.sh`.
 - Image: `docker build -t bastion .` (frontend, backend and Playwright Firefox in one image, ADR 0011).
 - CI (`.github/workflows/ci.yml`) runs the backend build, migrations on a fresh database and tests, frontend lint, tests and
   build, and fails when the committed OpenAPI document or `schema.ts` is out of date.
+  The `image` job builds the Docker image on pull requests and publishes it on master.
