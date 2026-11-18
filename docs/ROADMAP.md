@@ -58,7 +58,18 @@ A phase is complete only when all its exit criteria are met.
 - **Exit criteria:** Running the import twice stores each offer once; the list shows
   the stored offers.
 
-## Phase 4: Background jobs
+## Phase 4: First deployment to a home server
+
+- **Status:** Planned
+- **Outcome:** Bastion runs on a small home-lab server, not only on the developer's desktop.
+  Hardware limits show up early, while the design can still change.
+- **Included work:** Docker Compose started by systemd (SPEC); the VPN check inside Docker;
+  secrets on the server; resource use measured during an import. Server setup and backups
+  are decided at the start of the phase.
+- **Exit criteria:** the server starts Bastion after a reboot; an import through the VPN
+  works there; memory, CPU and disk use during an import are measured.
+
+## Phase 5: Background jobs
 
 - **Status:** Planned
 - **Outcome:** Long work runs in the background. The user starts an import, watches a live
@@ -75,7 +86,7 @@ A phase is complete only when all its exit criteria are met.
     leaves it `interrupted`.
   - Retention runs on its own.
 
-## Phase 5: Offer details
+## Phase 6: Offer details
 
 - **Status:** Planned
 - **Outcome:** Offers carry what only their own page shows, so the user can judge an offer
@@ -84,7 +95,7 @@ A phase is complete only when all its exit criteria are met.
   (ADR 0016). Fields and storage are decided at the start of the phase from real pages.
 - **Exit criteria:** set at the start of the phase.
 
-## Phase 6: Job schedules
+## Phase 7: Job schedules
 
 - **Status:** Planned
 - **Outcome:** Offers are collected on their own. The user sets in plain terms when each job
@@ -94,7 +105,7 @@ A phase is complete only when all its exit criteria are met.
 - **Exit criteria:** a schedule changed in the UI survives a restart and the job runs at the
   new times; a paused job does not run; missed runs are not caught up.
 
-## Phase 7: Run history
+## Phase 8: Run history
 
 - **Status:** Planned
 - **Outcome:** The user sees what every job did and why a run failed, so jobs and their
@@ -104,7 +115,7 @@ A phase is complete only when all its exit criteria are met.
 - **Exit criteria:** every run appears with its result; a failed run shows its error and the
   events that led to it.
 
-## Phase 8: Places
+## Phase 9: Places
 
 - **Status:** Planned
 - **Outcome:** Every offer is linked to its place, and the user sees what kind of place it is:
@@ -113,21 +124,21 @@ A phase is complete only when all its exit criteria are met.
   status next to our own size classes with thresholds from configuration.
 - **Exit criteria:** set at the start of the phase.
 
-## Phase 9: Filtering offers
+## Phase 10: Filtering offers
 
 - **Status:** Planned
 - **Outcome:** The user narrows the stored offers to what matters: place, kind of place,
   price, area, rooms.
 - **Exit criteria:** set at the start of the phase.
 
-## Phase 10: Search profiles
+## Phase 11: Search profiles
 
 - **Status:** Planned
 - **Outcome:** The user decides in the UI what is collected (e.g. "flats to rent in Kraków"),
   each search with its own schedule.
 - **Exit criteria:** set at the start of the phase.
 
-## Phase 11: Places on the map
+## Phase 12: Places on the map
 
 - **Status:** Planned
 - **Outcome:** The user sees whether an offer is near a city or far from everything.
@@ -135,7 +146,7 @@ A phase is complete only when all its exit criteria are met.
   allows; distance to the nearest city; municipality seat.
 - **Exit criteria:** set at the start of the phase.
 
-## Phase 12: Surroundings
+## Phase 13: Surroundings
 
 - **Status:** Planned
 - **Outcome:** The user sees how far an offer is from a school, a shop, a gym and similar places.
