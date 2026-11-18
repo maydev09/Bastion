@@ -48,7 +48,7 @@ A phase is complete only when all its exit criteria are met.
 
 ## Phase 3: Storing housing offers
 
-- **Status:** In progress (branch `feature-store-flat-offers`)
+- **Status:** Done (2026-11-17, PR #7)
 - **Outcome:** The housing smoke test becomes a real import: basic offer data is
   saved and listed in the UI.
 - **Included work:** Offer table with basic fields, unique per source and external id;
