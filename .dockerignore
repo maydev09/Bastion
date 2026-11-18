@@ -1,0 +1,16 @@
+**/bin
+**/obj
+**/node_modules
+**/data
+**/logs
+src/Host/Bastion.Host/wwwroot
+**/bastion.local.toml
+.git
+.github
+.idea
+.claude
+.handoff
+.mcp.json
+*.DotSettings.user
+docs
+tests
