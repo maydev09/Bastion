@@ -1,6 +1,6 @@
 # 0009. Background jobs with a hosted service and own schedules
 
-- **Status:** Accepted
+- **Status:** Accepted; partly superseded by [0018](0018-background-jobs-as-building-block.md)
 - **Date:** 2026-11-15
 
 ## Context
