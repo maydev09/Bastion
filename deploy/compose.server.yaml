@@ -1,0 +1,52 @@
+# Server override, used by bastion.service through deploy/compose.sh (secrets, ADR 0010);
+# scraping goes through the vpn container (ADR 0019).
+services:
+  app:
+    image: bastion
+    build: .
+    # Shares the network of vpn, so all its traffic goes through the tunnel (ADR 0019).
+    network_mode: service:vpn
+    secrets:
+      - source: db_connection_string
+        target: ConnectionStrings__Bastion
+    volumes:
+      - app-data:/data
+    depends_on:
+      db:
+        condition: service_healthy
+      vpn:
+        condition: service_healthy
+    restart: unless-stopped
+
+  vpn:
+    image: qmcgaw/gluetun:v3.41.3
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun
+    environment:
+      VPN_SERVICE_PROVIDER: protonvpn
+      VPN_TYPE: wireguard
+      # Portals are Polish; a Polish exit IP looks like a normal visitor.
+      SERVER_COUNTRIES: Poland
+    secrets:
+      - wireguard_private_key
+    # The app has no network of its own; its UI is published here.
+    ports:
+      - "8080:8080"
+    restart: unless-stopped
+
+secrets:
+  db_postgres_password: !override
+    file: /run/bastion/db-postgres-password
+  db_owner_password: !override
+    file: /run/bastion/db-owner-password
+  db_app_password: !override
+    file: /run/bastion/db-app-password
+  db_connection_string:
+    file: /run/bastion/db-connection-string
+  wireguard_private_key:
+    file: /run/bastion/wireguard-private-key
+
+volumes:
+  app-data:

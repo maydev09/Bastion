@@ -1,7 +1,7 @@
 # 0010. Secrets with systemd credentials and Docker secrets
 
 - **Status:** Accepted
-- **Date:** 2026-11-15, updated 2026-11-17 (user secrets for the local backend)
+- **Date:** 2026-11-15, updated 2026-11-17 (user secrets for the local backend), 2026-11-18 (server secrets through `deploy/compose.sh`)
 
 ## Context
 
@@ -37,7 +37,11 @@ Secrets are stored encrypted outside the repository, delivered to containers as
 - A systemd service starts Docker Compose. It loads the secrets with
   `LoadCredentialEncrypted=`; systemd decrypts them into a private in-memory
   directory (`$CREDENTIALS_DIRECTORY`) that exists only while the service runs.
-  A server-specific Compose override takes the Docker secrets from that directory.
+  The decrypted files are readable only by root and the containers do not run as root, so
+  `deploy/compose.sh` copies them as readable files to `/run/bastion` (a systemd runtime
+  directory: in memory, mode 0700, removed when the service stops); a server-specific
+  Compose override mounts the Docker secrets from there. Secrets passed through the
+  environment would be copied into the containers' layers on disk.
 - Encrypted files are useless on another machine, so a stolen disk or backup does
   not reveal them.
 
@@ -54,7 +58,8 @@ Secrets are stored encrypted outside the repository, delivered to containers as
 ### Rules
 - No `.env` files with real values. No secrets in TOML files, Compose files or the repository.
   The only plain-text secret on disk is the local connection string in the user secrets.
-- Exact service files and scripts are created together with the deployment setup.
+- Server files: `scripts/server-setup.sh` creates the encrypted secrets, `deploy/` holds the
+  systemd service, `compose.sh` and the server Compose override.
 
 ## Alternatives considered
 

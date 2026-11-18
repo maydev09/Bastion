@@ -1,0 +1,27 @@
+[Unit]
+Description=Bastion (Docker Compose)
+Requires=docker.service
+After=docker.service network-online.target
+Wants=network-online.target
+
+[Service]
+Type=exec
+WorkingDirectory=/opt/bastion
+# Decrypted from /etc/credstore.encrypted/ into $CREDENTIALS_DIRECTORY, read by compose.sh (ADR 0010).
+LoadCredentialEncrypted=db-postgres-password
+LoadCredentialEncrypted=db-owner-password
+LoadCredentialEncrypted=db-app-password
+LoadCredentialEncrypted=wireguard-private-key
+# Readable copies of the secrets for the containers, in memory (see compose.sh).
+RuntimeDirectory=bastion
+RuntimeDirectoryMode=0700
+Environment=COMPOSE_FILE=compose.yaml:deploy/compose.server.yaml
+ExecStartPre=/opt/bastion/deploy/compose.sh run --rm migrate
+# Foreground, so container logs go to the journal.
+ExecStart=/opt/bastion/deploy/compose.sh up --remove-orphans
+ExecStop=/opt/bastion/deploy/compose.sh down
+TimeoutStartSec=300
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
