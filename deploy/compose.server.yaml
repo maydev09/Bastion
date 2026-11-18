@@ -2,8 +2,8 @@
 # scraping goes through the vpn container (ADR 0019).
 services:
   app:
-    image: bastion
-    build: .
+    # Built and published by CI for every commit on master; BASTION_COMMIT is set by compose.sh.
+    image: ghcr.io/maydev09/bastion:${BASTION_COMMIT:?run through deploy/compose.sh}
     # Shares the network of vpn, so all its traffic goes through the tunnel (ADR 0019).
     network_mode: service:vpn
     secrets:

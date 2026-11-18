@@ -21,4 +21,9 @@ if [[ -n "${CREDENTIALS_DIRECTORY:-}" ]]; then
   )
 fi
 
+# The server runs the image CI built from the commit that is checked out here, so code, Compose
+# files and image always match. Deploy = git pull, rollback = git checkout <commit>; then restart.
+BASTION_COMMIT="$(git -C "$(dirname "$0")/.." rev-parse HEAD)"
+export BASTION_COMMIT
+
 exec docker compose "$@"
