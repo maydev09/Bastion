@@ -31,9 +31,10 @@ services:
       SERVER_COUNTRIES: Poland
     secrets:
       - wireguard_private_key
-    # The app has no network of its own; its UI is published here.
+    # The app has no network of its own; its UI is published here. IPv4 only: the home network
+    # is behind the router's NAT, IPv6 has no NAT and Docker bypasses the host firewall.
     ports:
-      - "8080:8080"
+      - "0.0.0.0:8080:8080"
     restart: unless-stopped
 
 secrets:
