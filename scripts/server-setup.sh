@@ -33,12 +33,14 @@ fi
 # systemd-creds binds secrets to the TPM only when these libraries are present (ADR 0010).
 apt-get install --yes libtss2-esys-3.0.2-0t64 libtss2-rc0t64 libtss2-mu-4.0.1-0t64
 
-# Passwords are generated once and only ever stored encrypted (ADR 0010).
+# Passwords are generated once and only ever stored encrypted (ADR 0010). Each file is written
+# through a temporary name, so a failed encryption never leaves a file that a rerun would skip.
 mkdir -p /etc/credstore.encrypted
 for name in db-postgres-password db-owner-password db-app-password; do
   file="/etc/credstore.encrypted/$name"
   if [[ ! -f "$file" ]]; then
-    openssl rand -hex 24 | systemd-creds encrypt --name="$name" - "$file"
+    openssl rand -hex 24 | systemd-creds encrypt --name="$name" - "$file.tmp"
+    mv "$file.tmp" "$file"
     echo "Created secret '$name'." >&2
   fi
 done
@@ -48,7 +50,8 @@ file=/etc/credstore.encrypted/wireguard-private-key
 if [[ ! -f "$file" ]]; then
   read -r -s -p "WireGuard private key (PrivateKey from the provider's config): " key
   echo
-  printf '%s' "$key" | systemd-creds encrypt --name=wireguard-private-key - "$file"
+  printf '%s' "$key" | systemd-creds encrypt --name=wireguard-private-key - "$file.tmp"
+  mv "$file.tmp" "$file"
   echo "Stored secret 'wireguard-private-key'." >&2
 fi
 
