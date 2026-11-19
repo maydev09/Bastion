@@ -54,12 +54,13 @@ public sealed class JobRunRepository(NpgsqlDataSource db, string schema)
         return row?.ToRun();
     }
 
-    public async Task MarkInterruptedAsync(DateTimeOffset now, CancellationToken cancellationToken)
+    // Only runs queued before the application started, so runs of the current start are never touched.
+    public async Task MarkInterruptedAsync(DateTimeOffset queuedBefore, DateTimeOffset now, CancellationToken cancellationToken)
     {
         await using var connection = await db.OpenConnectionAsync(cancellationToken);
         await connection.ExecuteAsync(new CommandDefinition(
-            $"UPDATE {schema}.job_run SET status = @Status, finished_at = @Now WHERE finished_at IS NULL",
-            new { Status = (int)JobRunStatus.Interrupted, Now = now },
+            $"UPDATE {schema}.job_run SET status = @Status, finished_at = @Now WHERE finished_at IS NULL AND queued_at < @QueuedBefore",
+            new { Status = (int)JobRunStatus.Interrupted, Now = now, QueuedBefore = queuedBefore },
             cancellationToken: cancellationToken));
     }
 

@@ -20,6 +20,8 @@ public sealed partial class JobRunner(
     TimeProvider time,
     ILogger<JobRunner> logger) : BackgroundService
 {
+    private static readonly TimeSpan RetryDelay = TimeSpan.FromMinutes(1);
+
     private readonly Channel<JobRun> _queue = Channel.CreateUnbounded<JobRun>();
     private readonly SemaphoreSlim _lock = new(1, 1);
     private readonly Dictionary<string, JobRun> _active = [];
@@ -39,9 +41,17 @@ public sealed partial class JobRunner(
                 return active;
             }
 
-            var run = await runs.AddAsync(job, trigger, time.GetUtcNow(), cancellationToken);
+            // Not cancelled from here on: a run saved in the database must reach the queue or be finished.
+            var run = await runs.AddAsync(job, trigger, time.GetUtcNow(), CancellationToken.None);
+            if (!_queue.Writer.TryWrite(run))
+            {
+                // The application is stopping and the queue is closed.
+                run = run with { Status = JobRunStatus.Cancelled, FinishedAt = time.GetUtcNow() };
+                await runs.UpdateAsync(run, CancellationToken.None);
+                return run;
+            }
+
             _active[job] = run;
-            await _queue.Writer.WriteAsync(run, cancellationToken);
             return run;
         }
         finally
@@ -53,25 +63,11 @@ public sealed partial class JobRunner(
     public Task<JobRun?> LatestAsync(string job, CancellationToken cancellationToken) =>
         runs.LatestAsync(job, cancellationToken);
 
-    // Runs before the web server starts, so no new run can be marked by mistake.
-    public override async Task StartAsync(CancellationToken cancellationToken)
-    {
-        try
-        {
-            await runs.MarkInterruptedAsync(time.GetUtcNow(), cancellationToken);
-        }
-        catch (Exception e) when (e is not OperationCanceledException)
-        {
-            LogMarkInterruptedFailed(logger, e, schema);
-        }
-
-        await base.StartAsync(cancellationToken);
-    }
-
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        var startedAt = time.GetUtcNow();
         var timeZone = TimeZoneInfo.FindSystemTimeZoneById(options.Value.TimeZone);
-        var running = new List<Task>();
+        var running = new List<Task> { MarkInterruptedAsync(startedAt, stoppingToken) };
         foreach (var job in jobs)
         {
             if (schedules.Get(OptionsName(schema, job.Name)).DailyAt is { } dailyAt)
@@ -84,6 +80,7 @@ public sealed partial class JobRunner(
         {
             await foreach (var run in _queue.Reader.ReadAllAsync(stoppingToken))
             {
+                running.RemoveAll(t => t.IsCompleted);
                 running.Add(RunAsync(run, stoppingToken));
             }
         }
@@ -91,7 +88,43 @@ public sealed partial class JobRunner(
         {
         }
 
+        // Runs still waiting in the queue when the application stops are cancelled.
+        _queue.Writer.TryComplete();
+        while (_queue.Reader.TryRead(out var run))
+        {
+            running.Add(FinishAsync(run with { Status = JobRunStatus.Cancelled, FinishedAt = time.GetUtcNow() }));
+        }
+
         await Task.WhenAll(running);
+    }
+
+    // Runs left without a finish time by the previous start of the application (crash, power loss).
+    // Retried, because the database may not be ready yet when the application starts.
+    private async Task MarkInterruptedAsync(DateTimeOffset startedAt, CancellationToken stoppingToken)
+    {
+        var wait = TimeSpan.Zero;
+        while (true)
+        {
+            try
+            {
+                if (wait > TimeSpan.Zero)
+                {
+                    await Task.Delay(wait, time, stoppingToken);
+                }
+
+                await runs.MarkInterruptedAsync(startedAt, time.GetUtcNow(), stoppingToken);
+                return;
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception e)
+            {
+                LogMarkInterruptedFailed(logger, e, schema);
+                wait = RetryDelay;
+            }
+        }
     }
 
     private async Task ScheduleAsync(string job, TimeOnly dailyAt, TimeZoneInfo timeZone, CancellationToken stoppingToken)
@@ -129,21 +162,16 @@ public sealed partial class JobRunner(
         {
             await runs.UpdateAsync(run, CancellationToken.None);
             await SetActiveAsync(run);
-            await hub.Clients.Group(schema).JobRunStarted(run);
-
-            run = await ExecuteJobAsync(run, stoppingToken);
-
-            await runs.UpdateAsync(run, CancellationToken.None);
-            await hub.Clients.Group(schema).JobRunFinished(run);
+            await NotifyAsync(client => client.JobRunStarted(run));
         }
         catch (Exception e)
         {
             LogRunFailed(logger, e, schema, run.Job, run.Id);
+            await FinishAsync(run with { Status = JobRunStatus.Failed, FinishedAt = time.GetUtcNow(), ErrorCode = JobFailedException.Unexpected });
+            return;
         }
-        finally
-        {
-            await RemoveActiveAsync(run.Job);
-        }
+
+        await FinishAsync(await ExecuteJobAsync(run, stoppingToken));
     }
 
     private async Task<JobRun> ExecuteJobAsync(JobRun run, CancellationToken stoppingToken)
@@ -173,6 +201,40 @@ public sealed partial class JobRunner(
         }
     }
 
+    // Saves the final state with a second try, so a short database outage does not leave the run
+    // queued or running; if both fail, the next start of the application marks it interrupted.
+    private async Task FinishAsync(JobRun run)
+    {
+        for (var attempt = 1; attempt <= 2; attempt++)
+        {
+            try
+            {
+                await runs.UpdateAsync(run, CancellationToken.None);
+                break;
+            }
+            catch (Exception e)
+            {
+                LogSaveFailed(logger, e, schema, run.Job, run.Id, attempt);
+            }
+        }
+
+        await RemoveActiveAsync(run.Job);
+        await NotifyAsync(client => client.JobRunFinished(run));
+    }
+
+    // A failed message to the browsers never changes the state of a run.
+    private async Task NotifyAsync(Func<IJobsClient, Task> send)
+    {
+        try
+        {
+            await send(hub.Clients.Group(schema));
+        }
+        catch (Exception e)
+        {
+            LogNotifyFailed(logger, e, schema);
+        }
+    }
+
     private async Task SetActiveAsync(JobRun run)
     {
         await _lock.WaitAsync();
@@ -199,6 +261,12 @@ public sealed partial class JobRunner(
     [LoggerMessage(Level = LogLevel.Error, Message = "Scheduled run of job {Schema}/{Job} could not be queued; next try at the next scheduled time")]
     private static partial void LogScheduleFailed(ILogger logger, Exception exception, string schema, string job);
 
-    [LoggerMessage(Level = LogLevel.Error, Message = "Unfinished runs of {Schema} could not be marked interrupted")]
+    [LoggerMessage(Level = LogLevel.Error, Message = "Unfinished runs of {Schema} could not be marked interrupted; retrying in a minute")]
     private static partial void LogMarkInterruptedFailed(ILogger logger, Exception exception, string schema);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Job {Schema}/{Job} run {RunId} could not be saved (attempt {Attempt})")]
+    private static partial void LogSaveFailed(ILogger logger, Exception exception, string schema, string job, int runId, int attempt);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Clients of {Schema} could not be told about a job run")]
+    private static partial void LogNotifyFailed(ILogger logger, Exception exception, string schema);
 }

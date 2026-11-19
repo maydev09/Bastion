@@ -124,16 +124,17 @@ public class HousingJobsTests
     [Test]
     public async Task Run_left_unfinished_is_interrupted_after_a_restart()
     {
-        await Sql("""
+        var id = await Scalar<int>("""
             INSERT INTO housing.job_run (job, trigger, status, queued_at, started_at)
-            VALUES ('RawCaptureRetention', 1, 2, now(), now())
+            VALUES ('RawCaptureRetention', 1, 2, now() - interval '1 minute', now() - interval '1 minute')
+            RETURNING id
             """);
         await using var factory = App();
         using var client = factory.CreateClient();
 
-        var status = await Scalar<int>("SELECT status FROM housing.job_run ORDER BY id LIMIT 1");
+        var run = await WaitForFinish(client, id);
 
-        Assert.That((JobRunStatus)status, Is.EqualTo(JobRunStatus.Interrupted));
+        Assert.That(run.Status, Is.EqualTo(JobRunStatus.Interrupted));
     }
 
     [Test]
