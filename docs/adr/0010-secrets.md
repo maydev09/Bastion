@@ -1,7 +1,7 @@
 # 0010. Secrets with systemd credentials and Docker secrets
 
 - **Status:** Accepted
-- **Date:** 2026-11-15, updated 2026-11-17 (user secrets for the local backend), 2026-11-18 (server secrets through `deploy/compose.sh`)
+- **Date:** 2026-11-15, updated 2026-11-17 (user secrets for the local backend), 2026-11-18 (server secrets through `deploy/compose.sh`), 2026-11-19 (where dev secrets land on disk)
 
 ## Context
 
@@ -48,7 +48,9 @@ Secrets are stored encrypted outside the repository, delivered to containers as
 ### On a developer machine
 - Secret values come from the developer's local secret store. A dev script passes
   them to Compose as environment variables of the `docker compose` process only
-  (Compose `secrets: ... environment:`); they are never written to files.
+  (Compose `secrets: ... environment:`); no file in the project or home folder holds them.
+  Docker copies them into the containers' layers in its own storage, which is accepted for
+  the random, development-only passwords of the local database.
 - The backend run from the IDE or `dotnet run` gets its connection string from the
   **.NET user secrets** (Development only), the standard ASP.NET Core way. `scripts/dev-up.sh`
   writes it there. User secrets are plain text in the home folder, outside the repository;
@@ -57,7 +59,8 @@ Secrets are stored encrypted outside the repository, delivered to containers as
 
 ### Rules
 - No `.env` files with real values. No secrets in TOML files, Compose files or the repository.
-  The only plain-text secret on disk is the local connection string in the user secrets.
+  On the developer machine, the only plain-text secrets on disk are the local connection
+  string in the user secrets and Docker's copies in the containers' layers.
 - Server files: `scripts/server-setup.sh` creates the encrypted secrets, `deploy/` holds the
   systemd service, `compose.sh` and the server Compose override.
 
