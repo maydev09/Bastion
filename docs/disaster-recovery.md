@@ -1,7 +1,7 @@
 # Disaster recovery
 
-How to get the production data back from a dump, and how to test that a dump can be restored.
-Sections A and B run on the server, from `/opt/bastion`, as the admin who set it up;
+How to get the production data back from a dump, and how to test that a dump can be restored
+(ADR 0020). Sections A and B run on the server, from `/opt/bastion`, as the admin who set it up;
 do not start an import while you restore. Section C runs on any other machine.
 
 ## Which dump

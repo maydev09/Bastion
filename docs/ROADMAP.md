@@ -38,8 +38,8 @@ A phase is complete only when all its exit criteria are met.
 - **Outcome:** PostgreSQL runs with separated roles and migrations; the app proves it
   can connect, without storing business data yet.
 - **Included work:** PostgreSQL in Docker Compose; separate database roles for
-  administration, migrations and the application; dbmate migrations per
-  module schema; secrets as Docker secrets; a database smoke
+  administration, migrations and the application (ADR 0006); dbmate migrations per
+  module schema (ADR 0005); secrets as Docker secrets (ADR 0010); a database smoke
   test in the UI (connected as the application role, schema version); Testcontainers
   setup for tests.
 - **Exit criteria:** A fresh setup creates the database, roles and schemas with one
@@ -53,7 +53,7 @@ A phase is complete only when all its exit criteria are met.
   saved and listed in the UI.
 - **Included work:** Offer table with basic fields, unique per source and external id;
   saving new offers and updating known ones; a simple offer list with paging;
-  module layers split into projects; raw captures of every fetched page with
+  module layers split into projects (ADR 0017); raw captures of every fetched page with
   re-parsing and retention; built-in .NET features instead of custom code.
 - **Exit criteria:** Running the import twice stores each offer once; the list shows
   the stored offers.
@@ -102,7 +102,7 @@ A phase is complete only when all its exit criteria are met.
 - **Status:** Planned
 - **Outcome:** Offers are collected on their own. The user sets in plain terms when each job
   runs ("every hour, 7:00–22:00, Monday–Friday"), pauses it or runs it now.
-- **Included work:** Quartz.NET with the schedules stored in the module's tables;
+- **Included work:** Quartz.NET with the schedules stored in the module's tables (new ADR);
   a schedule can later belong to a search profile.
 - **Exit criteria:** a schedule changed in the UI survives a restart and the job runs at the
   new times; a paused job does not run; missed runs are not caught up.

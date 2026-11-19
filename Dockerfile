@@ -1,4 +1,4 @@
-# One image with the backend and the frontend.
+# One image with the backend and the frontend (ADR 0011).
 
 FROM node:24.22.3-trixie-slim AS web
 WORKDIR /src
@@ -17,7 +17,7 @@ RUN dotnet publish src/Host/Bastion.Host --configuration Release --runtime linux
     -p:OpenApiGenerateDocuments=false --output /app
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0.15-noble
-# iproute2: the VPN check runs `ip route get`.
+# iproute2: the VPN check runs `ip route get` (ADR 0019).
 RUN apt-get update && apt-get install --yes --no-install-recommends iproute2 && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=backend /app .

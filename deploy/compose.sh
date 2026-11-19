@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Docker Compose for bastion.service. The decrypted credentials are readable only by
+# Docker Compose for bastion.service (ADR 0010). The decrypted credentials are readable only by
 # root, and the app and PostgreSQL do not run as root, so they are copied as readable files to
 # /run/bastion (RuntimeDirectory: in memory, mode 0700, removed when the service stops) and
 # mounted from there. Secrets passed through the environment would end up in the containers'

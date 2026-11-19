@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Dumps the database to /var/backups/bastion and keeps the newest 30 dumps.
+# Dumps the database to /var/backups/bastion and keeps the newest 30 dumps (ADR 0020).
 # Run by bastion-backup.service: nightly from its timer, and on demand before a deployment
 # (`systemctl start bastion-backup`). Needs the db container running.
 set -euo pipefail

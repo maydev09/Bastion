@@ -1,5 +1,5 @@
-# Server override, used by bastion.service through deploy/compose.sh (secrets);
-# scraping goes through the vpn container.
+# Server override, used by bastion.service through deploy/compose.sh (secrets, ADR 0010);
+# scraping goes through the vpn container (ADR 0019).
 # No restart policies: systemd restarts the whole stack (see bastion.service). Docker restarting
 # a single container would start it at boot before the secrets exist, and a restarted vpn
 # would leave the app without network.
@@ -7,7 +7,7 @@ services:
   app:
     # Built and published by CI for every commit on master; BASTION_COMMIT is set by compose.sh.
     image: ghcr.io/maydev09/bastion:${BASTION_COMMIT:?run through deploy/compose.sh}
-    # Shares the network of vpn, so all its traffic goes through the tunnel.
+    # Shares the network of vpn, so all its traffic goes through the tunnel (ADR 0019).
     network_mode: service:vpn
     secrets:
       - source: db_connection_string

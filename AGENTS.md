@@ -25,7 +25,7 @@ Spend effort only on what solves a real problem the maintainer has today
 
 - Build for one user on one instance, not for a million users. No login screen,
   user management, multi-tenancy, horizontal scaling or "enterprise" infrastructure.
-  No user concept in the data model (no `user_id` columns) until users are really needed.
+  No user concept in the data model (no `user_id` columns) until a future ADR adds users.
 - Before adding anything, ask: does it help collect, browse or act on the data now?
   If not, leave it out and note it as a possible later idea instead.
 - When .NET or ASP.NET Core supports something out of the box, use it the way the Microsoft
@@ -38,7 +38,7 @@ Spend effort only on what solves a real problem the maintainer has today
 - The UI must still be usable by a person without technical knowledge: simple for one
   user does not mean only understandable by developers.
 
-## Architecture (modular monolith)
+## Architecture (modular monolith, see docs/adr/0002-use-modular-monolith.md)
 
 - Every module works on its own; the app runs with any subset of modules enabled.
 - A module never references another module's code or data. Cooperation, if ever needed,
@@ -48,13 +48,13 @@ Spend effort only on what solves a real problem the maintainer has today
 - The platform never contains module-specific code. Building blocks contain no business logic.
 - A whole module is switched on/off in configuration; feature flags work inside a module.
 - A module is a root project with only its `IModule` class plus one project per layer
- . The Host references only module roots.
+  (docs/adr/0017-module-layers-as-projects.md). The Host references only module roots.
   Layer types are `public`; architecture tests guard the module boundary.
-- The UI holds no business logic; everything goes through the API.
+- The UI holds no business logic; everything goes through the API (docs/adr/0011-frontend-stack.md).
 - Frontend: a module's UI lives in `src/Web/Modules/<Module>`; module UIs never import from
   each other or from the shell (`src/Web/App`), only from `src/Web/Shared` (`@shared/*`).
   Stack (Vite, React Router, TanStack Query/Table, Base UI + CSS Modules, no Tailwind, API types
-  generated from OpenAPI, one container).
+  generated from OpenAPI, one container): docs/adr/0011-frontend-stack.md.
   Never edit `src/Web/Shared/api/schema.ts` by hand; regenerate it.
 - Audit and logs: log only through `ILogger<T>` (Serilog is configured in the Host only);
   run events via `JobContext`. Every fetched page is stored
@@ -74,14 +74,14 @@ Spend effort only on what solves a real problem the maintainer has today
  .
 - Tests: NUnit (not xUnit), integration tests first (Host via `WebApplicationFactory`,
   Testcontainers for the database), NSubstitute for dependencies that reach the outside
-  world; Vitest in the frontend.
+  world; Vitest in the frontend: docs/adr/0012-testing.md.
 - Test behavior that matters, not implementation details: what a user or caller sees
   (an endpoint result, a parsed offer, a refused request, a page that shows the result).
   A refactor or a changed UI text must not break tests. No test per trivial member,
   no assertions on private structure or exact wording; frontend tests find elements by
   role and compare texts through the translation keys.
 
-## Code style
+## Code style (see docs/adr/0005-data-access-and-migrations.md)
 
 - KISS: simple, readable code over abstraction. Avoid boilerplate.
   Find the balance: an abstraction or pattern (interface, factory, wrapper) is welcome
@@ -139,10 +139,16 @@ Spend effort only on what solves a real problem the maintainer has today
   - `docs/ROADMAP.md`: phases in order, with exit criteria.
 - Open doubts and undecided questions go to `Unresolved questions` in `docs/SPEC.md`
   (one bullet: the question, known options, when it must be decided). When a question is
-  answered, remove the bullet and record the answer in the spec text or in `AGENTS.md`.
-- While the product is still being shaped, decisions are not recorded as ADRs: rules go to
-  `AGENTS.md`, scope to `docs/SPEC.md` and `docs/ROADMAP.md`. ADRs come back in `docs/adr/`
-  once a module is mature and its decisions stop changing.
+  answered, remove the bullet and record the answer in an ADR or in the spec text.
+- ADRs in `docs/adr/` (`NNNN-short-title.md`, based on `docs/adr/template.md`) record only
+  foundational decisions: hard to reverse and independent of what a module does (workflow,
+  architecture, data access, configuration, secrets, frontend, testing, infrastructure).
+  While a module is still being shaped, its decisions are not recorded as ADRs: rules go to
+  `AGENTS.md`, scope to `docs/SPEC.md` and `docs/ROADMAP.md`; module ADRs come once the module
+  is mature. Conventions and small rules go to `AGENTS.md`. When a decision only refines an
+  existing ADR, propose updating that ADR instead of writing a new one.
+- Read the relevant ADRs before changing architecture. Propose a new ADR
+  instead of silently changing an accepted decision.
 
 ## Keeping these files up to date
 
@@ -152,12 +158,13 @@ Update the matching file in the same change that makes it outdated:
 |--------------------------------------------------------|--------------------------------|
 | How we work: rules, workflow, commands, conventions    | `AGENTS.md`                    |
 | What the system does, non-goals, acceptance criteria   | `docs/SPEC.md`                 |
+| A foundational decision is made or reversed            | new ADR in `docs/adr/`         |
 | A convention or small rule is added                    | `AGENTS.md`                    |
 | A phase starts, finishes or changes scope              | `docs/ROADMAP.md`              |
 | A new build, test or run command exists                | `Commands` in `AGENTS.md`      |
 | Server setup, update, backup or restore steps          | `README.md`, `docs/disaster-recovery.md` |
 
-- Do not duplicate content: `AGENTS.md` keeps short rules.
+- Do not duplicate content: `AGENTS.md` keeps short rules and links to ADRs for the reasons.
 - At the end of every task, check this table and say which files you updated,
   or propose the update if it needs the maintainer's decision.
 
@@ -170,13 +177,14 @@ Update the matching file in the same change that makes it outdated:
   The `master` ruleset requires the CI jobs `backend`, `frontend` and `api-types` to pass
   and the branch to be up to date with `master`.
 - Unfinished functionality is merged behind a feature flag, never left on a long-lived branch.
+- Rationale: docs/adr/0001-use-trunk-based-development.md.
 - Keep changes small and focused; one concern per commit.
 - Use Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`).
 
 ## Data and privacy
 
 - Never commit secrets, `.env` files or real scraped data. Secrets are Docker secrets read
-  from `/run/secrets`, never TOML values or container env vars.
+  from `/run/secrets`, never TOML values or container env vars (docs/adr/0010-secrets.md).
   Test samples contain no personal data (e.g. seller names, phone numbers).
 - Scraped portals are named by their real names in code (enums, scraper classes).
 - Scraping rules: every request goes through the
@@ -233,9 +241,9 @@ Update the matching file in the same change that makes it outdated:
   The server runs the image CI published for the commit checked out in `/opt/bastion`
   (`ghcr.io/maydev09/bastion:<commit>`): deploy = `systemctl start bastion-backup` + `git pull` +
   `server-setup.sh` (installs changed units, restarts), rollback = `git checkout <commit>` + restart. Run Compose there only through `deploy/compose.sh`.
-- Backups: `deploy/backup.sh` dumps the database nightly (`bastion-backup.timer`) and on
+- Backups (ADR 0020): `deploy/backup.sh` dumps the database nightly (`bastion-backup.timer`) and on
   demand (`systemctl start bastion-backup`); `scripts/backup-pull.sh <user@server>` copies the dumps to another machine.
-- Image: `docker build -t bastion .` (frontend, backend and Playwright Firefox in one image).
+- Image: `docker build -t bastion .` (frontend, backend and Playwright Firefox in one image, ADR 0011).
 - CI (`.github/workflows/ci.yml`) runs the backend build, migrations on a fresh database and tests, frontend lint, tests and
   build, and fails when the committed OpenAPI document or `schema.ts` is out of date.
   The `image` job builds the Docker image on pull requests and publishes it on master.

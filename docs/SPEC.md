@@ -54,6 +54,7 @@ pointless, repetitive work than do it by hand.
   contributes no endpoints, jobs, navigation entries or pages.
 - Inside a module, feature flags hide unfinished or optional functionality.
 - Adding a new module does not require changes in other modules.
+- Architecture rules and their enforcement: ADR 0002.
 
 ### Web UI shell
 - One React application with shared layout and navigation.
@@ -117,8 +118,8 @@ and is extracted into the library when the job offers module needs it.
 
 ## Security and privacy
 
-- No secrets in the repository; configuration comes from TOML files and
-  environment variables; secrets only from encrypted secret files.
+- No secrets in the repository; configuration comes from TOML files (ADR 0008) and
+  environment variables; secrets only from encrypted secret files (ADR 0010).
 - The repository never contains real scraped data. Sample HTML/JSON used in tests
   contains no personal data.
 - User-specific preferences (search criteria, locations, price ranges) are never
@@ -129,7 +130,7 @@ and is extracted into the library when the job offers module needs it.
   portal's host uses (`ip route get <host>`) and fails the run (fail closed) unless it is a tunnel
   (type `wireguard`/`tun`, or a name matching configurable prefixes, by default `wg`, `tun`, `proton`).
   On the server the app shares the network of a WireGuard container, so the same check works
-  inside Docker.
+  inside Docker (ADR 0019).
   The check is controlled by the `Scraping:RequireVpn` setting, `true` by default;
   it may be turned off only locally (e.g. when the whole machine sits behind a VPN router).
   Offline runs from sample files do not need a VPN. Bastion only checks the VPN;
@@ -139,7 +140,7 @@ and is extracted into the library when the job offers module needs it.
 
 - Running Bastion as a commercial product. It is open source under AGPL-3.0 (see `LICENSE`).
 - Multi-user accounts, roles or a login for now. The data model has no concept of a
-  user (no `user_id` columns); it is added only if Bastion is ever hosted
+  user (no `user_id` columns); it is added in its own ADR if Bastion is ever hosted
   for several people.
 - Third-party plugins: modules are developed in this repository.
 - Bypassing CAPTCHAs or other explicit access restrictions of a website.
@@ -156,11 +157,11 @@ and is extracted into the library when the job offers module needs it.
 
 ## Unresolved questions
 
-- Feature flags: the mechanism that hides half-finished work merged to `master`.
+- Feature flags (see ADR 0001 consequences).
 - Should historical data from the legacy databases be migrated?
 - Deployment details: Bastion and PostgreSQL run in Docker Compose on a headless home
-  server, started by systemd; setup and updates are in README ("Running on a
-  server"); database backups are pulled to another machine.
+  server, started by systemd (ADR 0010); setup and updates are in README ("Running on a
+  server"); database backups are pulled to another machine (ADR 0020).
   The web UI has no login (single user, see AGENTS.md "Focus on the core problem");
   revisit only if Bastion is ever reachable from the internet.
 - Duplicate matching: which signals decide that two offers are the same (exact
