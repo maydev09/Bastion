@@ -63,10 +63,10 @@ pointless, repetitive work than do it by hand.
 
 ### Shared services
 - Background jobs: modules that need them register scheduled and manually triggered jobs
-  through a building block, not the platform core (ADR 0018). Every job run is recorded in
+  through a building block, not the platform core. Every job run is recorded in
   the module's own schema with its status, timing and errors.
 - Audit: each run has a summary and a timeline of events viewable in the UI;
-  technical logs go to the console and rolling files (ADR 0013).
+  technical logs go to the console and rolling files.
 - Configuration, logging and health checks, shared by all modules.
 - Database access and schema migrations, with a separate schema per module.
 
@@ -80,7 +80,7 @@ Replaces the legacy flat offers scraper.
   criteria (e.g. rent or buy, city, price range, rooms). Each run executes the enabled
   profiles. Several profiles can run side by side (e.g. rent in one city, buy in another).
 - Requests are rate-limited with randomized delays between calls and follow the
-  scraping rules (robots.txt, one request at a time per portal, no personal data): ADR 0016.
+  scraping rules (robots.txt, one request at a time per portal, no personal data), see `AGENTS.md`.
 - Each source can be run from saved sample files instead of the live website
   (offline mode for development and tests).
 - When parsing fails, the raw input and the error are saved for debugging,
@@ -111,7 +111,7 @@ work mode) and statuses (e.g. applied, interview scheduled, rejected), plus:
 
 Both scraper modules need the same technical building blocks (HTTP/browser fetching,
 rate limiting, offline sample files, error capture, storing every raw response
-compressed per run with retention, see ADR 0013). These end up in a reusable
+compressed per run with retention). These end up in a reusable
 library that scraper modules use. It is not part of the platform core, because
 non-scraper modules do not need it. The code starts inside the housing module
 and is extracted into the library when the job offers module needs it.
@@ -166,7 +166,7 @@ and is extracted into the library when the job offers module needs it.
   revisit only if Bastion is ever reachable from the internet.
 - Duplicate matching: which signals decide that two offers are the same (exact
   checksum of key fields, or a similarity score over address, price, area, rooms,
-  title), and is a group stored or derived from the data? Decide in an ADR before the
+  title), and is a group stored or derived from the data? Decide before the
   second portal of a module is added.
 - AI support (later phase): e.g. "find the offers that fit me best" over the collected data.
   Options: an MCP server over the database used from an existing Claude subscription

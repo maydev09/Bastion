@@ -16,7 +16,7 @@ public sealed record Offer(
     decimal? AreaM2 = null,
     int? Rooms = null)
 {
-    // ADR 0016: an offer is updated only when the hash of the stored listing fields changes.
+    // An offer is updated only when the hash of the stored listing fields changes.
     public string ListingHash()
     {
         var fields = string.Create(CultureInfo.InvariantCulture,

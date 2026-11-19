@@ -1,5 +1,5 @@
 -- migrate:up
--- Ids are set here, not generated: they match the Source enum in C# (ADR 0014).
+-- Ids are set here, not generated: they match the Source enum in C#.
 CREATE TABLE housing.source (
     id integer PRIMARY KEY,
     name text NOT NULL UNIQUE

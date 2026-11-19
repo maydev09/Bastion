@@ -33,8 +33,8 @@ Spend effort only on what solves a real problem the maintainer has today
   `MapStaticAssets`). Custom code needs a really good reason,
   explained to the maintainer first, and then it extends the built-in concept instead of replacing it.
 - Start with plain .NET and simple code. Adopt a bigger tool only when a real need
-  appears that the simple solution cannot cover (example: ADR 0009 keeps Quartz.NET
-  as the upgrade path for background jobs).
+  appears that the simple solution cannot cover (example: Quartz.NET is
+  the upgrade path for background jobs).
 - The UI must still be usable by a person without technical knowledge: simple for one
   user does not mean only understandable by developers.
 
@@ -57,21 +57,21 @@ Spend effort only on what solves a real problem the maintainer has today
   generated from OpenAPI, one container): docs/adr/0011-frontend-stack.md.
   Never edit `src/Web/Shared/api/schema.ts` by hand; regenerate it.
 - Audit and logs: log only through `ILogger<T>` (Serilog is configured in the Host only);
-  run events via `JobContext` (docs/adr/0013-audit-logging-and-raw-data.md). Every fetched page is stored
+  run events via `JobContext`. Every fetched page is stored
   as a raw capture before parsing, through the module's `RawCaptureService`; each portal is an
-  `IOfferSource` picked from the `OfferSources` registry, never with a switch (docs/adr/0013-audit-logging-and-raw-data.md).
-- Background jobs (docs/adr/0018-background-jobs-as-building-block.md): a job is an `IJob` in the
+  `IOfferSource` picked from the `OfferSources` registry, never with a switch.
+- Background jobs: a job is an `IJob` in the
   module's Infrastructure, registered in the module root with `AddJobs(schema, moduleSection).Add<TJob>(name)` (PascalCase name)
   and mapped with `MapJobs(schema)`; the module's migrations create `<schema>.job_run`. An optional
   daily run is `DailyAt` in `[Modules.<Module>.Jobs.<name>]`, in the time zone from `[Jobs] TimeZone`.
   An expected failure throws `JobFailedException` with a code that the UI translates.
-- Data and API conventions (docs/adr/0014-data-and-api-conventions.md): `int` identity keys,
+- Data and API conventions: `int` identity keys,
   `timestamptz` + `DateTimeOffset` + `TimeProvider`, money as `numeric`/`decimal` with a
   currency column, enums as `integer` (explicit C# values) without `CHECK` and as JSON strings, `ProblemDetails` with a
   `code`, paging via `PageRequest`/`PagedResult<T>`, expected errors as `TypedResults`.
 - UI texts only from i18next dictionaries by key; no hardcoded texts. Every new or
   changed text goes to both `pl` (default) and `en` in the same change
-  (docs/adr/0015-ui-translations.md).
+ .
 - Tests: NUnit (not xUnit), integration tests first (Host via `WebApplicationFactory`,
   Testcontainers for the database), NSubstitute for dependencies that reach the outside
   world; Vitest in the frontend: docs/adr/0012-testing.md.
@@ -80,10 +80,8 @@ Spend effort only on what solves a real problem the maintainer has today
   A refactor or a changed UI text must not break tests. No test per trivial member,
   no assertions on private structure or exact wording; frontend tests find elements by
   role and compare texts through the translation keys.
-- Module contract (`IModule`, `ModuleDefinition`, explicit module lists): docs/adr/0007-module-contract.md.
-- Solution layout and versions (.NET 10, React 19): docs/adr/0003-solution-structure-and-versions.md.
 
-## Code style (see docs/adr/0004 and 0005)
+## Code style (see docs/adr/0005-data-access-and-migrations.md)
 
 - KISS: simple, readable code over abstraction. Avoid boilerplate.
   Find the balance: an abstraction or pattern (interface, factory, wrapper) is welcome
@@ -142,11 +140,13 @@ Spend effort only on what solves a real problem the maintainer has today
 - Open doubts and undecided questions go to `Unresolved questions` in `docs/SPEC.md`
   (one bullet: the question, known options, when it must be decided). When a question is
   answered, remove the bullet and record the answer in an ADR or in the spec text.
-- Architecture decisions are recorded as ADRs in `docs/adr/`
-  (`NNNN-short-title.md`, based on `docs/adr/template.md`). An ADR is only for a decision that
-  is hard to reverse or has real alternatives worth recording; conventions and small rules go
-  to `AGENTS.md`. When a decision only refines an existing ADR, propose updating that ADR
-  instead of writing a new one.
+- ADRs in `docs/adr/` (`NNNN-short-title.md`, based on `docs/adr/template.md`) record only
+  foundational decisions: hard to reverse and independent of what a module does (workflow,
+  architecture, data access, configuration, secrets, frontend, testing, infrastructure).
+  While a module is still being shaped, its decisions are not recorded as ADRs: rules go to
+  `AGENTS.md`, scope to `docs/SPEC.md` and `docs/ROADMAP.md`; module ADRs come once the module
+  is mature. Conventions and small rules go to `AGENTS.md`. When a decision only refines an
+  existing ADR, propose updating that ADR instead of writing a new one.
 - Read the relevant ADRs before changing architecture. Propose a new ADR
   instead of silently changing an accepted decision.
 
@@ -158,7 +158,7 @@ Update the matching file in the same change that makes it outdated:
 |--------------------------------------------------------|--------------------------------|
 | How we work: rules, workflow, commands, conventions    | `AGENTS.md`                    |
 | What the system does, non-goals, acceptance criteria   | `docs/SPEC.md`                 |
-| A decision that is hard to reverse is made or reversed | new ADR in `docs/adr/`         |
+| A foundational decision is made or reversed            | new ADR in `docs/adr/`         |
 | A convention or small rule is added                    | `AGENTS.md`                    |
 | A phase starts, finishes or changes scope              | `docs/ROADMAP.md`              |
 | A new build, test or run command exists                | `Commands` in `AGENTS.md`      |
@@ -187,14 +187,14 @@ Update the matching file in the same change that makes it outdated:
   from `/run/secrets`, never TOML values or container env vars (docs/adr/0010-secrets.md).
   Test samples contain no personal data (e.g. seller names, phone numbers).
 - Scraped portals are named by their real names in code (enums, scraper classes).
-- Scraping rules (docs/adr/0016-scraping-rules.md): every request goes through the
+- Scraping rules: every request goes through the
   scraping toolkit (robots.txt check, one request at a time per host, backoff on
   429/503). Never store personal data of private persons (raw pages are stored anonymized
-  by the portal's `IOfferSource.Anonymize`, docs/adr/0013-audit-logging-and-raw-data.md); store the link to the
+  by the portal's `IOfferSource.Anonymize`); store the link to the
   portal's offer or contact page instead. Scrapers never log in to a portal.
 - Before writing a scraper for a new portal, research its terms of service, `robots.txt`,
   account requirements, personal data and anti-bot measures, and record the facts in
-  `docs/portals/<portal>.md` (checklist in ADR 0016). No review, no scraper.
+  `docs/portals/<portal>.md`. No review, no scraper.
 - Normalize scraped data so offers from different portals can be compared and filtered
   together. Design every scraper, even the first one for a portal, around the module's own
   model, not around the portal's format:

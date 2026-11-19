@@ -1,5 +1,5 @@
 -- migrate:up
--- Runs of the module's background jobs (ADR 0018).
+-- Runs of the module's background jobs.
 CREATE TABLE housing.job_run (
     id integer GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     job text NOT NULL,
