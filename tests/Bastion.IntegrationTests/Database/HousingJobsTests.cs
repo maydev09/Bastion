@@ -3,6 +3,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using Bastion.BuildingBlocks.Jobs;
+using Bastion.BuildingBlocks.Scraping;
 using Bastion.Host;
 using Bastion.Modules.Housing.Application.Abstractions;
 using Dapper;
@@ -22,6 +23,7 @@ namespace Bastion.IntegrationTests.Database;
 public class HousingJobsTests
 {
     private const string Retention = "/api/housing/jobs/RawCaptureRetention";
+    private const string Import = "/api/housing/jobs/ImportOffers";
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } };
 
@@ -61,6 +63,29 @@ public class HousingJobsTests
             Assert.That(run.Status, Is.EqualTo(JobRunStatus.Succeeded));
             Assert.That(run.Summary!.Counts, Is.EquivalentTo(new Dictionary<string, long> { ["deletedCaptures"] = 1, ["freedBytes"] = 100 }));
             Assert.That(Directory.Exists(oldDay), Is.False);
+        });
+    }
+
+    [Test]
+    public async Task Import_runs_on_its_own_every_interval_and_a_failure_keeps_the_reason()
+    {
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 1, 15, 12, 0, 0, TimeSpan.Zero));
+        var noVpn = Substitute.For<IVpnCheck>();
+        noVpn.EnsureTunnelAsync(default!, default)
+            .ThrowsAsyncForAnyArgs(new ScrapingException(ScrapingException.VpnRequired, "no VPN in tests"));
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<TimeProvider>(clock)).AddSingleton(noVpn))
+            .WithWebHostBuilder(b => b.UseSetting("Modules:Housing:Jobs:ImportOffers:Every", "00:10:00"));
+        using var client = factory.CreateClient();
+
+        clock.Advance(TimeSpan.FromMinutes(10));
+        var run = await JobRuns.WaitForFinish(client, Import);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(run.Trigger, Is.EqualTo(JobTrigger.Schedule));
+            Assert.That(run.QueuedAt, Is.EqualTo(new DateTimeOffset(2026, 1, 15, 12, 10, 0, TimeSpan.Zero)));
+            Assert.That(run.Status, Is.EqualTo(JobRunStatus.Failed));
+            Assert.That(run.ErrorCode, Is.EqualTo(ScrapingException.VpnRequired));
         });
     }
 

@@ -26,6 +26,7 @@ namespace Bastion.IntegrationTests.Database;
 public class HousingImportTests
 {
     private const string Import = "/api/housing/jobs/ImportOffers";
+    private const string Scan = "/api/housing/jobs/ScanOffers";
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } };
 
@@ -246,6 +247,72 @@ public class HousingImportTests
     }
 
     [Test]
+    public async Task Full_scan_reads_past_known_offers_to_the_last_page()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small], [Large]];
+        await RunImport(client);
+
+        _source.Pages = [[Medium, Small], [Large]];
+        var result = await RunScan(client);
+
+        Assert.That((result.Pages, result.Added, result.Missed), Is.EqualTo((2, 1, 0)));
+    }
+
+    [Test]
+    public async Task Offer_missing_from_two_complete_scans_is_removed_and_comes_back_when_it_reappears()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small, Large]];
+        await RunScan(client);
+
+        _source.Pages = [[Small]];
+        var firstMiss = await RunScan(client);
+        var afterFirstMiss = await ListedTitles(client);
+        var secondMiss = await RunScan(client);
+        var afterSecondMiss = await ListedTitles(client);
+
+        _source.Pages = [[Small, Large]];
+        await RunImport(client);
+        var afterReturn = await ListedTitles(client);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((firstMiss.Missed, firstMiss.Removed), Is.EqualTo((1, 0)));
+            Assert.That(afterFirstMiss, Is.EquivalentTo(new[] { "Small flat", "Large flat" }));
+            Assert.That((secondMiss.Missed, secondMiss.Removed), Is.EqualTo((1, 1)));
+            Assert.That(afterSecondMiss, Is.EqualTo(new[] { "Small flat" }));
+            Assert.That(afterReturn, Is.EquivalentTo(new[] { "Small flat", "Large flat" }));
+        });
+    }
+
+    [Test]
+    public async Task Scan_stopped_by_the_page_limit_fails_and_marks_nothing()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)))
+            .WithWebHostBuilder(b => b.UseSetting("Modules:Housing:Import:FullScanMaxPages", "1"));
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small, Large]];
+        await RunScan(client);
+
+        _source.Pages = [[Small], [Medium]];
+        var first = await JobRuns.Run(client, Scan);
+        await JobRuns.Run(client, Scan);
+        var listed = await ListedTitles(client);
+        var pagesRead = await Scalar<int>("SELECT count(*)::int FROM housing.raw_capture");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(first.Status, Is.EqualTo(JobRunStatus.Failed));
+            Assert.That(first.ErrorCode, Is.EqualTo("housing.pageLimitReached"));
+            Assert.That(listed, Is.EquivalentTo(new[] { "Small flat", "Large flat" }));
+            Assert.That(pagesRead, Is.EqualTo(3));
+        });
+    }
+
+    [Test]
     public async Task Reparse_rebuilds_offers_from_raw_pages()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
@@ -324,9 +391,25 @@ public class HousingImportTests
         return new Imported((int)counts["pages"], (int)counts["added"], (int)counts["updated"], (int)counts["unchanged"]);
     }
 
+    private static async Task<Scanned> RunScan(HttpClient client)
+    {
+        var run = await JobRuns.Run(client, Scan);
+        Assert.That(run.Status, Is.EqualTo(JobRunStatus.Succeeded), run.ErrorCode);
+        var counts = run.Summary!.Counts;
+        return new Scanned((int)counts["pages"], (int)counts["added"], (int)counts["missed"], (int)counts["removed"]);
+    }
+
+    private static async Task<IReadOnlyList<string>> ListedTitles(HttpClient client)
+    {
+        var list = await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json);
+        return list!.Items.Select(o => o.Title).ToList();
+    }
+
     private static DateTimeOffset At(int hour) => new(2026, 11, 19, hour, 0, 0, TimeSpan.Zero);
 
     private sealed record Imported(int Pages, int Added, int Updated, int Unchanged);
+
+    private sealed record Scanned(int Pages, int Added, int Missed, int Removed);
 
     private sealed record FakePage(IReadOnlyList<Offer> Offers, bool IsLast);
 

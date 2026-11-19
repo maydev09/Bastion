@@ -70,9 +70,14 @@ public sealed partial class JobRunner(
         var running = new List<Task> { MarkInterruptedAsync(startedAt, stoppingToken) };
         foreach (var job in jobs)
         {
-            if (schedules.Get(OptionsName(schema, job.Name)).DailyAt is { } dailyAt)
+            var schedule = schedules.Get(OptionsName(schema, job.Name));
+            if (schedule.DailyAt is { } dailyAt)
             {
-                running.Add(ScheduleAsync(job.Name, dailyAt, timeZone, stoppingToken));
+                running.Add(ScheduleAsync(job.Name, now => DailySchedule.NextRun(now, dailyAt, timeZone), stoppingToken));
+            }
+            else if (schedule.Every is { } every)
+            {
+                running.Add(ScheduleAsync(job.Name, now => now + every, stoppingToken));
             }
         }
 
@@ -127,13 +132,15 @@ public sealed partial class JobRunner(
         }
     }
 
-    private async Task ScheduleAsync(string job, TimeOnly dailyAt, TimeZoneInfo timeZone, CancellationToken stoppingToken)
+    // A run still going at the next time is not queued again (see QueueAsync), so a slow run skips a turn.
+    private async Task ScheduleAsync(string job, Func<DateTimeOffset, DateTimeOffset> nextRun, CancellationToken stoppingToken)
     {
         while (true)
         {
             try
             {
-                var wait = DailySchedule.NextRun(time.GetUtcNow(), dailyAt, timeZone) - time.GetUtcNow();
+                var now = time.GetUtcNow();
+                var wait = nextRun(now) - now;
                 if (wait > TimeSpan.Zero)
                 {
                     await Task.Delay(wait, time, stoppingToken);
