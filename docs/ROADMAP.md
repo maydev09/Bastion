@@ -65,8 +65,8 @@ A phase is complete only when all its exit criteria are met.
   Hardware limits show up early, while the design can still change.
 - **Included work:** Docker Compose started by systemd (SPEC); the VPN check inside Docker;
   secrets on the server; resource use measured during an import. Safe updates without a
-  second environment on the server: versioned images, a database backup before every
-  deployment, and a check of the new image on the desktop against a copy of the production data.
+  second environment on the server: versioned images, a nightly database backup and one
+  on demand before a deployment, and a check of the new image on the desktop against a copy of the production data.
 - **Exit criteria:** the server starts Bastion after a reboot; an import through the VPN
   works there; memory, CPU and disk use during an import are measured; a production backup
   restored on the desktop runs with the image that goes to the server.

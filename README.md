@@ -102,12 +102,23 @@ Its scraping traffic goes through a VPN container (ADR 0019); secrets are encryp
    your VPN provider and starts the `bastion` service. Docker, reboots and Bastion are updated by hand.
 2. Open `http://<server>:8080` from the home network. Do not forward the port to the internet:
    Bastion has no login.
-3. **Update:** `cd /opt/bastion && sudo git pull && sudo systemctl restart bastion`. The server
-   pulls the image CI published for that commit; it never builds one.
+3. **Update:** back up, pull, then run the setup again (it installs changed units and restarts
+   Bastion):
+
+   ```bash
+   cd /opt/bastion && sudo systemctl start bastion-backup && sudo git pull && sudo scripts/server-setup.sh
+   ```
+
+   The server pulls the image CI published for that commit; it never builds one. When Bastion
+   is not running, the backup step fails: leave it out, the newest dump is the nightly one.
 4. **Roll back:** `sudo git checkout <older commit>` and restart.
 5. **Logs:** `sudo journalctl -u bastion -f`. When a container exits, the whole stack restarts;
    after 3 failed retries it stays stopped. Fix the cause, then
    `sudo systemctl reset-failed bastion && sudo systemctl start bastion`.
+6. **Backups:** the server dumps the database every night at 03:00 to `/var/backups/bastion`
+   and keeps 30 dumps (ADR 0020). Copy them to your desktop regularly:
+   `scripts/backup-pull.sh <user>@<server>` (to `~/bastion-backups`, or `$BASTION_BACKUP_DIR`).
+   To restore a dump, see [docs/disaster-recovery.md](docs/disaster-recovery.md).
 
 ## License
 

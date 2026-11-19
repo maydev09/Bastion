@@ -161,7 +161,7 @@ and is extracted into the library when the job offers module needs it.
 - Should historical data from the legacy databases be migrated?
 - Deployment details: Bastion and PostgreSQL run in Docker Compose on a headless home
   server, started by systemd (ADR 0010); setup and updates are in README ("Running on a
-  server"); backups are still open.
+  server"); database backups are pulled to the desktop (ADR 0020).
   The web UI has no login (single user, see AGENTS.md "Focus on the core problem");
   revisit only if Bastion is ever reachable from the internet.
 - Duplicate matching: which signals decide that two offers are the same (exact
