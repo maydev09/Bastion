@@ -129,7 +129,8 @@ and is extracted into the library when the job offers module needs it.
   VPN): before every live run the scraping toolkit asks the OS which interface traffic to the
   portal's host uses (`ip route get <host>`) and fails the run (fail closed) unless it is a tunnel
   (type `wireguard`/`tun`, or a name matching configurable prefixes, by default `wg`, `tun`, `proton`).
-  The exact method is not final yet, see Unresolved questions.
+  On the server the app shares the network of a WireGuard container, so the same check works
+  inside Docker (ADR 0019).
   The check is controlled by the `Scraping:RequireVpn` setting, `true` by default;
   it may be turned off only locally (e.g. when the whole machine sits behind a VPN router).
   Offline runs from sample files do not need a VPN. Bastion only checks the VPN;
@@ -159,14 +160,10 @@ and is extracted into the library when the job offers module needs it.
 - Feature flags (see ADR 0001 consequences).
 - Should historical data from the legacy databases be migrated?
 - Deployment details: Bastion and PostgreSQL run in Docker Compose on a headless home
-  server, started by systemd (ADR 0010); server setup and backups are still open.
+  server, started by systemd (ADR 0010); setup and updates are in README ("Running on a
+  server"); backups are still open.
   The web UI has no login (single user, see AGENTS.md "Focus on the core problem");
   revisit only if Bastion is ever reachable from the internet.
-- VPN check: is the route check (`ip route get`) the right method? Inside Docker it sees only
-  the container's `eth0`. Alternatives: route scraping traffic through a WireGuard container,
-  or compare the public egress IP with the home IP (needs an external IP service).
-  Phase 1 runs the app directly on the desktop, where the route check works; the Docker
-  case is decided together with deployment.
 - Duplicate matching: which signals decide that two offers are the same (exact
   checksum of key fields, or a similarity score over address, price, area, rooms,
   title), and is a group stored or derived from the data? Decide in an ADR before the
