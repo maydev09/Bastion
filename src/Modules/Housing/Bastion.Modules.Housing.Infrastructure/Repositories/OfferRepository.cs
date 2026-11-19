@@ -13,9 +13,11 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
     // Returns no row for an unchanged offer, otherwise whether it was inserted (xmax = 0).
     private const string SaveSql = """
         INSERT INTO housing.offer AS o
-            (source_id, external_id, title, url, property_type, transaction, price, price_currency, area_m2, rooms, listing_hash, raw_capture_id, first_seen_at, updated_at)
+            (source_id, external_id, title, url, property_type, transaction, price, price_currency, area_m2, rooms,
+             external_created_at, external_updated_at, listing_hash, raw_capture_id, created_at, updated_at)
         VALUES
-            (@SourceId, @ExternalId, @Title, @Url, @PropertyType, @Transaction, @Price, @PriceCurrency, @AreaM2, @Rooms, @ListingHash, @RawCaptureId, @SeenAt, @SeenAt)
+            (@SourceId, @ExternalId, @Title, @Url, @PropertyType, @Transaction, @Price, @PriceCurrency, @AreaM2, @Rooms,
+             @ExternalCreatedAt, @ExternalUpdatedAt, @ListingHash, @RawCaptureId, @SeenAt, @SeenAt)
         ON CONFLICT (source_id, external_id) DO UPDATE SET
             title = excluded.title,
             url = excluded.url,
@@ -25,6 +27,8 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             price_currency = excluded.price_currency,
             area_m2 = excluded.area_m2,
             rooms = excluded.rooms,
+            external_created_at = excluded.external_created_at,
+            external_updated_at = excluded.external_updated_at,
             listing_hash = excluded.listing_hash,
             raw_capture_id = excluded.raw_capture_id,
             updated_at = excluded.updated_at
@@ -35,9 +39,9 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
 
     private const string ListSql = """
         SELECT id, source_id AS source, title, url, property_type, transaction, price, price_currency, area_m2, rooms,
-               first_seen_at, updated_at
+               created_at, updated_at, external_created_at, external_updated_at
         FROM housing.offer
-        ORDER BY first_seen_at DESC, id DESC
+        ORDER BY external_created_at DESC NULLS LAST, created_at DESC, id DESC
         LIMIT @PageSize OFFSET @Offset;
 
         SELECT count(*)::int FROM housing.offer;
@@ -63,6 +67,8 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
                 PriceCurrency = (int?)offer.Price?.Currency,
                 offer.AreaM2,
                 offer.Rooms,
+                offer.ExternalCreatedAt,
+                offer.ExternalUpdatedAt,
                 ListingHash = offer.ListingHash(),
                 RawCaptureId = capture.Id,
                 SeenAt = capture.FetchedAt,

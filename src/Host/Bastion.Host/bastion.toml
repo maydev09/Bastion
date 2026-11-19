@@ -15,6 +15,9 @@ Enabled = true
 BaseUrl = "https://www.otodom.pl"
 ListingUrl = "https://www.otodom.pl/pl/wyniki/wynajem/mieszkanie/cala-polska?by=LATEST&direction=DESC&limit=72"
 
+[Modules.Housing.Import]
+MaxPages = 5   # 72 offers per page
+
 [Modules.Housing.RawCaptures]
 Path = "/data/raw/housing"
 RetentionDays = 30

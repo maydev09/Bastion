@@ -12,15 +12,17 @@ public sealed record Offer(
     Uri Url,
     PropertyType PropertyType,
     Transaction Transaction,
+    DateTimeOffset ExternalCreatedAt,
     Money? Price = null,
     decimal? AreaM2 = null,
-    int? Rooms = null)
+    int? Rooms = null,
+    DateTimeOffset? ExternalUpdatedAt = null)
 {
     // An offer is updated only when the hash of the stored listing fields changes.
     public string ListingHash()
     {
         var fields = string.Create(CultureInfo.InvariantCulture,
-            $"{Title}\n{Url}\n{PropertyType}\n{Transaction}\n{Price?.Amount}\n{Price?.Currency}\n{AreaM2}\n{Rooms}");
+            $"{Title}\n{Url}\n{PropertyType}\n{Transaction}\n{Price?.Amount}\n{Price?.Currency}\n{AreaM2}\n{Rooms}\n{ExternalCreatedAt:O}\n{ExternalUpdatedAt:O}");
         var bytes = Encoding.UTF8.GetBytes(fields);
         return Convert.ToHexStringLower(SHA256.HashData(bytes));
     }

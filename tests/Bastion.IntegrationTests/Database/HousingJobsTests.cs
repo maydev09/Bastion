@@ -175,29 +175,9 @@ public class HousingJobsTests
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 
-    private static async Task<JobRun> Start(HttpClient client)
-    {
-        var response = await client.PostAsync(new Uri($"{Retention}/runs", UriKind.Relative), null);
-        response.EnsureSuccessStatusCode();
-        return (await response.Content.ReadFromJsonAsync<JobRun>(Json))!;
-    }
+    private static Task<JobRun> Start(HttpClient client) => JobRuns.Start(client, Retention);
 
-    // Without a run id it waits for any run to finish.
-    private static async Task<JobRun> WaitForFinish(HttpClient client, int? runId = null)
-    {
-        for (var i = 0; i < 100; i++)
-        {
-            var latest = await client.GetFromJsonAsync<LatestJobRun>($"{Retention}/runs/latest", Json);
-            if (latest!.Run is { FinishedAt: not null } run && (runId is null || run.Id == runId))
-            {
-                return run;
-            }
-
-            await Task.Delay(100);
-        }
-
-        throw new TimeoutException("The job did not finish.");
-    }
+    private static Task<JobRun> WaitForFinish(HttpClient client, int? runId = null) => JobRuns.WaitForFinish(client, Retention, runId);
 
     private WebApplicationFactory<Program> App(Action<IServiceCollection>? services = null) =>
         TestApp.WithAllModules(b => b

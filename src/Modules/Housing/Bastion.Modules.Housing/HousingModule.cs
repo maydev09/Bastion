@@ -32,6 +32,10 @@ public sealed class HousingModule : IModule
             .Bind(moduleSection.GetSection(OtoDomOptions.Section))
             .ValidateDataAnnotations()
             .ValidateOnStart();
+        services.AddOptions<ImportOptions>()
+            .Bind(moduleSection.GetSection(ImportOptions.Section))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
         services.AddOptions<RawCaptureOptions>()
             .Bind(moduleSection.GetSection(RawCaptureOptions.Section))
             .ValidateDataAnnotations()
@@ -48,6 +52,7 @@ public sealed class HousingModule : IModule
         services.AddTransient<ReparseOffersHandler>();
 
         services.AddJobs(Schema, moduleSection)
+            .Add<ImportOffersJob>(ImportOffersJob.Name)
             .Add<RawCaptureRetentionJob>(RawCaptureRetentionJob.Name);
     }
 

@@ -79,7 +79,9 @@ export function OfferList() {
                     {offer.areaM2 != null ? `${number.format(offer.areaM2)} m²` : "—"}
                   </td>
                   <td className={styles.number}>{offer.rooms ?? "—"}</td>
-                  <td>{date.format(new Date(offer.firstSeenAt))}</td>
+                  <td>
+                    {offer.externalCreatedAt ? date.format(new Date(offer.externalCreatedAt)) : "—"}
+                  </td>
                 </tr>
               ))}
             </tbody>
