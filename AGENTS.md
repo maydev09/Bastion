@@ -63,7 +63,8 @@ Spend effort only on what solves a real problem the maintainer has today
 - Background jobs: a job is an `IJob` in the
   module's Infrastructure, registered in the module root with `AddJobs(schema, moduleSection).Add<TJob>(name)` (PascalCase name)
   and mapped with `MapJobs(schema)`; the module's migrations create `<schema>.job_run`. An optional
-  daily run is `DailyAt` in `[Modules.<Module>.Jobs.<name>]`, in the time zone from `[Jobs] TimeZone`.
+  schedule in `[Modules.<Module>.Jobs.<name>]` is either `DailyAt` (in the time zone from `[Jobs] TimeZone`)
+  or an interval `Every`.
   An expected failure throws `JobFailedException` with a code that the UI translates.
 - Data and API conventions: `int` identity keys,
   `timestamptz` + `DateTimeOffset` + `TimeProvider`, money as `numeric`/`decimal` with a
