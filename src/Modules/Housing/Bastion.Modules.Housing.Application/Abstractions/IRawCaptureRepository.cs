@@ -9,5 +9,6 @@ public interface IRawCaptureRepository
     // Oldest first.
     Task<IReadOnlyList<RawCapture>> ListAsync(CancellationToken cancellationToken);
 
-    Task DeleteFetchedBeforeAsync(DateTimeOffset time, CancellationToken cancellationToken);
+    // Returns the number of deleted captures.
+    Task<int> DeleteFetchedBeforeAsync(DateTimeOffset time, CancellationToken cancellationToken);
 }

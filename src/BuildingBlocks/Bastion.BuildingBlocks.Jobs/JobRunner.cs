@@ -1,0 +1,204 @@
+using System.Threading.Channels;
+using Microsoft.AspNetCore.SignalR;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+
+namespace Bastion.BuildingBlocks.Jobs;
+
+// One runner per module. Rules (ADR 0018): the same job never runs twice at the same time, different
+// jobs may run in parallel, no retries, a scheduled run missed while the application was off is skipped.
+public sealed partial class JobRunner(
+    string schema,
+    IReadOnlyList<JobDefinition> jobs,
+    JobRunRepository runs,
+    IServiceScopeFactory scopes,
+    IHubContext<JobsHub, IJobsClient> hub,
+    IOptionsMonitor<JobScheduleOptions> schedules,
+    IOptions<JobsOptions> options,
+    TimeProvider time,
+    ILogger<JobRunner> logger) : BackgroundService
+{
+    private readonly Channel<JobRun> _queue = Channel.CreateUnbounded<JobRun>();
+    private readonly SemaphoreSlim _lock = new(1, 1);
+    private readonly Dictionary<string, JobRun> _active = [];
+
+    public static string OptionsName(string schema, string job) => $"{schema}.{job}";
+
+    public bool Has(string job) => jobs.Any(j => j.Name == job);
+
+    // Returns the run that is already queued or running, if there is one.
+    public async Task<JobRun> QueueAsync(string job, JobTrigger trigger, CancellationToken cancellationToken)
+    {
+        await _lock.WaitAsync(cancellationToken);
+        try
+        {
+            if (_active.TryGetValue(job, out var active))
+            {
+                return active;
+            }
+
+            var run = await runs.AddAsync(job, trigger, time.GetUtcNow(), cancellationToken);
+            _active[job] = run;
+            await _queue.Writer.WriteAsync(run, cancellationToken);
+            return run;
+        }
+        finally
+        {
+            _lock.Release();
+        }
+    }
+
+    public Task<JobRun?> LatestAsync(string job, CancellationToken cancellationToken) =>
+        runs.LatestAsync(job, cancellationToken);
+
+    // Runs before the web server starts, so no new run can be marked by mistake.
+    public override async Task StartAsync(CancellationToken cancellationToken)
+    {
+        try
+        {
+            await runs.MarkInterruptedAsync(time.GetUtcNow(), cancellationToken);
+        }
+        catch (Exception e) when (e is not OperationCanceledException)
+        {
+            LogMarkInterruptedFailed(logger, e, schema);
+        }
+
+        await base.StartAsync(cancellationToken);
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        var timeZone = TimeZoneInfo.FindSystemTimeZoneById(options.Value.TimeZone);
+        var running = new List<Task>();
+        foreach (var job in jobs)
+        {
+            if (schedules.Get(OptionsName(schema, job.Name)).DailyAt is { } dailyAt)
+            {
+                running.Add(ScheduleAsync(job.Name, dailyAt, timeZone, stoppingToken));
+            }
+        }
+
+        try
+        {
+            await foreach (var run in _queue.Reader.ReadAllAsync(stoppingToken))
+            {
+                running.Add(RunAsync(run, stoppingToken));
+            }
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+        }
+
+        await Task.WhenAll(running);
+    }
+
+    private async Task ScheduleAsync(string job, TimeOnly dailyAt, TimeZoneInfo timeZone, CancellationToken stoppingToken)
+    {
+        while (true)
+        {
+            try
+            {
+                var wait = DailySchedule.NextRun(time.GetUtcNow(), dailyAt, timeZone) - time.GetUtcNow();
+                if (wait > TimeSpan.Zero)
+                {
+                    await Task.Delay(wait, time, stoppingToken);
+                }
+
+                await QueueAsync(job, JobTrigger.Schedule, stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                return;
+            }
+            catch (Exception e)
+            {
+                LogScheduleFailed(logger, e, schema, job);
+            }
+        }
+    }
+
+    private async Task RunAsync(JobRun queued, CancellationToken stoppingToken)
+    {
+        // Lets the queue loop take the next run while this one works.
+        await Task.Yield();
+
+        var run = queued with { Status = JobRunStatus.Running, StartedAt = time.GetUtcNow() };
+        try
+        {
+            await runs.UpdateAsync(run, CancellationToken.None);
+            await SetActiveAsync(run);
+            await hub.Clients.Group(schema).JobRunStarted(run);
+
+            run = await ExecuteJobAsync(run, stoppingToken);
+
+            await runs.UpdateAsync(run, CancellationToken.None);
+            await hub.Clients.Group(schema).JobRunFinished(run);
+        }
+        catch (Exception e)
+        {
+            LogRunFailed(logger, e, schema, run.Job, run.Id);
+        }
+        finally
+        {
+            await RemoveActiveAsync(run.Job);
+        }
+    }
+
+    private async Task<JobRun> ExecuteJobAsync(JobRun run, CancellationToken stoppingToken)
+    {
+        try
+        {
+            await using var scope = scopes.CreateAsyncScope();
+            var type = jobs.Single(j => j.Name == run.Job).Type;
+            var job = (IJob)scope.ServiceProvider.GetRequiredService(type);
+            var summary = await job.Run(new JobContext(run.Id, run.Trigger), stoppingToken);
+            LogSucceeded(logger, schema, run.Job, run.Id);
+            return run with { Status = JobRunStatus.Succeeded, FinishedAt = time.GetUtcNow(), Summary = summary };
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            return run with { Status = JobRunStatus.Cancelled, FinishedAt = time.GetUtcNow() };
+        }
+        catch (JobFailedException e)
+        {
+            LogFailed(logger, schema, run.Job, run.Id, e.Code, e.Message);
+            return run with { Status = JobRunStatus.Failed, FinishedAt = time.GetUtcNow(), ErrorCode = e.Code };
+        }
+        catch (Exception e)
+        {
+            LogRunFailed(logger, e, schema, run.Job, run.Id);
+            return run with { Status = JobRunStatus.Failed, FinishedAt = time.GetUtcNow(), ErrorCode = JobFailedException.Unexpected };
+        }
+    }
+
+    private async Task SetActiveAsync(JobRun run)
+    {
+        await _lock.WaitAsync();
+        _active[run.Job] = run;
+        _lock.Release();
+    }
+
+    private async Task RemoveActiveAsync(string job)
+    {
+        await _lock.WaitAsync();
+        _active.Remove(job);
+        _lock.Release();
+    }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Job {Schema}/{Job} run {RunId} succeeded")]
+    private static partial void LogSucceeded(ILogger logger, string schema, string job, int runId);
+
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Job {Schema}/{Job} run {RunId} failed: {Code} {Detail}")]
+    private static partial void LogFailed(ILogger logger, string schema, string job, int runId, string code, string detail);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Job {Schema}/{Job} run {RunId} failed unexpectedly")]
+    private static partial void LogRunFailed(ILogger logger, Exception exception, string schema, string job, int runId);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Scheduled run of job {Schema}/{Job} could not be queued; next try at the next scheduled time")]
+    private static partial void LogScheduleFailed(ILogger logger, Exception exception, string schema, string job);
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "Unfinished runs of {Schema} could not be marked interrupted")]
+    private static partial void LogMarkInterruptedFailed(ILogger logger, Exception exception, string schema);
+}

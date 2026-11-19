@@ -6,6 +6,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../Bastion.Modules.Housing.Application/Bastion.Modules.Housing.Application.csproj" />
+    <ProjectReference Include="../../../BuildingBlocks/Bastion.BuildingBlocks.Jobs/Bastion.BuildingBlocks.Jobs.csproj" />
     <ProjectReference Include="../../../BuildingBlocks/Bastion.BuildingBlocks.Scraping/Bastion.BuildingBlocks.Scraping.csproj" />
   </ItemGroup>
 </Project>

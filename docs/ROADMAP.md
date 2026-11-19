@@ -73,7 +73,7 @@ A phase is complete only when all its exit criteria are met.
 
 ## Phase 5: Background jobs
 
-- **Status:** Planned
+- **Status:** In progress
 - **Outcome:** Long work runs in the background. The user starts an import, watches a live
   counter and sees the result (added, updated, unchanged offers) without reloading the page.
 - **Included work:** jobs as a building block with runs in the module's schema (ADR 0018);

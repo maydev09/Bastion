@@ -42,10 +42,10 @@ public sealed class RawCaptureRepository(NpgsqlDataSource db) : IRawCaptureRepos
         return rows.Select(r => r.ToCapture()).ToList();
     }
 
-    public async Task DeleteFetchedBeforeAsync(DateTimeOffset time, CancellationToken cancellationToken)
+    public async Task<int> DeleteFetchedBeforeAsync(DateTimeOffset time, CancellationToken cancellationToken)
     {
         await using var connection = await db.OpenConnectionAsync(cancellationToken);
-        await connection.ExecuteAsync(new CommandDefinition(
+        return await connection.ExecuteAsync(new CommandDefinition(
             "DELETE FROM housing.raw_capture WHERE fetched_at < @Time", new { Time = time }, cancellationToken: cancellationToken));
     }
 

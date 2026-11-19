@@ -7,8 +7,6 @@ public sealed class ReparseOffersHandler(OfferSources sources, RawCaptureService
 {
     public async Task<ReparseResult> Handle(CancellationToken cancellationToken)
     {
-        await rawCaptures.DeleteExpiredAsync(cancellationToken);
-
         // Oldest first: a deleted offer gets its first-seen time back; older pages never overwrite newer data.
         var captures = await rawCaptures.ListAsync(cancellationToken);
         var statistics = new SaveStatistics();

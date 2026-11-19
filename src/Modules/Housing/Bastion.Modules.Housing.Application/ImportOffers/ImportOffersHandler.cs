@@ -15,8 +15,6 @@ public sealed class ImportOffersHandler(OfferSources sources, RawCaptureService 
             return new ImportOutcome(null, new Failure(UnknownSource, $"No offer source is registered for {source}.", FailureKind.NotFound));
         }
 
-        await rawCaptures.DeleteExpiredAsync(cancellationToken);
-
         var fetch = await offerSource.FetchAsync(cancellationToken);
         if (fetch.Failure is not null)
         {

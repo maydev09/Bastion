@@ -30,13 +30,18 @@ public interface IJob
 }
 
 // in HousingModule.AddServices
-services.AddJobs(schema: "housing")
-    .Add<ImportOffersJob>("import-offers")
-    .Add<RawCaptureRetentionJob>("raw-capture-retention", moduleSection.GetSection("Jobs:RawCaptureRetention"));
+services.AddJobs(schema: "housing", moduleSection)
+    .Add<ImportOffersJob>("ImportOffers")
+    .Add<RawCaptureRetentionJob>("RawCaptureRetention");
 
 // in HousingModule.MapEndpoints
-moduleGroup.MapJobs();
+moduleGroup.MapJobs(schema: "housing");
 ```
+
+- `MapJobs` takes the schema because a route group does not tell which module it belongs to.
+- The settings of a job are read from `[Modules.<Module>.Jobs.<job name>]`, so no configuration
+  key is typed as a string in the module's code. Job names are PascalCase like the other
+  configuration keys (`RawCaptureRetention`), and the same name is used in the URLs.
 
 - A job returns a short summary for the user (e.g. added, updated and unchanged offers;
   deleted files and freed space). The business data itself stays in the module's tables.
@@ -47,20 +52,21 @@ moduleGroup.MapJobs();
 
 - `<module>.job_run`: job name, trigger (`manual`, `schedule`), status (`queued`, `running`,
   `succeeded`, `failed`, `cancelled`, `interrupted`), `queued_at`, `started_at`,
-  `finished_at`, error, and the summary as `jsonb`. Duration is `finished_at - started_at`,
+  `finished_at`, `error_code` (a code the UI translates, e.g. `jobs.unexpected`), and the
+  summary as `jsonb`. Duration is `finished_at - started_at`,
   not stored separately.
 - A queue in a `BackgroundService` runs the jobs. A manual start and a scheduled start use
   the same path.
 - The rules of ADR 0009 stay: the same job never runs twice at the same time (a second start
   while one is queued or running returns the existing run), different jobs may run in
-  parallel, no automatic retries, missed runs are not caught up, a run stopped by shutdown is
-  `cancelled`, and on startup runs without a finish time are marked `interrupted`.
+  parallel, no automatic retries, a run stopped by shutdown is `cancelled`, and on startup
+  runs without a finish time are marked `interrupted`.
 
 ### Endpoints and live updates
 
-- `MapJobs()` adds, under the module's route group:
-  - `POST /api/<module>/jobs/{job}/runs`: queues a run, answers `202 Accepted` with the run id.
-  - `GET /api/<module>/jobs/{job}/runs/latest`: status, timestamps, summary, error and the
+- `MapJobs(schema)` adds, under the module's route group:
+  - `POST /api/<module>/jobs/{job}/runs`: queues a run, answers `202 Accepted` with the run.
+  - `GET /api/<module>/jobs/{job}/runs/latest`: status, timestamps, summary, error code and the
     server's current time.
   - A SignalR hub that sends `JobRunStarted` and `JobRunFinished` to clients of that module only.
 - The state is in the database, the browser only shows it. After a reload, in a second tab or
@@ -72,12 +78,19 @@ moduleGroup.MapJobs();
 
 ### Schedules
 
-- For now a job may have a fixed interval in the module's configuration:
+- For now a job may run once a day at a fixed time from the module's configuration, like the
+  nightly database backup (ADR 0020). The time is in the time zone from `[Jobs]`:
 
 ```toml
+[Jobs]
+TimeZone = "Europe/Warsaw"
+
 [Modules.Housing.Jobs.RawCaptureRetention]
-Interval = "1.00:00:00"   # once a day
+DailyAt = "04:00"   # after the database backup at 03:00
 ```
+
+- A restart during the day does not move the next run. If the application is off at that
+  time, the run is skipped until the next day.
 
 - Schedules that the user edits in the UI (time window, days of week, pause, next run) are
   still planned as in ADR 0009, but in the module's schema (`<module>.job_schedule`).

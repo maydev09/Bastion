@@ -60,6 +60,11 @@ Spend effort only on what solves a real problem the maintainer has today
   run events via `JobContext` (docs/adr/0013-audit-logging-and-raw-data.md). Every fetched page is stored
   as a raw capture before parsing, through the module's `RawCaptureService`; each portal is an
   `IOfferSource` picked from the `OfferSources` registry, never with a switch (docs/adr/0013-audit-logging-and-raw-data.md).
+- Background jobs (docs/adr/0018-background-jobs-as-building-block.md): a job is an `IJob` in the
+  module's Infrastructure, registered in the module root with `AddJobs(schema, moduleSection).Add<TJob>(name)` (PascalCase name)
+  and mapped with `MapJobs(schema)`; the module's migrations create `<schema>.job_run`. An optional
+  daily run is `DailyAt` in `[Modules.<Module>.Jobs.<name>]`, in the time zone from `[Jobs] TimeZone`.
+  An expected failure throws `JobFailedException` with a code that the UI translates.
 - Data and API conventions (docs/adr/0014-data-and-api-conventions.md): `int` identity keys,
   `timestamptz` + `DateTimeOffset` + `TimeProvider`, money as `numeric`/`decimal` with a
   currency column, enums as `integer` (explicit C# values) without `CHECK` and as JSON strings, `ProblemDetails` with a

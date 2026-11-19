@@ -39,12 +39,13 @@ public sealed class RawCaptureService(
             : new RawPage(capture.Url, capture.Kind, capture.ContentType, capture.HttpStatus, content);
     }
 
-    public async Task DeleteExpiredAsync(CancellationToken cancellationToken)
+    public async Task<RetentionResult> DeleteExpiredAsync(CancellationToken cancellationToken)
     {
         var firstKeptDay = DateOnly.FromDateTime(time.GetUtcNow().UtcDateTime).AddDays(-options.Value.RetentionDays);
         var start = new DateTimeOffset(firstKeptDay.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
 
-        await repository.DeleteFetchedBeforeAsync(start, cancellationToken);
-        files.DeleteDaysBefore(firstKeptDay);
+        var deleted = await repository.DeleteFetchedBeforeAsync(start, cancellationToken);
+        var freedBytes = files.DeleteDaysBefore(firstKeptDay);
+        return new RetentionResult(deleted, freedBytes);
     }
 }

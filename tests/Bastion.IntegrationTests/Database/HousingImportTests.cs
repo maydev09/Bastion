@@ -227,27 +227,6 @@ public class HousingImportTests
     }
 
     [Test]
-    public async Task Import_deletes_raw_data_older_than_the_retention()
-    {
-        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
-        using var client = factory.CreateClient();
-        var oldDay = Directory.CreateDirectory(Path.Combine(_rawPath, "2000-01-01")).FullName;
-        await Sql("""
-            INSERT INTO housing.raw_capture (source_id, kind, content_type, url, http_status, fetched_at, size, sha256)
-            VALUES (1, 1, 'text/html', 'https://www.otodom.pl/', 200, '2000-01-01T12:00:00Z', 0, '')
-            """);
-
-        await Import(client);
-        var captures = await Scalar<int>("SELECT count(*)::int FROM housing.raw_capture");
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(captures, Is.EqualTo(1));
-            Assert.That(Directory.Exists(oldDay), Is.False);
-        });
-    }
-
-    [Test]
     public async Task Import_of_an_unknown_source_is_not_found()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));

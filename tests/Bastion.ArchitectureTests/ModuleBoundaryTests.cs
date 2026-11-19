@@ -53,11 +53,10 @@ public class ModuleBoundaryTests
         Assert.That(ReferencedNames(typeof(IModule).Assembly).Where(IsModule), Is.Empty);
     }
 
-    [Test]
-    public void Building_blocks_do_not_reference_modules()
+    [TestCase(typeof(Bastion.BuildingBlocks.Scraping.ScrapingClient))]
+    [TestCase(typeof(Bastion.BuildingBlocks.Jobs.IJob))]
+    public void Building_blocks_do_not_reference_modules(Type buildingBlockType)
     {
-        var buildingBlocks = typeof(Bastion.BuildingBlocks.Scraping.ScrapingClient).Assembly;
-
-        Assert.That(ReferencedNames(buildingBlocks).Where(IsModule), Is.Empty);
+        Assert.That(ReferencedNames(buildingBlockType.Assembly).Where(IsModule), Is.Empty);
     }
 }

@@ -1,3 +1,4 @@
+using Bastion.BuildingBlocks.Jobs;
 using Bastion.BuildingBlocks.Scraping;
 using Bastion.Modules.Housing.Api;
 using Bastion.Modules.Housing.Application;
@@ -6,6 +7,7 @@ using Bastion.Modules.Housing.Application.ImportOffers;
 using Bastion.Modules.Housing.Application.RawCaptures;
 using Bastion.Modules.Housing.Application.ReparseOffers;
 using Bastion.Modules.Housing.Infrastructure.Files;
+using Bastion.Modules.Housing.Infrastructure.Jobs;
 using Bastion.Modules.Housing.Infrastructure.OtoDom;
 using Bastion.Modules.Housing.Infrastructure.Repositories;
 using Bastion.Platform.Abstractions;
@@ -17,6 +19,8 @@ namespace Bastion.Modules.Housing;
 
 public sealed class HousingModule : IModule
 {
+    private const string Schema = "housing";
+
     public string Name => "Housing";
 
     public string RoutePrefix => "housing";
@@ -42,10 +46,14 @@ public sealed class HousingModule : IModule
         services.AddSingleton<RawCaptureService>();
         services.AddTransient<ImportOffersHandler>();
         services.AddTransient<ReparseOffersHandler>();
+
+        services.AddJobs(Schema, moduleSection)
+            .Add<RawCaptureRetentionJob>(RawCaptureRetentionJob.Name);
     }
 
     public void MapEndpoints(IEndpointRouteBuilder moduleGroup)
     {
         OfferEndpoints.Map(moduleGroup);
+        moduleGroup.MapJobs(Schema);
     }
 }
