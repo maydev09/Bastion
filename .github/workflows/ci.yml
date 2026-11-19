@@ -8,8 +8,10 @@ on:
 permissions:
   contents: read
 
+# A new push cancels the older run of a pull request, but every master commit gets its own run,
+# so each one gets its image (rollback = git checkout).
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref == 'refs/heads/master' && github.sha || github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -68,7 +70,9 @@ jobs:
 
   # Pull requests only check that the image builds. A push to master publishes it, tagged with the
   # commit, so the server runs exactly the image of the commit it has checked out (deploy/compose.sh).
+  # Only commits that pass all checks get an image.
   image:
+    needs: [backend, frontend, api-types]
     runs-on: ubuntu-latest
     permissions:
       contents: read
