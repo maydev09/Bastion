@@ -40,21 +40,25 @@ public sealed class RawCaptureFileStorage(IOptions<RawCaptureOptions> options, I
         return content.ToArray();
     }
 
-    public void DeleteDaysBefore(DateOnly day)
+    public long DeleteDaysBefore(DateOnly day)
     {
         if (!Directory.Exists(Root))
         {
-            return;
+            return 0;
         }
 
+        long freedBytes = 0;
         foreach (var folder in Directory.GetDirectories(Root))
         {
             if (DateOnly.TryParseExact(Path.GetFileName(folder), DayFormat, CultureInfo.InvariantCulture, DateTimeStyles.None, out var folderDay)
                 && folderDay < day)
             {
+                freedBytes += new DirectoryInfo(folder).EnumerateFiles("*", SearchOption.AllDirectories).Sum(f => f.Length);
                 Directory.Delete(folder, recursive: true);
             }
         }
+
+        return freedBytes;
     }
 
     private string FileOf(RawCapture capture) =>

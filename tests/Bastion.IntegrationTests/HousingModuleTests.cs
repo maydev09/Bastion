@@ -8,6 +8,8 @@ public class HousingModuleTests
     [TestCase("POST", "/api/housing/import/OtoDom")]
     [TestCase("POST", "/api/housing/reparse")]
     [TestCase("GET", "/api/housing/offers")]
+    [TestCase("POST", "/api/housing/jobs/RawCaptureRetention/runs")]
+    [TestCase("GET", "/api/housing/jobs/RawCaptureRetention/runs/latest")]
     public async Task Disabled_module_has_no_endpoints(string method, string path)
     {
         await using var factory = TestApp.WithAllModules(b => b.UseSetting(ModuleOptions.EnabledKey("Housing"), "false"));

@@ -6,6 +6,7 @@
     <Project Path="src/Platform/Bastion.Platform.Abstractions/Bastion.Platform.Abstractions.csproj" />
   </Folder>
   <Folder Name="/src/BuildingBlocks/">
+    <Project Path="src/BuildingBlocks/Bastion.BuildingBlocks.Jobs/Bastion.BuildingBlocks.Jobs.csproj" />
     <Project Path="src/BuildingBlocks/Bastion.BuildingBlocks.Scraping/Bastion.BuildingBlocks.Scraping.csproj" />
   </Folder>
   <Folder Name="/src/Modules/" />

@@ -8,5 +8,6 @@ public interface IRawCaptureFileStorage
 
     Task<byte[]?> ReadAsync(RawCapture capture, CancellationToken cancellationToken);
 
-    void DeleteDaysBefore(DateOnly day);
+    // Returns the size of the deleted files in bytes.
+    long DeleteDaysBefore(DateOnly day);
 }

@@ -20,6 +20,12 @@ Path = "/data/raw/housing"
 RetentionDays = 30
 AnonymizationMask = "***"
 
+[Modules.Housing.Jobs.RawCaptureRetention]
+DailyAt = "04:00"   # after the database backup at 03:00
+
+[Jobs]
+TimeZone = "Europe/Warsaw"
+
 [Scraping]
 RequireVpn = true
 VpnInterfacePrefixes = "wg,tun,proton"

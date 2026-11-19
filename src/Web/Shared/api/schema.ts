@@ -107,6 +107,100 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/housing/jobs/{job}/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Starts the job in the background, or returns its run that is already queued or running. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    job: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description Accepted */
+                202: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["JobRun"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/housing/jobs/{job}/runs/latest": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns the latest run of the job (null before the first run) and the server's current time. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    job: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["LatestJobRun"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -129,6 +223,35 @@ export interface components {
             unchangedCount: number;
             /** Format: int32 */
             skippedCount: number;
+        };
+        JobRun: {
+            /** Format: int32 */
+            id: number;
+            job: string;
+            trigger: components["schemas"]["JobTrigger"];
+            status: components["schemas"]["JobRunStatus"];
+            /** Format: date-time */
+            queuedAt: string;
+            /** Format: date-time */
+            startedAt: null | string;
+            /** Format: date-time */
+            finishedAt: null | string;
+            errorCode: null | string;
+            summary: null | components["schemas"]["JobSummary"];
+        };
+        /** @enum {unknown} */
+        JobRunStatus: "Queued" | "Running" | "Succeeded" | "Failed" | "Cancelled" | "Interrupted";
+        JobSummary: {
+            counts: {
+                [key: string]: number;
+            };
+        };
+        /** @enum {unknown} */
+        JobTrigger: "Manual" | "Schedule";
+        LatestJobRun: {
+            run: null | components["schemas"]["JobRun"];
+            /** Format: date-time */
+            serverTime: string;
         };
         ModuleInfo: {
             name: string;

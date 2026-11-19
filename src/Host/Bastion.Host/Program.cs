@@ -6,6 +6,7 @@ using Bastion.Modules.Housing;
 using Bastion.Modules.JobOffers;
 using Bastion.Platform.Abstractions;
 using Dapper;
+using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Options;
 using Serilog;
 
@@ -17,7 +18,8 @@ builder.Configuration.UseConfigurationSources(builder.Environment, args);
 var connectionString = builder.Configuration.GetConnectionString(DatabaseStatusEndpoint.ConnectionStringName);
 
 // The build-time OpenAPI generator starts the app without secrets; nothing connects to this placeholder.
-if (Assembly.GetEntryAssembly()?.GetName().Name == "GetDocument.Insider")
+var generatingOpenApi = Assembly.GetEntryAssembly()?.GetName().Name == "GetDocument.Insider";
+if (generatingOpenApi)
 {
     connectionString = "Host=localhost;Database=openapi";
 }
@@ -65,6 +67,12 @@ var modules = ModuleLoader.GetEnabled(allModules, builder.Configuration);
 foreach (var module in modules)
 {
     module.AddServices(builder.Services, ModuleOptions.SectionOf(builder.Configuration, module.Name));
+}
+
+// The OpenAPI generator starts the app; background work (e.g. module jobs) must not run then.
+if (generatingOpenApi)
+{
+    builder.Services.RemoveAll<IHostedService>();
 }
 
 var app = builder.Build();
