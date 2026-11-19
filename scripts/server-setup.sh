@@ -5,6 +5,8 @@ set -euo pipefail
 
 repo="$(cd "$(dirname "$0")/.." && pwd)"
 [[ $EUID -eq 0 ]] || { echo "Run as root." >&2; exit 1; }
+# The admin who runs sudo gets read access to the backups (see below).
+[[ -n "${SUDO_USER:-}" ]] || { echo "Run with sudo from your own account." >&2; exit 1; }
 [[ "$repo" == /opt/bastion ]] || { echo "Clone the repository to /opt/bastion." >&2; exit 1; }
 
 # Docker from the official repository (Debian's docker.io lags behind Compose features we use).
@@ -65,8 +67,17 @@ if [[ ! -f "$file" ]]; then
   echo "Stored secret 'wireguard-private-key'." >&2
 fi
 
-install -m 0644 "$repo/deploy/bastion.service" /etc/systemd/system/bastion.service
+# Database dumps (ADR 0020). The directory belongs to the group of the admin who ran sudo, and
+# new dumps inherit that group (setgid), so the desktop copies them with rsync, without root.
+apt-get install --yes rsync
+install -d -m 2750 -g "$(id -gn "$SUDO_USER")" /var/backups/bastion
+
+install -m 0644 "$repo/deploy/bastion.service" "$repo/deploy/bastion-backup.service" \
+  "$repo/deploy/bastion-backup.timer" /etc/systemd/system/
 systemctl daemon-reload
 systemctl enable bastion.service
+systemctl enable --now bastion-backup.timer
+# Clears the retry limit, so an update can start a service that stopped after failed retries.
+systemctl reset-failed bastion.service
 systemctl restart bastion.service
 echo "Bastion is running. Logs: journalctl -u bastion -f" >&2

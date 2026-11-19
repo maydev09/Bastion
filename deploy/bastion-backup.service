@@ -1,0 +1,11 @@
+[Unit]
+Description=Bastion database backup
+# Only while Bastion runs; a stopped service needs no daily dump.
+Requisite=bastion.service
+After=bastion.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/bastion
+Environment=COMPOSE_FILE=compose.yaml:deploy/compose.server.yaml
+ExecStart=/opt/bastion/deploy/backup.sh
