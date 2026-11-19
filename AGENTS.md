@@ -134,9 +134,8 @@ Spend effort only on what solves a real problem the maintainer has today
 
 ## Documentation
 
-- Planning documents (read them when a task touches requirements, scope or priorities):
-  - `docs/SPEC.md`: what the system must do, non-goals, acceptance criteria.
-  - `docs/ROADMAP.md`: phases in order, with exit criteria.
+- Planning document (read it when a task touches requirements, scope or priorities):
+  `docs/SPEC.md`: what the system must do, non-goals, acceptance criteria.
 - Open doubts and undecided questions go to `Unresolved questions` in `docs/SPEC.md`
   (one bullet: the question, known options, when it must be decided). When a question is
   answered, remove the bullet and record the answer in an ADR or in the spec text.
@@ -144,7 +143,7 @@ Spend effort only on what solves a real problem the maintainer has today
   foundational decisions: hard to reverse and independent of what a module does (workflow,
   architecture, data access, configuration, secrets, frontend, testing, infrastructure).
   While a module is still being shaped, its decisions are not recorded as ADRs: rules go to
-  `AGENTS.md`, scope to `docs/SPEC.md` and `docs/ROADMAP.md`; module ADRs come once the module
+  `AGENTS.md`, scope to `docs/SPEC.md`; module ADRs come once the module
   is mature. Conventions and small rules go to `AGENTS.md`. When a decision only refines an
   existing ADR, propose updating that ADR instead of writing a new one.
 - Read the relevant ADRs before changing architecture. Propose a new ADR
@@ -160,7 +159,6 @@ Update the matching file in the same change that makes it outdated:
 | What the system does, non-goals, acceptance criteria   | `docs/SPEC.md`                 |
 | A foundational decision is made or reversed            | new ADR in `docs/adr/`         |
 | A convention or small rule is added                    | `AGENTS.md`                    |
-| A phase starts, finishes or changes scope              | `docs/ROADMAP.md`              |
 | A new build, test or run command exists                | `Commands` in `AGENTS.md`      |
 | Server setup, update, backup or restore steps          | `README.md`, `docs/disaster-recovery.md` |
 
