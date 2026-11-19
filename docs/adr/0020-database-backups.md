@@ -6,8 +6,8 @@
 ## Context
 
 The server holds the only copy of the production data: offers, their history and the audit.
-A failed migration, a bad deployment or a dead disk would lose it. Phase 4 (ROADMAP) needs a
-backup before a deployment and a check of the new image on another machine against a copy
+A failed migration, a bad deployment or a dead disk would lose it. Every deployment needs
+a backup first and a check of the new image on another machine against a copy
 of the production data. One user, one small server, no second site and no cloud account for Bastion.
 
 ## Decision
