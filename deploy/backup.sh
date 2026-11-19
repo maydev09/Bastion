@@ -8,7 +8,7 @@ dir=/var/backups/bastion
 keep=30
 file="$dir/bastion-$(date +%Y%m%d-%H%M%S).dump"
 
-# Readable for the admin's group (set on the directory by server-setup.sh), so the desktop
+# Readable for the admin's group (set on the directory by server-setup.sh), so another machine
 # can copy the dumps over SSH without root.
 umask 0027
 trap 'rm -f "$file.tmp"' EXIT

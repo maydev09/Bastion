@@ -61,7 +61,7 @@ A phase is complete only when all its exit criteria are met.
 ## Phase 4: First deployment to a home server
 
 - **Status:** Done (2026-11-19, PR #10, PR #11)
-- **Outcome:** Bastion runs on a small home-lab server, not only on the developer's desktop.
+- **Outcome:** Bastion runs on a small home-lab server, not only on a developer machine.
   Hardware limits show up early, while the design can still change.
 - **Included work:** Docker Compose started by systemd (SPEC); the VPN check inside Docker;
   secrets on the server; resource use measured during an import. Safe updates without a
