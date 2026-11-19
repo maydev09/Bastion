@@ -10,7 +10,7 @@ StartLimitBurst=4
 [Service]
 Type=exec
 WorkingDirectory=/opt/bastion
-# Decrypted from /etc/credstore.encrypted/ into $CREDENTIALS_DIRECTORY, read by compose.sh (ADR 0010).
+# Decrypted from /etc/credstore.encrypted/ into $CREDENTIALS_DIRECTORY, read by compose.sh.
 LoadCredentialEncrypted=db-postgres-password
 LoadCredentialEncrypted=db-owner-password
 LoadCredentialEncrypted=db-app-password

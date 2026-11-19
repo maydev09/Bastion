@@ -1,4 +1,4 @@
-# One image with the backend and the frontend (ADR 0011).
+# One image with the backend and the frontend.
 
 FROM node:24.22.3-trixie-slim AS web
 WORKDIR /src
@@ -17,11 +17,11 @@ RUN dotnet publish src/Host/Bastion.Host --configuration Release --runtime linux
     -p:OpenApiGenerateDocuments=false --output /app
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0.15-noble
-# iproute2: the VPN check runs `ip route get` (ADR 0019).
+# iproute2: the VPN check runs `ip route get`.
 RUN apt-get update && apt-get install --yes --no-install-recommends iproute2 && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=backend /app .
-# Firefox is started once to read its User-Agent (ADR 0016). The NuGet package makes Playwright's
+# Firefox is started once to read its User-Agent. The NuGet package makes Playwright's
 # node executable only for its owner (root), but the app runs as `app`.
 ENV PLAYWRIGHT_BROWSERS_PATH=/ms-playwright
 RUN chmod 0755 .playwright/node/linux-x64/node \

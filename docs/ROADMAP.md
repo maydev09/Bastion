@@ -10,17 +10,17 @@ A phase is complete only when all its exit criteria are met.
 - **Outcome:** The repository has clear rules for humans and AI, and the decisions
   needed to start coding are recorded.
 - **Included work:** AGENTS.md and CLAUDE.md, .gitignore, planning documents,
-  ADRs 0001–0015 (architecture, data, configuration, jobs, secrets, frontend,
-  testing, audit, conventions, translations).
+  first decisions on architecture, data, configuration, jobs, secrets, frontend,
+  testing, audit, conventions and translations.
 - **Exit criteria:** Every "Unresolved question" in SPEC.md that blocks Phase 1
-  is answered by an accepted ADR.
+  is answered.
 
 ## Phase 1: Modular skeleton with a scraping smoke test
 
 - **Status:** Done (2026-11-15, PR #3)
 - **Outcome:** The modular platform runs end-to-end. Both modules exist in code; the
   housing module can read one live page of offers from OtoDom on demand.
-- **Included work:** .NET solution with Host and module contract (ADR 0007); modules
+- **Included work:** .NET solution with Host and module contract; modules
   registered in this order: `Housing`, then `JobOffers` (empty, it only registers);
   React shell with navigation of enabled modules; on the housing page a button
   that fetches one OtoDom results page and shows how many offers were parsed, with
@@ -38,8 +38,8 @@ A phase is complete only when all its exit criteria are met.
 - **Outcome:** PostgreSQL runs with separated roles and migrations; the app proves it
   can connect, without storing business data yet.
 - **Included work:** PostgreSQL in Docker Compose; separate database roles for
-  administration, migrations and the application (ADR 0006); dbmate migrations per
-  module schema (ADR 0005); secrets as Docker secrets (ADR 0010); a database smoke
+  administration, migrations and the application; dbmate migrations per
+  module schema; secrets as Docker secrets; a database smoke
   test in the UI (connected as the application role, schema version); Testcontainers
   setup for tests.
 - **Exit criteria:** A fresh setup creates the database, roles and schemas with one
@@ -53,8 +53,8 @@ A phase is complete only when all its exit criteria are met.
   saved and listed in the UI.
 - **Included work:** Offer table with basic fields, unique per source and external id;
   saving new offers and updating known ones; a simple offer list with paging;
-  module layers split into projects (ADR 0017); raw captures of every fetched page with
-  re-parsing and retention (ADR 0013); built-in .NET features instead of custom code.
+  module layers split into projects; raw captures of every fetched page with
+  re-parsing and retention; built-in .NET features instead of custom code.
 - **Exit criteria:** Running the import twice stores each offer once; the list shows
   the stored offers.
 
@@ -76,7 +76,7 @@ A phase is complete only when all its exit criteria are met.
 - **Status:** In progress
 - **Outcome:** Long work runs in the background. The user starts an import, watches a live
   counter and sees the result (added, updated, unchanged offers) without reloading the page.
-- **Included work:** jobs as a building block with runs in the module's schema (ADR 0018);
+- **Included work:** jobs as a building block with runs in the module's schema;
   the import as a job reading several listing pages, stopping at known offers or at a page
   limit from configuration; live status through SignalR; raw data retention as a daily job.
 - **Exit criteria:**
@@ -94,7 +94,7 @@ A phase is complete only when all its exit criteria are met.
 - **Outcome:** Offers carry what only their own page shows, so the user can judge an offer
   without opening the portal.
 - **Included work:** detail pages of new and changed offers, a limited number per run
-  (ADR 0016). Fields and storage are decided at the start of the phase from real pages.
+ . Fields and storage are decided at the start of the phase from real pages.
 - **Exit criteria:** set at the start of the phase.
 
 ## Phase 7: Job schedules
@@ -102,7 +102,7 @@ A phase is complete only when all its exit criteria are met.
 - **Status:** Planned
 - **Outcome:** Offers are collected on their own. The user sets in plain terms when each job
   runs ("every hour, 7:00–22:00, Monday–Friday"), pauses it or runs it now.
-- **Included work:** Quartz.NET with the schedules stored in the module's tables (new ADR);
+- **Included work:** Quartz.NET with the schedules stored in the module's tables;
   a schedule can later belong to a search profile.
 - **Exit criteria:** a schedule changed in the UI survives a restart and the job runs at the
   new times; a paused job does not run; missed runs are not caught up.
@@ -113,7 +113,7 @@ A phase is complete only when all its exit criteria are met.
 - **Outcome:** The user sees what every job did and why a run failed, so jobs and their
   audit form one complete feature.
 - **Included work:** a list of runs with a filter for failed ones; run details with a timeline
-  of events and links to the raw pages (ADR 0013).
+  of events and links to the raw pages.
 - **Exit criteria:** every run appears with its result; a failed run shows its error and the
   events that led to it.
 
@@ -161,4 +161,4 @@ Known candidates, in no fixed order:
 - More portals with grouping of duplicate offers across portals.
 - The job offers module.
 - New modules that need not be scrapers.
-- Re-parse as a background job; raw pages of one run packed into one archive (ADR 0013).
+- Re-parse as a background job; raw pages of one run packed into one archive.

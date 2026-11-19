@@ -94,8 +94,8 @@ check (`ip route`) to see the VPN interface, which WSL 2 does not by default.
 ## Running on a server
 
 Bastion runs on a small home server with Debian (no desktop, SSH only), started by systemd.
-Its scraping traffic goes through a VPN container (ADR 0019); secrets are encrypted with
-`systemd-creds` (ADR 0010).
+Its scraping traffic goes through a VPN container; secrets are encrypted with
+`systemd-creds`.
 
 1. Clone the repository to `/opt/bastion` and run `sudo scripts/server-setup.sh`. It installs
    Docker, turns on automatic Debian security updates, asks for the WireGuard private key of
@@ -116,7 +116,7 @@ Its scraping traffic goes through a VPN container (ADR 0019); secrets are encryp
    after 3 failed retries it stays stopped. Fix the cause, then
    `sudo systemctl reset-failed bastion && sudo systemctl start bastion`.
 6. **Backups:** the server dumps the database every night at 03:00 to `/var/backups/bastion`
-   and keeps 30 dumps (ADR 0020). Copy them off the server regularly, from any machine with
+   and keeps 30 dumps. Copy them off the server regularly, from any machine with
    SSH access: `scripts/backup-pull.sh <user>@<server>` (to `~/bastion-backups`, or
    `$BASTION_BACKUP_DIR`). To restore a dump or test a backup, see
    [docs/disaster-recovery.md](docs/disaster-recovery.md).

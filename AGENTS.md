@@ -25,7 +25,7 @@ Spend effort only on what solves a real problem the maintainer has today
 
 - Build for one user on one instance, not for a million users. No login screen,
   user management, multi-tenancy, horizontal scaling or "enterprise" infrastructure.
-  No user concept in the data model (no `user_id` columns) until a future ADR adds users.
+  No user concept in the data model (no `user_id` columns) until users are really needed.
 - Before adding anything, ask: does it help collect, browse or act on the data now?
   If not, leave it out and note it as a possible later idea instead.
 - When .NET or ASP.NET Core supports something out of the box, use it the way the Microsoft
@@ -33,12 +33,12 @@ Spend effort only on what solves a real problem the maintainer has today
   `MapStaticAssets`). Custom code needs a really good reason,
   explained to the maintainer first, and then it extends the built-in concept instead of replacing it.
 - Start with plain .NET and simple code. Adopt a bigger tool only when a real need
-  appears that the simple solution cannot cover (example: ADR 0009 keeps Quartz.NET
-  as the upgrade path for background jobs).
+  appears that the simple solution cannot cover (example: Quartz.NET is
+  the upgrade path for background jobs).
 - The UI must still be usable by a person without technical knowledge: simple for one
   user does not mean only understandable by developers.
 
-## Architecture (modular monolith, see docs/adr/0002-use-modular-monolith.md)
+## Architecture (modular monolith)
 
 - Every module works on its own; the app runs with any subset of modules enabled.
 - A module never references another module's code or data. Cooperation, if ever needed,
@@ -48,42 +48,40 @@ Spend effort only on what solves a real problem the maintainer has today
 - The platform never contains module-specific code. Building blocks contain no business logic.
 - A whole module is switched on/off in configuration; feature flags work inside a module.
 - A module is a root project with only its `IModule` class plus one project per layer
-  (docs/adr/0017-module-layers-as-projects.md). The Host references only module roots.
+ . The Host references only module roots.
   Layer types are `public`; architecture tests guard the module boundary.
-- The UI holds no business logic; everything goes through the API (docs/adr/0011-frontend-stack.md).
+- The UI holds no business logic; everything goes through the API.
 - Frontend: a module's UI lives in `src/Web/Modules/<Module>`; module UIs never import from
   each other or from the shell (`src/Web/App`), only from `src/Web/Shared` (`@shared/*`).
   Stack (Vite, React Router, TanStack Query/Table, Base UI + CSS Modules, no Tailwind, API types
-  generated from OpenAPI, one container): docs/adr/0011-frontend-stack.md.
+  generated from OpenAPI, one container).
   Never edit `src/Web/Shared/api/schema.ts` by hand; regenerate it.
 - Audit and logs: log only through `ILogger<T>` (Serilog is configured in the Host only);
-  run events via `JobContext` (docs/adr/0013-audit-logging-and-raw-data.md). Every fetched page is stored
+  run events via `JobContext`. Every fetched page is stored
   as a raw capture before parsing, through the module's `RawCaptureService`; each portal is an
-  `IOfferSource` picked from the `OfferSources` registry, never with a switch (docs/adr/0013-audit-logging-and-raw-data.md).
-- Background jobs (docs/adr/0018-background-jobs-as-building-block.md): a job is an `IJob` in the
+  `IOfferSource` picked from the `OfferSources` registry, never with a switch.
+- Background jobs: a job is an `IJob` in the
   module's Infrastructure, registered in the module root with `AddJobs(schema, moduleSection).Add<TJob>(name)` (PascalCase name)
   and mapped with `MapJobs(schema)`; the module's migrations create `<schema>.job_run`. An optional
   daily run is `DailyAt` in `[Modules.<Module>.Jobs.<name>]`, in the time zone from `[Jobs] TimeZone`.
   An expected failure throws `JobFailedException` with a code that the UI translates.
-- Data and API conventions (docs/adr/0014-data-and-api-conventions.md): `int` identity keys,
+- Data and API conventions: `int` identity keys,
   `timestamptz` + `DateTimeOffset` + `TimeProvider`, money as `numeric`/`decimal` with a
   currency column, enums as `integer` (explicit C# values) without `CHECK` and as JSON strings, `ProblemDetails` with a
   `code`, paging via `PageRequest`/`PagedResult<T>`, expected errors as `TypedResults`.
 - UI texts only from i18next dictionaries by key; no hardcoded texts. Every new or
   changed text goes to both `pl` (default) and `en` in the same change
-  (docs/adr/0015-ui-translations.md).
+ .
 - Tests: NUnit (not xUnit), integration tests first (Host via `WebApplicationFactory`,
   Testcontainers for the database), NSubstitute for dependencies that reach the outside
-  world; Vitest in the frontend: docs/adr/0012-testing.md.
+  world; Vitest in the frontend.
 - Test behavior that matters, not implementation details: what a user or caller sees
   (an endpoint result, a parsed offer, a refused request, a page that shows the result).
   A refactor or a changed UI text must not break tests. No test per trivial member,
   no assertions on private structure or exact wording; frontend tests find elements by
   role and compare texts through the translation keys.
-- Module contract (`IModule`, `ModuleDefinition`, explicit module lists): docs/adr/0007-module-contract.md.
-- Solution layout and versions (.NET 10, React 19): docs/adr/0003-solution-structure-and-versions.md.
 
-## Code style (see docs/adr/0004 and 0005)
+## Code style
 
 - KISS: simple, readable code over abstraction. Avoid boilerplate.
   Find the balance: an abstraction or pattern (interface, factory, wrapper) is welcome
@@ -141,14 +139,10 @@ Spend effort only on what solves a real problem the maintainer has today
   - `docs/ROADMAP.md`: phases in order, with exit criteria.
 - Open doubts and undecided questions go to `Unresolved questions` in `docs/SPEC.md`
   (one bullet: the question, known options, when it must be decided). When a question is
-  answered, remove the bullet and record the answer in an ADR or in the spec text.
-- Architecture decisions are recorded as ADRs in `docs/adr/`
-  (`NNNN-short-title.md`, based on `docs/adr/template.md`). An ADR is only for a decision that
-  is hard to reverse or has real alternatives worth recording; conventions and small rules go
-  to `AGENTS.md`. When a decision only refines an existing ADR, propose updating that ADR
-  instead of writing a new one.
-- Read the relevant ADRs before changing architecture. Propose a new ADR
-  instead of silently changing an accepted decision.
+  answered, remove the bullet and record the answer in the spec text or in `AGENTS.md`.
+- While the product is still being shaped, decisions are not recorded as ADRs: rules go to
+  `AGENTS.md`, scope to `docs/SPEC.md` and `docs/ROADMAP.md`. ADRs come back in `docs/adr/`
+  once a module is mature and its decisions stop changing.
 
 ## Keeping these files up to date
 
@@ -158,13 +152,12 @@ Update the matching file in the same change that makes it outdated:
 |--------------------------------------------------------|--------------------------------|
 | How we work: rules, workflow, commands, conventions    | `AGENTS.md`                    |
 | What the system does, non-goals, acceptance criteria   | `docs/SPEC.md`                 |
-| A decision that is hard to reverse is made or reversed | new ADR in `docs/adr/`         |
 | A convention or small rule is added                    | `AGENTS.md`                    |
 | A phase starts, finishes or changes scope              | `docs/ROADMAP.md`              |
 | A new build, test or run command exists                | `Commands` in `AGENTS.md`      |
 | Server setup, update, backup or restore steps          | `README.md`, `docs/disaster-recovery.md` |
 
-- Do not duplicate content: `AGENTS.md` keeps short rules and links to ADRs for the reasons.
+- Do not duplicate content: `AGENTS.md` keeps short rules.
 - At the end of every task, check this table and say which files you updated,
   or propose the update if it needs the maintainer's decision.
 
@@ -177,24 +170,23 @@ Update the matching file in the same change that makes it outdated:
   The `master` ruleset requires the CI jobs `backend`, `frontend` and `api-types` to pass
   and the branch to be up to date with `master`.
 - Unfinished functionality is merged behind a feature flag, never left on a long-lived branch.
-- Rationale: docs/adr/0001-use-trunk-based-development.md.
 - Keep changes small and focused; one concern per commit.
 - Use Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`).
 
 ## Data and privacy
 
 - Never commit secrets, `.env` files or real scraped data. Secrets are Docker secrets read
-  from `/run/secrets`, never TOML values or container env vars (docs/adr/0010-secrets.md).
+  from `/run/secrets`, never TOML values or container env vars.
   Test samples contain no personal data (e.g. seller names, phone numbers).
 - Scraped portals are named by their real names in code (enums, scraper classes).
-- Scraping rules (docs/adr/0016-scraping-rules.md): every request goes through the
+- Scraping rules: every request goes through the
   scraping toolkit (robots.txt check, one request at a time per host, backoff on
   429/503). Never store personal data of private persons (raw pages are stored anonymized
-  by the portal's `IOfferSource.Anonymize`, docs/adr/0013-audit-logging-and-raw-data.md); store the link to the
+  by the portal's `IOfferSource.Anonymize`); store the link to the
   portal's offer or contact page instead. Scrapers never log in to a portal.
 - Before writing a scraper for a new portal, research its terms of service, `robots.txt`,
   account requirements, personal data and anti-bot measures, and record the facts in
-  `docs/portals/<portal>.md` (checklist in ADR 0016). No review, no scraper.
+  `docs/portals/<portal>.md`. No review, no scraper.
 - Normalize scraped data so offers from different portals can be compared and filtered
   together. Design every scraper, even the first one for a portal, around the module's own
   model, not around the portal's format:
@@ -241,9 +233,9 @@ Update the matching file in the same change that makes it outdated:
   The server runs the image CI published for the commit checked out in `/opt/bastion`
   (`ghcr.io/maydev09/bastion:<commit>`): deploy = `systemctl start bastion-backup` + `git pull` +
   `server-setup.sh` (installs changed units, restarts), rollback = `git checkout <commit>` + restart. Run Compose there only through `deploy/compose.sh`.
-- Backups (ADR 0020): `deploy/backup.sh` dumps the database nightly (`bastion-backup.timer`) and on
+- Backups: `deploy/backup.sh` dumps the database nightly (`bastion-backup.timer`) and on
   demand (`systemctl start bastion-backup`); `scripts/backup-pull.sh <user@server>` copies the dumps to another machine.
-- Image: `docker build -t bastion .` (frontend, backend and Playwright Firefox in one image, ADR 0011).
+- Image: `docker build -t bastion .` (frontend, backend and Playwright Firefox in one image).
 - CI (`.github/workflows/ci.yml`) runs the backend build, migrations on a fresh database and tests, frontend lint, tests and
   build, and fails when the committed OpenAPI document or `schema.ts` is out of date.
   The `image` job builds the Docker image on pull requests and publishes it on master.

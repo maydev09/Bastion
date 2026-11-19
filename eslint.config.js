@@ -22,12 +22,12 @@ export default tseslint.config(
   boundary(
     ["src/Web/Modules/**"],
     ["@modules/**", "../*/**", "**/Modules/**", "**/App/**"],
-    "A module UI imports only its own files and @shared (ADR 0002).",
+    "A module UI imports only its own files and @shared.",
   ),
   boundary(
     ["src/Web/Shared/**"],
     ["@modules/**", "**/Modules/**", "**/App/**"],
-    "Shared code knows no modules and no shell (ADR 0002).",
+    "Shared code knows no modules and no shell.",
   ),
   prettier,
 );

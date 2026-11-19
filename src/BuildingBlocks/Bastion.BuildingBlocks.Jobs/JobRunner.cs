@@ -7,7 +7,7 @@ using Microsoft.Extensions.Options;
 
 namespace Bastion.BuildingBlocks.Jobs;
 
-// One runner per module. Rules (ADR 0018): the same job never runs twice at the same time, different
+// One runner per module. Rules: the same job never runs twice at the same time, different
 // jobs may run in parallel, no retries, a scheduled run missed while the application was off is skipped.
 public sealed partial class JobRunner(
     string schema,

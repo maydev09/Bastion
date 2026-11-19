@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Copies the server's database dumps to this machine (ADR 0020). Dumps already copied are
+# Copies the server's database dumps to this machine. Dumps already copied are
 # kept, also after the server deletes them.
 # Usage: scripts/backup-pull.sh <user@server>
 set -euo pipefail

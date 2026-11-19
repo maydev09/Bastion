@@ -3,7 +3,7 @@
 - **Reviewed:** 2026-11-16
 - **Module:** Housing
 
-Checklist: ADR 0016, "Review before adding a portal".
+Checklist: `AGENTS.md`, "Data and privacy".
 
 ## Terms of service
 

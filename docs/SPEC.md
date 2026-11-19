@@ -54,7 +54,6 @@ pointless, repetitive work than do it by hand.
   contributes no endpoints, jobs, navigation entries or pages.
 - Inside a module, feature flags hide unfinished or optional functionality.
 - Adding a new module does not require changes in other modules.
-- Architecture rules and their enforcement: ADR 0002.
 
 ### Web UI shell
 - One React application with shared layout and navigation.
@@ -63,10 +62,10 @@ pointless, repetitive work than do it by hand.
 
 ### Shared services
 - Background jobs: modules that need them register scheduled and manually triggered jobs
-  through a building block, not the platform core (ADR 0018). Every job run is recorded in
+  through a building block, not the platform core. Every job run is recorded in
   the module's own schema with its status, timing and errors.
 - Audit: each run has a summary and a timeline of events viewable in the UI;
-  technical logs go to the console and rolling files (ADR 0013).
+  technical logs go to the console and rolling files.
 - Configuration, logging and health checks, shared by all modules.
 - Database access and schema migrations, with a separate schema per module.
 
@@ -80,7 +79,7 @@ Replaces the legacy flat offers scraper.
   criteria (e.g. rent or buy, city, price range, rooms). Each run executes the enabled
   profiles. Several profiles can run side by side (e.g. rent in one city, buy in another).
 - Requests are rate-limited with randomized delays between calls and follow the
-  scraping rules (robots.txt, one request at a time per portal, no personal data): ADR 0016.
+  scraping rules (robots.txt, one request at a time per portal, no personal data), see `AGENTS.md`.
 - Each source can be run from saved sample files instead of the live website
   (offline mode for development and tests).
 - When parsing fails, the raw input and the error are saved for debugging,
@@ -111,15 +110,15 @@ work mode) and statuses (e.g. applied, interview scheduled, rejected), plus:
 
 Both scraper modules need the same technical building blocks (HTTP/browser fetching,
 rate limiting, offline sample files, error capture, storing every raw response
-compressed per run with retention, see ADR 0013). These end up in a reusable
+compressed per run with retention). These end up in a reusable
 library that scraper modules use. It is not part of the platform core, because
 non-scraper modules do not need it. The code starts inside the housing module
 and is extracted into the library when the job offers module needs it.
 
 ## Security and privacy
 
-- No secrets in the repository; configuration comes from TOML files (ADR 0008) and
-  environment variables; secrets only from encrypted secret files (ADR 0010).
+- No secrets in the repository; configuration comes from TOML files and
+  environment variables; secrets only from encrypted secret files.
 - The repository never contains real scraped data. Sample HTML/JSON used in tests
   contains no personal data.
 - User-specific preferences (search criteria, locations, price ranges) are never
@@ -130,7 +129,7 @@ and is extracted into the library when the job offers module needs it.
   portal's host uses (`ip route get <host>`) and fails the run (fail closed) unless it is a tunnel
   (type `wireguard`/`tun`, or a name matching configurable prefixes, by default `wg`, `tun`, `proton`).
   On the server the app shares the network of a WireGuard container, so the same check works
-  inside Docker (ADR 0019).
+  inside Docker.
   The check is controlled by the `Scraping:RequireVpn` setting, `true` by default;
   it may be turned off only locally (e.g. when the whole machine sits behind a VPN router).
   Offline runs from sample files do not need a VPN. Bastion only checks the VPN;
@@ -140,7 +139,7 @@ and is extracted into the library when the job offers module needs it.
 
 - Running Bastion as a commercial product. It is open source under AGPL-3.0 (see `LICENSE`).
 - Multi-user accounts, roles or a login for now. The data model has no concept of a
-  user (no `user_id` columns); it is added in its own ADR if Bastion is ever hosted
+  user (no `user_id` columns); it is added only if Bastion is ever hosted
   for several people.
 - Third-party plugins: modules are developed in this repository.
 - Bypassing CAPTCHAs or other explicit access restrictions of a website.
@@ -157,16 +156,16 @@ and is extracted into the library when the job offers module needs it.
 
 ## Unresolved questions
 
-- Feature flags (see ADR 0001 consequences).
+- Feature flags: the mechanism that hides half-finished work merged to `master`.
 - Should historical data from the legacy databases be migrated?
 - Deployment details: Bastion and PostgreSQL run in Docker Compose on a headless home
-  server, started by systemd (ADR 0010); setup and updates are in README ("Running on a
-  server"); database backups are pulled to another machine (ADR 0020).
+  server, started by systemd; setup and updates are in README ("Running on a
+  server"); database backups are pulled to another machine.
   The web UI has no login (single user, see AGENTS.md "Focus on the core problem");
   revisit only if Bastion is ever reachable from the internet.
 - Duplicate matching: which signals decide that two offers are the same (exact
   checksum of key fields, or a similarity score over address, price, area, rooms,
-  title), and is a group stored or derived from the data? Decide in an ADR before the
+  title), and is a group stored or derived from the data? Decide before the
   second portal of a module is added.
 - AI support (later phase): e.g. "find the offers that fit me best" over the collected data.
   Options: an MCP server over the database used from an existing Claude subscription

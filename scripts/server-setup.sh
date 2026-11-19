@@ -42,10 +42,10 @@ if [[ ! -f /etc/docker/daemon.json ]]; then
   systemctl restart docker
 fi
 
-# systemd-creds binds secrets to the TPM only when these libraries are present (ADR 0010).
+# systemd-creds binds secrets to the TPM only when these libraries are present.
 apt-get install --yes libtss2-esys-3.0.2-0t64 libtss2-rc0t64 libtss2-mu-4.0.1-0t64
 
-# Passwords are generated once and only ever stored encrypted (ADR 0010). Each file is written
+# Passwords are generated once and only ever stored encrypted. Each file is written
 # through a temporary name, so a failed encryption never leaves a file that a rerun would skip.
 mkdir -p /etc/credstore.encrypted
 for name in db-postgres-password db-owner-password db-app-password; do
@@ -57,7 +57,7 @@ for name in db-postgres-password db-owner-password db-app-password; do
   fi
 done
 
-# The WireGuard key comes from the VPN provider's account, so it is pasted, not generated (ADR 0019).
+# The WireGuard key comes from the VPN provider's account, so it is pasted, not generated.
 file=/etc/credstore.encrypted/wireguard-private-key
 if [[ ! -f "$file" ]]; then
   read -r -s -p "WireGuard private key (PrivateKey from the provider's config): " key
@@ -67,7 +67,7 @@ if [[ ! -f "$file" ]]; then
   echo "Stored secret 'wireguard-private-key'." >&2
 fi
 
-# Database dumps (ADR 0020). The directory belongs to the group of the admin who ran sudo, and
+# Database dumps. The directory belongs to the group of the admin who ran sudo, and
 # new dumps inherit that group (setgid), so another machine copies them with rsync, without root.
 apt-get install --yes rsync
 install -d -m 2750 -g "$(id -gn "$SUDO_USER")" /var/backups/bastion
