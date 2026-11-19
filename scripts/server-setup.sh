@@ -68,7 +68,7 @@ if [[ ! -f "$file" ]]; then
 fi
 
 # Database dumps (ADR 0020). The directory belongs to the group of the admin who ran sudo, and
-# new dumps inherit that group (setgid), so the desktop copies them with rsync, without root.
+# new dumps inherit that group (setgid), so another machine copies them with rsync, without root.
 apt-get install --yes rsync
 install -d -m 2750 -g "$(id -gn "$SUDO_USER")" /var/backups/bastion
 

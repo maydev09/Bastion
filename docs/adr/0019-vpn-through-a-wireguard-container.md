@@ -5,8 +5,8 @@
 
 ## Context
 
-Live scraping must go out only through a VPN (SPEC, Security and privacy). On the desktop the
-VPN runs on the host and `RouteVpnCheck` asks `ip route get <host>` which interface carries the
+Live scraping must go out only through a VPN (SPEC, Security and privacy). On a developer machine
+the VPN runs on the host and `RouteVpnCheck` asks `ip route get <host>` which interface carries the
 traffic. On the server Bastion runs in Docker, where a container sees only its own `eth0`, so
 the same check would always fail. The server also runs SSH and backups, which should keep using
 the home connection.
@@ -25,8 +25,8 @@ traffic goes through the VPN; the host network is unchanged.
 - The WireGuard private key is a Docker secret (`wireguard_private_key`, read by gluetun from
   `/run/secrets`), stored with systemd-creds like the other server secrets (ADR 0010). It is a
   permanent secret: it comes from the VPN provider's account, so the setup script asks for it.
-- The VPN container exists only in the server Compose override; on the desktop the VPN still
-  runs on the host.
+- The VPN container exists only in the server Compose override; on a developer machine the
+  VPN still runs on the host.
 
 ## Alternatives considered
 

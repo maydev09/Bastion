@@ -116,9 +116,10 @@ Its scraping traffic goes through a VPN container (ADR 0019); secrets are encryp
    after 3 failed retries it stays stopped. Fix the cause, then
    `sudo systemctl reset-failed bastion && sudo systemctl start bastion`.
 6. **Backups:** the server dumps the database every night at 03:00 to `/var/backups/bastion`
-   and keeps 30 dumps (ADR 0020). Copy them to your desktop regularly:
-   `scripts/backup-pull.sh <user>@<server>` (to `~/bastion-backups`, or `$BASTION_BACKUP_DIR`).
-   To restore a dump, see [docs/disaster-recovery.md](docs/disaster-recovery.md).
+   and keeps 30 dumps (ADR 0020). Copy them off the server regularly, from any machine with
+   SSH access: `scripts/backup-pull.sh <user>@<server>` (to `~/bastion-backups`, or
+   `$BASTION_BACKUP_DIR`). To restore a dump or test a backup, see
+   [docs/disaster-recovery.md](docs/disaster-recovery.md).
 
 ## License
 
