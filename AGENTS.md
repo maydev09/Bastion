@@ -237,7 +237,7 @@ Update the matching file in the same change that makes it outdated:
   (`ghcr.io/maydev09/bastion:<commit>`): deploy = `systemctl start bastion-backup` + `git pull` +
   `server-setup.sh` (installs changed units, restarts), rollback = `git checkout <commit>` + restart. Run Compose there only through `deploy/compose.sh`.
 - Backups (ADR 0020): `deploy/backup.sh` dumps the database nightly (`bastion-backup.timer`) and on
-  demand (`systemctl start bastion-backup`); `scripts/backup-pull.sh <user@server>` copies the dumps to the desktop.
+  demand (`systemctl start bastion-backup`); `scripts/backup-pull.sh <user@server>` copies the dumps to another machine.
 - Image: `docker build -t bastion .` (frontend, backend and Playwright Firefox in one image, ADR 0011).
 - CI (`.github/workflows/ci.yml`) runs the backend build, migrations on a fresh database and tests, frontend lint, tests and
   build, and fails when the committed OpenAPI document or `schema.ts` is out of date.
