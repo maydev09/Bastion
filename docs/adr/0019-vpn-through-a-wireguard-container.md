@@ -1,7 +1,7 @@
 # 0019. VPN for scraping through a WireGuard container
 
 - **Status:** Accepted
-- **Date:** 2026-11-18
+- **Date:** 2026-11-18, updated 2026-11-19 (verified on the server, stack restarts together)
 
 ## Context
 
@@ -42,5 +42,7 @@ traffic goes through the VPN; the host network is unchanged.
 - One more container with `NET_ADMIN` and `/dev/net/tun`; its version is pinned.
 - Ports of the Bastion UI are published on the `vpn` service, because Bastion has no network
   of its own.
-- To verify when the app container is added: Bastion reaches `db` by name and gluetun's
-  firewall allows the Compose network. If not, gluetun's `FIREWALL_OUTBOUND_SUBNETS` opens it.
+- Verified on the server: Bastion reaches `db` by name inside gluetun's network, and an import
+  goes out through the tunnel; no extra gluetun firewall settings are needed.
+- When the `vpn` container restarts, it gets a new network and the app keeps the old one, so
+  the two never restart alone: systemd restarts the whole stack (`deploy/bastion.service`).
