@@ -74,89 +74,100 @@ A phase is complete only when all its exit criteria are met.
 ## Phase 5: Background jobs
 
 - **Status:** In progress
-- **Outcome:** Long work runs in the background. The user starts an import, watches a live
-  counter and sees the result (added, updated, unchanged offers) without reloading the page.
+- **Outcome:** Offers are collected on their own. New offers arrive every few minutes, and a
+  nightly full scan keeps the whole listing current. The user can also start a job, watch a
+  live counter and see the result (added, updated, unchanged offers) without reloading the page.
 - **Included work:** jobs as a building block with runs in the module's schema;
-  the import as a job reading several listing pages, stopping at known offers or at a page
-  limit from configuration; live status through SignalR; raw data retention as a daily job.
+  the whole rental listing of a portal as the collected scope; the import as a job in two runs:
+  new offers (frequent, stops at known offers) and a full scan (nightly, around 01:00, before
+  the backup, to the last page); offers missing from two complete full scans in a row marked
+  as removed (soft delete); schedules from configuration; live status through SignalR; raw data
+  retention as a daily job.
 - **Exit criteria:**
+  - New offers and the full scan run on their own at the configured times.
   - An import runs in the background and its result appears without reloading the page;
     after a reload during the run the counter continues.
   - An import never reads more pages than the configured limit.
+  - An offer missing from two complete full scans in a row is marked as removed and comes back
+    when it reappears; an interrupted scan marks nothing.
   - A failed import (e.g. without a VPN) shows why.
   - A second start of a running job does not start a second run; a restart during a run
     leaves it `interrupted`.
   - Retention runs on its own.
 
-## Phase 6: Offer details
+## Phase 6: Places
 
 - **Status:** Planned
-- **Outcome:** Offers carry what only their own page shows, so the user can judge an offer
-  without opening the portal.
-- **Included work:** detail pages of new and changed offers, a limited number per run
- . Fields and storage are decided at the start of the phase from real pages.
-- **Exit criteria:** set at the start of the phase.
-
-## Phase 7: Job schedules
-
-- **Status:** Planned
-- **Outcome:** Offers are collected on their own. The user sets in plain terms when each job
-  runs ("every hour, 7:00–22:00, Monday–Friday"), pauses it or runs it now.
-- **Included work:** Quartz.NET with the schedules stored in the module's tables (new ADR);
-  a schedule can later belong to a search profile.
-- **Exit criteria:** a schedule changed in the UI survives a restart and the job runs at the
-  new times; a paused job does not run; missed runs are not caught up.
-
-## Phase 8: Run history
-
-- **Status:** Planned
-- **Outcome:** The user sees what every job did and why a run failed, so jobs and their
-  audit form one complete feature.
-- **Included work:** a list of runs with a filter for failed ones; run details with a timeline
-  of events and links to the raw pages.
-- **Exit criteria:** every run appears with its result; a failed run shows its error and the
-  events that led to it.
-
-## Phase 9: Places
-
-- **Status:** Planned
-- **Outcome:** Every offer is linked to its place, and the user sees what kind of place it is:
-  village or town, and how big.
+- **Outcome:** Every offer is linked to its place, county and voivodeship, and the user sees
+  what kind of place it is: village or town, and how big.
 - **Included work:** a dictionary of places from open data (Wikidata first); the official
   status next to our own size classes with thresholds from configuration.
 - **Exit criteria:** set at the start of the phase.
 
-## Phase 10: Filtering offers
+## Phase 7: Market statistics
 
 - **Status:** Planned
-- **Outcome:** The user narrows the stored offers to what matters: place, kind of place,
-  price, area, rooms.
+- **Outcome:** The user compares the rental market across groups (voivodeship, kind of place,
+  rooms) in one view and draws conclusions quickly.
+- **Included work:** asking price per m² and per month (median and spread); active and new
+  offers; time on market; price cuts; area for a given budget; small groups marked as uncertain.
 - **Exit criteria:** set at the start of the phase.
 
-## Phase 11: Search profiles
+## Phase 8: Duplicates and broken offers
 
 - **Status:** Planned
-- **Outcome:** The user decides in the UI what is collected (e.g. "flats to rent in Kraków"),
-  each search with its own schedule.
+- **Outcome:** Statistics count every flat once and ignore broken offers.
+- **Included work:** grouping offers of the same flat; rules for broken offers decided from the
+  collected data.
 - **Exit criteria:** set at the start of the phase.
 
-## Phase 12: Places on the map
+## Phase 9: Offer score
 
 - **Status:** Planned
-- **Outcome:** The user sees whether an offer is near a city or far from everything.
+- **Outcome:** Every offer shows how its asking price compares with similar offers
+  ("14% below typical").
+- **Exit criteria:** set at the start of the phase.
+
+## Phase 10: Offer details
+
+- **Status:** Planned
+- **Outcome:** Offers carry what only their own page shows, so the user can judge an offer
+  without opening the portal.
+- **Included work:** detail pages of new and changed offers, a limited number per run.
+  Fields and storage are decided at the start of the phase from real pages.
+- **Exit criteria:** set at the start of the phase.
+
+## Phase 11: Filtering offers
+
+- **Status:** Planned
+- **Outcome:** The user narrows the stored offers to what matters (place, kind of place, price,
+  area, rooms, score) and saves filters for later.
+- **Exit criteria:** set at the start of the phase.
+
+## Phase 12: Map and surroundings
+
+- **Status:** Planned
+- **Outcome:** The user sees whether an offer is near a city and how far it is from a school,
+  a shop, public transport, green areas and similar places.
 - **Included work:** OpenStreetMap data; the point of an offer as precise as the portal
   allows; distance to the nearest city; municipality seat.
 - **Exit criteria:** set at the start of the phase.
 
-## Phase 13: Surroundings
+## Phase 13: Place attractiveness
 
 - **Status:** Planned
-- **Outcome:** The user sees how far an offer is from a school, a shop, a gym and similar places.
+- **Outcome:** The user sets what matters (cost, market, surroundings, public statistics) and
+  sees places ranked by these weights.
+- **Included work:** public statistics (GUS) joined with places.
 - **Exit criteria:** set at the start of the phase.
 
 ## Later
 
 Known candidates, in no fixed order:
+- Run history: a list of runs with a filter for failed ones; run details with a timeline of
+  events and links to the raw pages.
+- Market trends and seasonality, once months of data exist.
+- Retention of removed offers.
 - Triage (statuses, notes, bookmarks), once offers carry the place data that helps decide.
 - More portals with grouping of duplicate offers across portals.
 - The job offers module.
