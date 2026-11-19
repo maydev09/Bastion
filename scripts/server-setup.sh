@@ -24,6 +24,16 @@ EOF
   apt-get install --yes docker-ce docker-ce-cli containerd.io docker-compose-plugin
 fi
 
+# Debian's security fixes install themselves; they patch the same versions, so the risk is low.
+# Docker (its own repository), reboots and Bastion itself stay manual.
+apt-get install --yes unattended-upgrades
+if [[ ! -f /etc/apt/apt.conf.d/20auto-upgrades ]]; then
+  cat >/etc/apt/apt.conf.d/20auto-upgrades <<EOF
+APT::Periodic::Update-Package-Lists "1";
+APT::Periodic::Unattended-Upgrade "1";
+EOF
+fi
+
 # The default json-file driver never rotates logs; the "local" driver does.
 if [[ ! -f /etc/docker/daemon.json ]]; then
   echo '{ "log-driver": "local" }' >/etc/docker/daemon.json

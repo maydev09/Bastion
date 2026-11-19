@@ -98,13 +98,16 @@ Its scraping traffic goes through a VPN container (ADR 0019); secrets are encryp
 `systemd-creds` (ADR 0010).
 
 1. Clone the repository to `/opt/bastion` and run `sudo scripts/server-setup.sh`. It installs
-   Docker, asks for the WireGuard private key of your VPN provider and starts the `bastion` service.
+   Docker, turns on automatic Debian security updates, asks for the WireGuard private key of
+   your VPN provider and starts the `bastion` service. Docker, reboots and Bastion are updated by hand.
 2. Open `http://<server>:8080` from the home network. Do not forward the port to the internet:
    Bastion has no login.
 3. **Update:** `cd /opt/bastion && sudo git pull && sudo systemctl restart bastion`. The server
    pulls the image CI published for that commit; it never builds one.
 4. **Roll back:** `sudo git checkout <older commit>` and restart.
-5. **Logs:** `sudo journalctl -u bastion -f`.
+5. **Logs:** `sudo journalctl -u bastion -f`. When a container exits, the whole stack restarts;
+   after 3 failed retries it stays stopped. Fix the cause, then
+   `sudo systemctl reset-failed bastion && sudo systemctl start bastion`.
 
 ## License
 
