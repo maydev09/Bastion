@@ -307,7 +307,9 @@
           "addedCount",
           "updatedCount",
           "unchangedCount",
-          "skippedCount"
+          "skippedCount",
+          "missedCount",
+          "removedCount"
         ],
         "type": "object",
         "properties": {
@@ -331,6 +333,14 @@
             "format": "int32"
           },
           "skippedCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "missedCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "removedCount": {
             "type": "integer",
             "format": "int32"
           }

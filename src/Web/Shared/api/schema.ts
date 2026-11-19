@@ -225,6 +225,10 @@ export interface components {
             unchangedCount: number;
             /** Format: int32 */
             skippedCount: number;
+            /** Format: int32 */
+            missedCount: number;
+            /** Format: int32 */
+            removedCount: number;
         };
         JobRun: {
             /** Format: int32 */

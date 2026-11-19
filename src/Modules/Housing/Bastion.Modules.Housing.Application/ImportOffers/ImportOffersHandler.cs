@@ -12,18 +12,26 @@ public sealed class ImportOffersHandler(
     IOptions<ImportOptions> options)
 {
     public const string UnknownSource = "housing.unknownSource";
+    public const string PageLimitReached = "housing.pageLimitReached";
 
-    public async Task<ImportOutcome> Handle(Source source, CancellationToken cancellationToken)
+    // One missed scan is not enough: an offer bumped during a scan moves to a page already read.
+    public const int MissedScansToRemove = 2;
+
+    public async Task<ImportOutcome> Handle(Source source, ImportMode mode, CancellationToken cancellationToken)
     {
         if (!sources.TryGet(source, out var offerSource))
         {
             return new ImportOutcome(null, new Failure(UnknownSource, $"No offer source is registered for {source}.", FailureKind.NotFound));
         }
 
+        var fullScan = mode == ImportMode.FullScan;
+        var maxPages = fullScan ? options.Value.FullScanMaxPages : options.Value.MaxPages;
         var statistics = new SaveStatistics();
         var seen = new HashSet<string>();
         var pageCount = 0;
-        for (var number = 1; number <= options.Value.MaxPages; number++)
+        var reachedLastPage = false;
+        DateTimeOffset? startedAt = null;
+        for (var number = 1; number <= maxPages; number++)
         {
             var fetch = await offerSource.FetchListingPageAsync(number, cancellationToken);
             if (fetch.Failure is not null)
@@ -34,6 +42,7 @@ public sealed class ImportOffersHandler(
             // Stored before parsing, so a page the parser cannot read is kept for fixing it.
             var page = offerSource.Anonymize(fetch.Page!);
             var capture = await rawCaptures.SaveAsync(source, page, cancellationToken);
+            startedAt ??= capture.FetchedAt;
             var parsed = offerSource.Parse(page);
             if (parsed.Failure is not null)
             {
@@ -46,14 +55,35 @@ public sealed class ImportOffersHandler(
             statistics.Add(saved, parsed.SkippedCount);
             pageCount++;
 
+            if (parsed.IsLastPage)
+            {
+                reachedLastPage = true;
+                break;
+            }
+
             // The listing is newest first, so after an offer known from an earlier import only known offers follow.
-            if (parsed.IsLastPage || saved.Added < offers.Count)
+            if (!fullScan && saved.Added < offers.Count)
             {
                 break;
             }
         }
 
-        var result = new ImportResult(source, pageCount, statistics.Added, statistics.Updated, statistics.Unchanged, statistics.Skipped);
+        var missed = new MissedCounts(0, 0);
+        if (fullScan)
+        {
+            // Offers after the limit were not read, so none can be counted as missing.
+            if (!reachedLastPage)
+            {
+                return new ImportOutcome(null, new Failure(PageLimitReached,
+                    $"The full scan of {source} stopped at the limit of {maxPages} pages before the last page; no offer was marked removed.",
+                    FailureKind.Failed));
+            }
+
+            missed = await repository.MarkMissedAsync(source, startedAt!.Value, MissedScansToRemove, cancellationToken);
+        }
+
+        var result = new ImportResult(source, pageCount, statistics.Added, statistics.Updated, statistics.Unchanged, statistics.Skipped,
+            missed.Missed, missed.Removed);
         return new ImportOutcome(result, null);
     }
 }

@@ -53,6 +53,7 @@ public sealed class HousingModule : IModule
 
         services.AddJobs(Schema, moduleSection)
             .Add<ImportOffersJob>(ImportOffersJob.Name)
+            .Add<ScanOffersJob>(ScanOffersJob.Name)
             .Add<RawCaptureRetentionJob>(RawCaptureRetentionJob.Name);
     }
 

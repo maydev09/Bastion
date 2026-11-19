@@ -19,7 +19,7 @@ public static class OfferEndpoints
         app.MapPost("/import/{source}", async Task<Results<Ok<ImportResult>, ProblemHttpResult>> (
             Source source, ImportOffersHandler handler, CancellationToken cancellationToken) =>
         {
-            var outcome = await handler.Handle(source, cancellationToken);
+            var outcome = await handler.Handle(source, ImportMode.NewOffers, cancellationToken);
             if (outcome.Failure is not { } failure)
             {
                 return TypedResults.Ok(outcome.Result!);
