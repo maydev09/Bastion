@@ -216,6 +216,8 @@ export interface components {
         ImportResult: {
             source: components["schemas"]["Source"];
             /** Format: int32 */
+            pageCount: number;
+            /** Format: int32 */
             addedCount: number;
             /** Format: int32 */
             updatedCount: number;
@@ -273,9 +275,13 @@ export interface components {
             /** Format: int32 */
             rooms?: null | number;
             /** Format: date-time */
-            firstSeenAt: string;
+            createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+            /** Format: date-time */
+            externalCreatedAt?: null | string;
+            /** Format: date-time */
+            externalUpdatedAt?: null | string;
         };
         PagedResultOfOfferListItem: {
             items: components["schemas"]["OfferListItem"][];

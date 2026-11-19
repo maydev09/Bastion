@@ -6,7 +6,8 @@ public interface IOfferSource
 {
     Source Source { get; }
 
-    Task<FetchResult> FetchAsync(CancellationToken cancellationToken);
+    // Results pages are numbered from 1 and list the newest offers first.
+    Task<FetchResult> FetchListingPageAsync(int number, CancellationToken cancellationToken);
 
     RawPage Anonymize(RawPage page);
 

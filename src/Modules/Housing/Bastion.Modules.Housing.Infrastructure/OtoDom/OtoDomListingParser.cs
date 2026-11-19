@@ -1,3 +1,4 @@
+using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Bastion.Modules.Housing.Domain;
@@ -6,7 +7,7 @@ namespace Bastion.Modules.Housing.Infrastructure.OtoDom;
 
 public static partial class OtoDomListingParser
 {
-    public static (IReadOnlyList<Offer> Offers, int SkippedCount) Parse(string html, Uri baseUrl)
+    public static (IReadOnlyList<Offer> Offers, int SkippedCount, bool IsLastPage) Parse(string html, Uri baseUrl)
     {
         var script = NextDataRegex().Match(html);
         if (!script.Success)
@@ -30,7 +31,8 @@ public static partial class OtoDomListingParser
                 && item.TryGetProperty("title", out var title) && title.ValueKind == JsonValueKind.String
                 && item.TryGetProperty("slug", out var slug) && slug.ValueKind == JsonValueKind.String
                 && PropertyTypeOf(item) is { } propertyType
-                && TransactionOf(item) is { } transaction)
+                && TransactionOf(item) is { } transaction
+                && Date(item, "createdAtFirst") is { } createdAt)
             {
                 offers.Add(new Offer(
                     Source.OtoDom,
@@ -39,9 +41,11 @@ public static partial class OtoDomListingParser
                     new Uri(baseUrl, $"/pl/oferta/{slug.GetString()}"),
                     propertyType,
                     transaction,
+                    createdAt,
                     MoneyOf(item, "totalPrice"),
                     Number(item, "areaInSquareMeters"),
-                    Rooms(item)));
+                    Rooms(item),
+                    Date(item, "pushedUpAt")));
             }
             else
             {
@@ -51,8 +55,15 @@ public static partial class OtoDomListingParser
 
         // Promoted offers can appear twice on one page, and the page lists the newest offer first.
         // Saving them oldest first gives newer offers higher ids, which orders offers of one import by age.
-        return (offers.DistinctBy(o => o.ExternalId).Reverse().ToList(), skipped);
+        return (offers.DistinctBy(o => o.ExternalId).Reverse().ToList(), skipped, IsLastPage(document.RootElement));
     }
+
+    // Without page numbers there is nothing to read next.
+    private static bool IsLastPage(JsonElement root) =>
+        !TryGetPath(root, out var pagination, "props", "pageProps", "data", "searchAds", "pagination")
+        || Number(pagination, "currentPage") is not { } current
+        || Number(pagination, "totalPages") is not { } total
+        || current >= total;
 
     // totalPrice is null when the advertiser hides the price; for rentals it is the monthly rent.
     private static Money? MoneyOf(JsonElement item, string name) =>
@@ -84,6 +95,15 @@ public static partial class OtoDomListingParser
         "RENT" => Transaction.Rent,
         _ => null,
     };
+
+    // An advertising tile at the end of every results page has the invalid date 1999-02-29, so it is skipped.
+    // pushedUpAt is set when the advertiser bumps the offer; it keeps its place in the newest-first listing.
+    // Dates come with different offsets (Z, +01:00) and are stored in UTC.
+    private static DateTimeOffset? Date(JsonElement element, string name) =>
+        Text(element, name) is { } text
+        && DateTimeOffset.TryParse(text, CultureInfo.InvariantCulture, DateTimeStyles.AssumeUniversal | DateTimeStyles.AdjustToUniversal, out var date)
+            ? date
+            : null;
 
     private static string? Text(JsonElement element, string name) =>
         element.TryGetProperty(name, out var text) && text.ValueKind == JsonValueKind.String

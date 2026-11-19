@@ -303,6 +303,7 @@
       "ImportResult": {
         "required": [
           "source",
+          "pageCount",
           "addedCount",
           "updatedCount",
           "unchangedCount",
@@ -312,6 +313,10 @@
         "properties": {
           "source": {
             "$ref": "#/components/schemas/Source"
+          },
+          "pageCount": {
+            "type": "integer",
+            "format": "int32"
           },
           "addedCount": {
             "type": "integer",
@@ -471,7 +476,7 @@
           "url",
           "propertyType",
           "transaction",
-          "firstSeenAt",
+          "createdAt",
           "updatedAt"
         ],
         "type": "object",
@@ -526,12 +531,26 @@
             ],
             "format": "int32"
           },
-          "firstSeenAt": {
+          "createdAt": {
             "type": "string",
             "format": "date-time"
           },
           "updatedAt": {
             "type": "string",
+            "format": "date-time"
+          },
+          "externalCreatedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "externalUpdatedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
             "format": "date-time"
           }
         }

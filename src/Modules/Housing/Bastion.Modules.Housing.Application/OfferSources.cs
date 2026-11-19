@@ -8,6 +8,8 @@ public sealed class OfferSources(IEnumerable<IOfferSource> sources)
 {
     private readonly Dictionary<Source, IOfferSource> _bySource = sources.ToDictionary(s => s.Source);
 
+    public IEnumerable<Source> All => _bySource.Keys;
+
     public bool TryGet(Source source, [NotNullWhen(true)] out IOfferSource? offerSource) =>
         _bySource.TryGetValue(source, out offerSource);
 }

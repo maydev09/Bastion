@@ -24,7 +24,11 @@ public sealed record OfferListItem
 
     public int? Rooms { get; init; }
 
-    public required DateTimeOffset FirstSeenAt { get; init; }
+    public required DateTimeOffset CreatedAt { get; init; }
 
     public required DateTimeOffset UpdatedAt { get; init; }
+
+    public DateTimeOffset? ExternalCreatedAt { get; init; }
+
+    public DateTimeOffset? ExternalUpdatedAt { get; init; }
 }

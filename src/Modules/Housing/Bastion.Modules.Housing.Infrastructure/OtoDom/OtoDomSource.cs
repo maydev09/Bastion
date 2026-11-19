@@ -14,14 +14,13 @@ public sealed class OtoDomSource(ScrapingClient client, IOptions<OtoDomOptions> 
 
     public Source Source => Source.OtoDom;
 
-    public async Task<FetchResult> FetchAsync(CancellationToken cancellationToken)
+    public async Task<FetchResult> FetchListingPageAsync(int number, CancellationToken cancellationToken)
     {
         try
         {
-            var response = await client.GetAsync(options.Value.ListingUrl, cancellationToken);
-            return new FetchResult([
-                new RawPage(response.Url, CaptureKind.ListingPage, response.ContentType, response.StatusCode, response.Content),
-            ]);
+            var response = await client.GetAsync(ListingPageUrl(number), cancellationToken);
+            return new FetchResult(
+                new RawPage(response.Url, CaptureKind.ListingPage, response.ContentType, response.StatusCode, response.Content));
         }
         catch (ScrapingException e)
         {
@@ -40,12 +39,15 @@ public sealed class OtoDomSource(ScrapingClient client, IOptions<OtoDomOptions> 
     {
         try
         {
-            var (offers, skipped) = OtoDomListingParser.Parse(Encoding.UTF8.GetString(page.Content), options.Value.BaseUrl);
-            return new ParseResult(offers, skipped);
+            var (offers, skipped, isLastPage) = OtoDomListingParser.Parse(Encoding.UTF8.GetString(page.Content), options.Value.BaseUrl);
+            return new ParseResult(offers, skipped, isLastPage);
         }
         catch (OtoDomParseException e)
         {
             return ParseResult.Failed(new Failure(ParseFailed, e.Message, FailureKind.Failed));
         }
     }
+
+    // The listing URL already has a query (sorting, page size); the page number is added to it.
+    private Uri ListingPageUrl(int number) => new($"{options.Value.ListingUrl}&page={number}");
 }
