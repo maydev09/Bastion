@@ -1,3 +1,4 @@
+using System.Net;
 using System.Net.Http.Headers;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -12,6 +13,10 @@ public sealed partial class WikidataClient(HttpClient http, ILogger<WikidataClie
     private const string EntityPrefix = "http://www.wikidata.org/entity/";
     private const int Attempts = 3;
 
+    // A busy service (429, 503) says how long to wait; without that a minute, and never longer than five.
+    private static readonly TimeSpan BusyWait = TimeSpan.FromMinutes(1);
+    private static readonly TimeSpan MaxWait = TimeSpan.FromMinutes(5);
+
     // The same query takes 10 or 50 seconds depending on the load, and the service cuts it off at 60 seconds,
     // so a failed query is tried again. A retry changes the query text: the service may have cached the cut-off response.
     public async Task<IReadOnlyList<IReadOnlyDictionary<string, string>>> QueryAsync(string sparql, CancellationToken cancellationToken)
@@ -24,8 +29,10 @@ public sealed partial class WikidataClient(HttpClient http, ILogger<WikidataClie
             }
             catch (Exception e) when (attempt < Attempts && IsTransient(e, cancellationToken))
             {
-                LogRetry(attempt, Attempts, e.Message);
-                await Task.Delay(TimeSpan.FromSeconds(10 * attempt), cancellationToken);
+                var wait = e is BusyException busy ? busy.RetryAfter ?? BusyWait : TimeSpan.FromSeconds(10 * attempt);
+                wait = wait > MaxWait ? MaxWait : wait;
+                LogRetry(attempt, Attempts, wait.TotalSeconds, e.Message);
+                await Task.Delay(wait, cancellationToken);
             }
         }
     }
@@ -43,6 +50,14 @@ public sealed partial class WikidataClient(HttpClient http, ILogger<WikidataClie
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("application/sparql-results+json"));
 
         using var response = await http.SendAsync(request, cancellationToken);
+        if (response.StatusCode is HttpStatusCode.TooManyRequests or HttpStatusCode.ServiceUnavailable)
+        {
+            var retryAfter = response.Headers.RetryAfter is { } header
+                ? header.Delta ?? header.Date - DateTimeOffset.UtcNow
+                : null;
+            throw new BusyException(response.StatusCode, retryAfter);
+        }
+
         response.EnsureSuccessStatusCode();
 
         // A response cut off by a timeout is invalid JSON and fails here instead of giving partial data.
@@ -53,12 +68,18 @@ public sealed partial class WikidataClient(HttpClient http, ILogger<WikidataClie
             .ToList();
     }
 
-    [LoggerMessage(Level = LogLevel.Warning, Message = "Wikidata query failed (attempt {Attempt} of {Attempts}): {Error}")]
-    private partial void LogRetry(int attempt, int attempts, string error);
+    [LoggerMessage(Level = LogLevel.Warning, Message = "Wikidata query failed (attempt {Attempt} of {Attempts}), next in {WaitSeconds} s: {Error}")]
+    private partial void LogRetry(int attempt, int attempts, double waitSeconds, string error);
 
     // Entities come as URIs, e.g. http://www.wikidata.org/entity/Q270 -> Q270.
     private static string EntityId(string value) =>
         value.StartsWith(EntityPrefix, StringComparison.Ordinal) ? value[EntityPrefix.Length..] : value;
+
+    private sealed class BusyException(HttpStatusCode status, TimeSpan? retryAfter)
+        : HttpRequestException($"Wikidata is busy ({(int)status}).", null, status)
+    {
+        public TimeSpan? RetryAfter { get; } = retryAfter;
+    }
 
     private sealed record SparqlResult([property: JsonPropertyName("results")] SparqlRows Results);
 

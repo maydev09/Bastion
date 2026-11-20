@@ -31,8 +31,6 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             rooms = excluded.rooms,
             external_created_at = excluded.external_created_at,
             external_updated_at = excluded.external_updated_at,
-            location_key = excluded.location_key,
-            place_id = excluded.place_id,
             listing_hash = excluded.listing_hash,
             raw_capture_id = excluded.raw_capture_id,
             updated_at = excluded.updated_at
@@ -46,6 +44,15 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         UPDATE housing.offer
         SET last_seen_at = @SeenAt, missed_scans = 0, removed_at = NULL
         WHERE source_id = @SourceId AND external_id = ANY(@ExternalIds) AND last_seen_at < @SeenAt
+        """;
+
+    // The location is not part of the listing hash, so it is set here for new and unchanged offers alike.
+    private const string LocationSql = """
+        UPDATE housing.offer o
+        SET location_key = l.location_key, place_id = l.place_id
+        FROM unnest(@ExternalIds, @LocationKeys, @PlaceIds) AS l (external_id, location_key, place_id)
+        WHERE o.source_id = @SourceId AND o.external_id = l.external_id
+          AND (o.location_key, o.place_id) IS DISTINCT FROM (l.location_key, l.place_id)
         """;
 
     // The right side of SET reads the values from before the update.
@@ -156,6 +163,14 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             SourceId = (int)capture.SourceId,
             ExternalIds = offers.Select(o => o.ExternalId).ToArray(),
             SeenAt = capture.FetchedAt,
+        }, transaction, cancellationToken: cancellationToken));
+
+        await connection.ExecuteAsync(new CommandDefinition(LocationSql, new
+        {
+            SourceId = (int)capture.SourceId,
+            ExternalIds = offers.Select(o => o.ExternalId).ToArray(),
+            LocationKeys = offers.Select(o => o.LocationKey).ToArray(),
+            PlaceIds = offers.Select(o => o.PlaceId).ToArray(),
         }, transaction, cancellationToken: cancellationToken));
 
         await transaction.CommitAsync(cancellationToken);

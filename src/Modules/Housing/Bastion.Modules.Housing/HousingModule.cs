@@ -73,6 +73,7 @@ public sealed class HousingModule : IModule
 
         services.AddSingleton<IOfferRepository, OfferRepository>();
         services.AddSingleton<IPlaceRepository, PlaceRepository>();
+        services.AddSingleton<PlaceMatchers>();
         services.AddSingleton<IRawCaptureRepository, RawCaptureRepository>();
         services.AddSingleton<IRawCaptureFileStorage, RawCaptureFileStorage>();
         services.AddSingleton<RawCaptureService>();

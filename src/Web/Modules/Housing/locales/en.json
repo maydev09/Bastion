@@ -101,6 +101,10 @@
     "Wielkopolskie": "Greater Poland",
     "Zachodniopomorskie": "West Pomeranian"
   },
+  "units": {
+    "area": "{{value}} m²",
+    "km": "{{value}} km"
+  },
   "errors": {
     "parseFailed": "OtoDom changed its page layout; the offers could not be read.",
     "placesUnavailable": "Wikidata did not respond. Try again in a few minutes.",

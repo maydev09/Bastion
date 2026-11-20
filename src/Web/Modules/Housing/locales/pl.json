@@ -101,6 +101,10 @@
     "Wielkopolskie": "wielkopolskie",
     "Zachodniopomorskie": "zachodniopomorskie"
   },
+  "units": {
+    "area": "{{value}} m²",
+    "km": "{{value}} km"
+  },
   "errors": {
     "parseFailed": "OtoDom zmienił wygląd strony, nie udało się odczytać ofert.",
     "placesUnavailable": "Wikidata nie odpowiedziała. Spróbuj ponownie za kilka minut.",

@@ -142,6 +142,26 @@ public class HousingImportTests
     }
 
     [Test]
+    public async Task Stored_offer_gets_its_location_without_counting_as_changed()
+    {
+        await using var factory = App(WithFakes);
+        using var client = factory.CreateClient();
+        await JobRuns.Run(client, ImportPlaces);
+        _source.Pages = [[Large]];
+        await RunImport(client);
+
+        _source.Pages = [[Large with { LocationKey = GoscicinoKey }]];
+        var result = await RunImport(client);
+        var list = await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((result.Added, result.Updated, result.Unchanged), Is.EqualTo((0, 0, 1)));
+            Assert.That(list!.Items.Single().PlaceName, Is.EqualTo("Gościcino"));
+        });
+    }
+
+    [Test]
     public async Task Failed_place_import_shows_why()
     {
         _places.FetchAsync(Arg.Any<CancellationToken>()).Returns(PlaceFetchResult.Failed(

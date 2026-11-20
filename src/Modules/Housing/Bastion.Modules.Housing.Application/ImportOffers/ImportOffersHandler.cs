@@ -10,7 +10,7 @@ public sealed class ImportOffersHandler(
     OfferSources sources,
     RawCaptureService rawCaptures,
     IOfferRepository repository,
-    IPlaceRepository places,
+    PlaceMatchers matchers,
     IOptions<ImportOptions> options)
 {
     public const string UnknownSource = "housing.unknownSource";
@@ -26,7 +26,7 @@ public sealed class ImportOffersHandler(
             return new ImportOutcome(null, new Failure(UnknownSource, $"No offer source is registered for {source}.", FailureKind.NotFound));
         }
 
-        var resolver = await PlaceResolver.LoadAsync(sources, places, cancellationToken);
+        PlaceResolver? resolver = null;
         var fullScan = mode == ImportMode.FullScan;
         var maxPages = fullScan ? options.Value.FullScanMaxPages : options.Value.MaxPages;
         var statistics = new SaveStatistics();
@@ -53,6 +53,7 @@ public sealed class ImportOffersHandler(
             }
 
             // New offers posted during the import push offers of a read page onto the next one; they are not saved twice.
+            resolver ??= new PlaceResolver(sources, await matchers.GetAsync(cancellationToken));
             var offers = parsed.Offers.Where(o => seen.Add(o.ExternalId)).Select(resolver.Link).ToList();
             var saved = await repository.SaveAsync(offers, capture, cancellationToken);
             statistics.Add(saved, parsed.SkippedCount);

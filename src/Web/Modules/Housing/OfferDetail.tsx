@@ -5,9 +5,10 @@ import { api } from "@shared/api/client";
 import { useErrorMessage } from "@shared/useErrorMessage";
 import styles from "./OfferDetail.module.css";
 import { offersQueryKey } from "./queryKeys";
+import { useFormat } from "./useFormat";
 
 export function OfferDetail() {
-  const { t, i18n } = useTranslation("housing");
+  const { t } = useTranslation("housing");
   const errorMessage = useErrorMessage();
   const id = Number(useParams().id);
   const offer = useQuery({
@@ -26,12 +27,7 @@ export function OfferDetail() {
     },
   });
 
-  const language = i18n.resolvedLanguage ?? "pl";
-  const number = new Intl.NumberFormat(language);
-  const km = new Intl.NumberFormat(language, { maximumFractionDigits: 0 });
-  const date = new Intl.DateTimeFormat(language, { dateStyle: "medium", timeStyle: "short" });
-  const money = (value: number, currency: string) =>
-    new Intl.NumberFormat(language, { style: "currency", currency }).format(value);
+  const format = useFormat();
 
   const back = (
     <Link to="../.." relative="path" className={styles.back}>
@@ -77,13 +73,13 @@ export function OfferDetail() {
   const facts = [
     {
       label: t("list.price"),
-      value: o.price != null && o.priceCurrency ? money(o.price, o.priceCurrency) : "—",
+      value: o.price != null && o.priceCurrency ? format.money(o.price, o.priceCurrency) : "—",
     },
-    { label: t("list.area"), value: o.areaM2 != null ? `${number.format(o.areaM2)} m²` : "—" },
+    { label: t("list.area"), value: o.areaM2 != null ? format.area(o.areaM2) : "—" },
     { label: t("list.rooms"), value: o.rooms ?? "—" },
     {
       label: t("list.firstSeen"),
-      value: o.externalCreatedAt ? date.format(new Date(o.externalCreatedAt)) : "—",
+      value: o.externalCreatedAt ? format.date(o.externalCreatedAt) : "—",
     },
   ];
 
@@ -135,7 +131,7 @@ export function OfferDetail() {
               </p>
               {o.population != null && (
                 <p>
-                  <strong>{number.format(o.population)}</strong> {t("detail.residents")}{" "}
+                  <strong>{format.number(o.population)}</strong> {t("detail.residents")}{" "}
                   <span className={styles.muted}>
                     ({[o.populationYear, o.populationSource].filter(Boolean).join(", ")})
                   </span>
@@ -162,7 +158,7 @@ export function OfferDetail() {
                     <span className={styles.bar} aria-hidden="true">
                       <span style={{ width: `${(n.km / farthest) * 100}%` }} />
                     </span>
-                    <span className={styles.km}>{km.format(n.km)} km</span>
+                    <span className={styles.km}>{t("units.km", { value: format.km(n.km) })}</span>
                   </li>
                 ))}
               </ol>

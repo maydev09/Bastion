@@ -7,10 +7,11 @@ import { Button } from "@shared/ui/Button";
 import { useErrorMessage } from "@shared/useErrorMessage";
 import styles from "./Housing.module.css";
 import { PlaceCell } from "./PlaceCell";
+import { useFormat } from "./useFormat";
 import { offersQueryKey } from "./queryKeys";
 
 export function OfferList() {
-  const { t, i18n } = useTranslation("housing");
+  const { t } = useTranslation("housing");
   const errorMessage = useErrorMessage();
   const [page, setPage] = useState(1);
   const offers = useQuery({
@@ -27,11 +28,7 @@ export function OfferList() {
     placeholderData: keepPreviousData,
   });
 
-  const language = i18n.resolvedLanguage ?? "pl";
-  const date = new Intl.DateTimeFormat(language, { dateStyle: "medium", timeStyle: "short" });
-  const number = new Intl.NumberFormat(language);
-  const money = (value: number, currency: string) =>
-    new Intl.NumberFormat(language, { style: "currency", currency }).format(value);
+  const format = useFormat();
 
   if (offers.isPending) {
     return <p className={styles.muted}>{t("list.loading")}</p>;
@@ -76,16 +73,14 @@ export function OfferList() {
                   </td>
                   <td className={styles.number}>
                     {offer.price != null && offer.priceCurrency
-                      ? money(offer.price, offer.priceCurrency)
+                      ? format.money(offer.price, offer.priceCurrency)
                       : "—"}
                   </td>
                   <td className={styles.number}>
-                    {offer.areaM2 != null ? `${number.format(offer.areaM2)} m²` : "—"}
+                    {offer.areaM2 != null ? format.area(offer.areaM2) : "—"}
                   </td>
                   <td className={styles.number}>{offer.rooms ?? "—"}</td>
-                  <td>
-                    {offer.externalCreatedAt ? date.format(new Date(offer.externalCreatedAt)) : "—"}
-                  </td>
+                  <td>{offer.externalCreatedAt ? format.date(offer.externalCreatedAt) : "—"}</td>
                 </tr>
               ))}
             </tbody>

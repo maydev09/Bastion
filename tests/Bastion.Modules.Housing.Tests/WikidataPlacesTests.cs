@@ -14,6 +14,8 @@ public class WikidataPlacesTests
         ["Q5"] = "powiat pruszkowski",
         ["Q6"] = "województwo mazowieckie",
         ["Q7"] = "województwo olsztyńskie",
+        ["Q8"] = "Gmina Raków",
+        ["Q10"] = "Gmina Raków (województwo kieleckie)",
     };
 
     [Test]
@@ -29,6 +31,16 @@ public class WikidataPlacesTests
             new Place("0176503", "Gościcino", Voivodeship.Pomorskie, "wejherowski", "Wejherowo", PlaceKind.Village),
             new Place("0921510", "Pruszków", Voivodeship.Mazowieckie, "pruszkowski", null, PlaceKind.Town, PlaceRole.MunicipalitySeat),
         }));
+    }
+
+    [Test]
+    public void Keeps_only_the_name_of_a_current_municipality()
+    {
+        var places = WikidataPlaces.Build(Rows(
+            simcs: [("Q100", "0176503")],
+            parents: [("Q100", "Q10"), ("Q100", "Q8"), ("Q8", "Q2"), ("Q2", "Q3")]));
+
+        Assert.That(places.Single().Municipality, Is.EqualTo("Raków"));
     }
 
     [Test]

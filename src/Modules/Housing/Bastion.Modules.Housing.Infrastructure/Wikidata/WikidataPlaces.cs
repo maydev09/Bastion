@@ -32,13 +32,13 @@ public static class WikidataPlaces
                 continue;
             }
 
-            var chain = Chain(item, parents).Where(rows.UnitNames.ContainsKey).Select(u => rows.UnitNames[u]).ToList();
+            var chain = Chain(item, parents).Where(rows.UnitNames.ContainsKey).Select(u => rows.UnitNames[u]).Where(IsCurrent).ToList();
             if (chain.Select(VoivodeshipOf).FirstOrDefault(v => v is not null) is not { } voivodeship)
             {
                 continue;
             }
 
-            var ownUnits = parents[item].Order().Where(rows.UnitNames.ContainsKey).Select(u => rows.UnitNames[u]);
+            var ownUnits = parents[item].Order().Where(rows.UnitNames.ContainsKey).Select(u => rows.UnitNames[u]).Where(IsCurrent);
             var municipality = Municipality(ownUnits);
             var kind = KindOf(types[item]);
             var role = RoleOf(seats[item], types[item], kind, name, municipality);
@@ -92,30 +92,34 @@ public static class WikidataPlaces
     private static Voivodeship? VoivodeshipOf(string unit) =>
         unit.StartsWith("województwo ", StringComparison.Ordinal) ? PlaceNames.VoivodeshipOf(unit) : null;
 
+    // Former units are named with a parenthesis, e.g. "Gmina Biała (województwo opolskie)"; some lack an end date.
+    private static bool IsCurrent(string unit) => !unit.Contains('(', StringComparison.Ordinal);
+
+    // Labels are "powiat złotowski", and "gmina Wejherowo" or "Gmina Raków"; only the name is kept.
     private static string? County(IEnumerable<string> chain) =>
-        chain.FirstOrDefault(u => u.StartsWith("powiat ", StringComparison.Ordinal))?["powiat ".Length..];
+        chain.FirstOrDefault(u => u.StartsWith("powiat ", StringComparison.OrdinalIgnoreCase))?["powiat ".Length..];
 
     // The municipality is the item's own unit when that is neither a county nor a voivodeship.
     private static string? Municipality(IEnumerable<string> units)
     {
-        var unit = units.FirstOrDefault(u => !u.StartsWith("powiat ", StringComparison.Ordinal)
-            && !u.StartsWith("województwo ", StringComparison.Ordinal)
+        var unit = units.FirstOrDefault(u => !u.StartsWith("powiat ", StringComparison.OrdinalIgnoreCase)
+            && !u.StartsWith("województwo ", StringComparison.OrdinalIgnoreCase)
             && u != "Polska");
-        return unit is not null && unit.StartsWith("gmina ", StringComparison.Ordinal) ? unit["gmina ".Length..] : unit;
+        return unit is not null && unit.StartsWith("gmina ", StringComparison.OrdinalIgnoreCase) ? unit["gmina ".Length..] : unit;
     }
 
-    // The highest seat. Units with a parenthesis are historical, e.g. "Gmina Biała (województwo opolskie)".
+    // The highest seat.
     // Wikidata names only about two thirds of municipality seats, so a town (always the seat of its municipality)
     // and a village named like its municipality count as seats too.
     private static PlaceRole? RoleOf(IEnumerable<string> seatOf, IEnumerable<string> types, PlaceKind? kind, string name, string? municipality)
     {
-        var units = seatOf.Where(u => !u.Contains('(', StringComparison.Ordinal)).ToList();
+        var units = seatOf.Where(IsCurrent).ToList();
         if (units.Any(u => VoivodeshipOf(u) is not null))
         {
             return PlaceRole.VoivodeshipCapital;
         }
 
-        if (units.Any(u => u.StartsWith("powiat ", StringComparison.Ordinal)) || types.Contains(CityWithCountyRights))
+        if (units.Any(u => u.StartsWith("powiat ", StringComparison.OrdinalIgnoreCase)) || types.Contains(CityWithCountyRights))
         {
             return PlaceRole.CountySeat;
         }

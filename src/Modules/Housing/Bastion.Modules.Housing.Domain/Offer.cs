@@ -21,11 +21,11 @@ public sealed record Offer(
     int? PlaceId = null)
 {
     // An offer is updated only when the hash of the stored listing fields changes.
-    // PlaceId is not hashed: it follows from LocationKey and the places dictionary.
+    // The location (LocationKey, PlaceId) is not hashed: it is kept current without counting the offer as changed.
     public string ListingHash()
     {
         var fields = string.Create(CultureInfo.InvariantCulture,
-            $"{Title}\n{Url}\n{PropertyType}\n{Transaction}\n{Price?.Amount}\n{Price?.Currency}\n{AreaM2}\n{Rooms}\n{ExternalCreatedAt:O}\n{ExternalUpdatedAt:O}\n{LocationKey}");
+            $"{Title}\n{Url}\n{PropertyType}\n{Transaction}\n{Price?.Amount}\n{Price?.Currency}\n{AreaM2}\n{Rooms}\n{ExternalCreatedAt:O}\n{ExternalUpdatedAt:O}");
         var bytes = Encoding.UTF8.GetBytes(fields);
         return Convert.ToHexStringLower(SHA256.HashData(bytes));
     }

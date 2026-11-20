@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "@shared/api/client";
 import { Button } from "@shared/ui/Button";
@@ -46,11 +46,16 @@ export function ImportPlaces() {
   const running = start.isPending || (run != null && run.finishedAt == null);
   const succeeded = run?.status === "Succeeded" ? run.summary?.counts : undefined;
 
+  // The offers are read again only when a run seen running here finishes, not for an old run on page load.
+  const watched = useRef<number | null>(null);
   useEffect(() => {
-    if (succeeded) {
+    if (run && !run.finishedAt) {
+      watched.current = run.id;
+    } else if (run && run.id === watched.current) {
+      watched.current = null;
       void queryClient.invalidateQueries({ queryKey: offersQueryKey });
     }
-  }, [succeeded, queryClient]);
+  }, [run, queryClient]);
 
   return (
     <section className={styles.card}>

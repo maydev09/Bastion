@@ -89,7 +89,7 @@ public sealed class WikidataPlaceSource(WikidataClient client) : IPlaceSource
         {
             places = WikidataPlaces.Build(await ReadAsync(cancellationToken));
         }
-        catch (Exception e) when (WikidataClient.IsTransient(e, cancellationToken) || e is FormatException)
+        catch (Exception e) when (WikidataClient.IsTransient(e, cancellationToken))
         {
             return PlaceFetchResult.Failed(new Failure(Unavailable, $"Wikidata did not return the places: {e.Message}", FailureKind.Unavailable));
         }
@@ -131,7 +131,11 @@ public sealed class WikidataPlaceSource(WikidataClient client) : IPlaceSource
             types.Select(r => (r["item"], r["type"])).ToList(),
             parents,
             unitNames,
-            populations.Select(r => (r["item"], decimal.Parse(r["population"], CultureInfo.InvariantCulture), DateOf(r))).ToList(),
+            populations
+                .Select(r => (Item: r["item"], Population: PopulationOf(r), Date: DateOf(r)))
+                .Where(p => p.Population is not null)
+                .Select(p => (p.Item, p.Population!.Value, p.Date))
+                .ToList(),
             coordinates.Select(r => Point(r["item"], r["point"])).Where(p => p is not null).Select(p => p!.Value).ToList(),
             seats.Select(r => (r["item"], r["name"])).ToList());
     }
@@ -150,6 +154,12 @@ public sealed class WikidataPlaceSource(WikidataClient client) : IPlaceSource
 
         return names;
     }
+
+    // An unreadable count is skipped instead of failing the whole import.
+    private static decimal? PopulationOf(IReadOnlyDictionary<string, string> row) =>
+        decimal.TryParse(row["population"], NumberStyles.Float, CultureInfo.InvariantCulture, out var population)
+            ? population
+            : null;
 
     // An unreadable date (e.g. a year before Christ) counts as no date.
     private static DateTimeOffset? DateOf(IReadOnlyDictionary<string, string> row) =>

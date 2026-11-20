@@ -1,4 +1,3 @@
-using Bastion.Modules.Housing.Application.Abstractions;
 using Bastion.Modules.Housing.Domain;
 
 namespace Bastion.Modules.Housing.Application.Places;
@@ -7,9 +6,6 @@ namespace Bastion.Modules.Housing.Application.Places;
 public sealed class PlaceResolver(OfferSources sources, PlaceMatcher matcher)
 {
     private readonly Dictionary<(Source, string), int?> _resolved = [];
-
-    public static async Task<PlaceResolver> LoadAsync(OfferSources sources, IPlaceRepository places, CancellationToken cancellationToken) =>
-        new(sources, new PlaceMatcher(await places.ListAsync(cancellationToken)));
 
     public int? PlaceIdOf(Source source, string? locationKey)
     {
