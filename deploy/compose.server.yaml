@@ -33,6 +33,15 @@ services:
       SERVER_COUNTRIES: Poland
     secrets:
       - wireguard_private_key
+    # The image checks every 5 s. Only the app's start waits for healthy (gluetun reconnects the
+    # tunnel itself), so after start-up once a minute is enough, as for the database.
+    healthcheck:
+      test: ["CMD", "/gluetun-entrypoint", "healthcheck"]
+      start_period: 60s
+      start_interval: 2s
+      interval: 60s
+      timeout: 5s
+      retries: 3
     # The app has no network of its own; its UI is published here. IPv4 only: the home network
     # is behind the router's NAT, IPv6 has no NAT and Docker bypasses the host firewall.
     ports:

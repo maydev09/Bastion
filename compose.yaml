@@ -17,9 +17,13 @@ services:
       - "127.0.0.1:5432:5432"
     healthcheck:
       test: pg_isready --host 127.0.0.1 --username postgres --dbname bastion
-      interval: 2s
+      # Every 2 s only until the first success, so dependants start quickly; then once a
+      # minute, because each check starts a process and kept the database busy all the time.
+      start_period: 60s
+      start_interval: 2s
+      interval: 60s
       timeout: 5s
-      retries: 15
+      retries: 3
 
   migrate:
     image: ghcr.io/amacneil/dbmate:2.38.1
