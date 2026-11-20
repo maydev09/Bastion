@@ -29,6 +29,31 @@ public class OtoDomListingParserTests
     }
 
     [Test]
+    public void Keeps_the_place_level_of_the_location()
+    {
+        const string html = """
+            <script id="__NEXT_DATA__" type="application/json">
+            {"props":{"pageProps":{"data":{"searchAds":{"items":[
+              {"id":1,"title":"Flat","slug":"flat-ID1","estate":"FLAT","transaction":"RENT","createdAtFirst":"2026-11-19T10:00:00+00:00",
+               "location":{"reverseGeocoding":{"locations":[
+                 {"id":"pomorskie","locationLevel":"voivodeship","name":"pomorskie"},
+                 {"id":"pomorskie/wejherowski/gmina-wiejska--wejherowo/goscicino","locationLevel":"city_or_village","name":"Gościcino"},
+                 {"id":"pomorskie/wejherowski/gmina-wiejska--wejherowo/goscicino/osiedle","locationLevel":"district","name":"Osiedle"}]}}},
+              {"id":2,"title":"No location","slug":"none-ID2","estate":"FLAT","transaction":"RENT","createdAtFirst":"2026-11-19T10:00:00+00:00"}
+            ]}}}}}
+            </script>
+            """;
+
+        var (offers, _, _) = OtoDomListingParser.Parse(html, BaseUrl);
+
+        Assert.That(offers.Select(o => (o.ExternalId, o.LocationKey)), Is.EquivalentTo(new[]
+        {
+            ("1", "pomorskie/wejherowski/gmina-wiejska--wejherowo/goscicino"),
+            ("2", (string?)null),
+        }));
+    }
+
+    [Test]
     public void Skips_items_without_required_fields()
     {
         const string html = """

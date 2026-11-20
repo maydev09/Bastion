@@ -1,0 +1,102 @@
+using Bastion.Modules.Housing.Application.Abstractions;
+using Bastion.Modules.Housing.Domain;
+using Dapper;
+using Npgsql;
+
+namespace Bastion.Modules.Housing.Infrastructure.Repositories;
+
+public sealed class PlaceRepository(NpgsqlDataSource db) : IPlaceRepository
+{
+    private const string ListSql = """
+        SELECT id, simc, name, voivodeship, county, municipality, kind, role, population, population_year, population_source,
+               latitude, longitude
+        FROM housing.place
+        """;
+
+    // One statement for all places (about 65 000); returns no row for an unchanged place.
+    private const string SaveSql = """
+        INSERT INTO housing.place AS p
+            (simc, name, voivodeship, county, municipality, kind, role, population, population_year, population_source,
+             latitude, longitude)
+        SELECT * FROM unnest(@Simcs, @Names, @Voivodeships, @Counties, @Municipalities, @Kinds, @Roles, @Populations,
+                             @PopulationYears, @PopulationSources, @Latitudes, @Longitudes)
+        ON CONFLICT (simc) DO UPDATE SET
+            name = excluded.name,
+            voivodeship = excluded.voivodeship,
+            county = excluded.county,
+            municipality = excluded.municipality,
+            kind = excluded.kind,
+            role = excluded.role,
+            population = excluded.population,
+            population_year = excluded.population_year,
+            population_source = excluded.population_source,
+            latitude = excluded.latitude,
+            longitude = excluded.longitude
+        WHERE (p.name, p.voivodeship, p.county, p.municipality, p.kind, p.role, p.population, p.population_year,
+               p.population_source, p.latitude, p.longitude)
+              IS DISTINCT FROM
+              (excluded.name, excluded.voivodeship, excluded.county, excluded.municipality, excluded.kind, excluded.role,
+               excluded.population, excluded.population_year, excluded.population_source, excluded.latitude,
+               excluded.longitude)
+        RETURNING (xmax = 0) AS inserted
+        """;
+
+    private const string ReplaceNearbySql = """
+        DELETE FROM housing.place_nearby;
+        INSERT INTO housing.place_nearby (place_id, tier, rank, nearby_id, km)
+        SELECT * FROM unnest(@PlaceIds, @Tiers, @Ranks, @NearbyIds, @Kms);
+        """;
+
+    public async Task<IReadOnlyList<Place>> ListAsync(CancellationToken cancellationToken)
+    {
+        await using var connection = await db.OpenConnectionAsync(cancellationToken);
+        var rows = await connection.QueryAsync<PlaceRow>(new CommandDefinition(ListSql, cancellationToken: cancellationToken));
+        return rows.Select(r => new Place(
+            r.Simc, r.Name, (Voivodeship)r.Voivodeship, r.County, r.Municipality, (PlaceKind?)r.Kind, (PlaceRole?)r.Role,
+            r.Population, r.PopulationYear, (PlaceSource?)r.PopulationSource, r.Latitude, r.Longitude)
+        { Id = r.Id }).ToList();
+    }
+
+    public async Task<SaveCounts> SaveAsync(IReadOnlyList<Place> places, CancellationToken cancellationToken)
+    {
+        await using var connection = await db.OpenConnectionAsync(cancellationToken);
+        var inserted = (await connection.QueryAsync<bool>(new CommandDefinition(SaveSql, new
+        {
+            Simcs = places.Select(p => p.Simc).ToArray(),
+            Names = places.Select(p => p.Name).ToArray(),
+            Voivodeships = places.Select(p => (int)p.Voivodeship).ToArray(),
+            Counties = places.Select(p => p.County).ToArray(),
+            Municipalities = places.Select(p => p.Municipality).ToArray(),
+            Kinds = places.Select(p => (int?)p.Kind).ToArray(),
+            Roles = places.Select(p => (int?)p.Role).ToArray(),
+            Populations = places.Select(p => p.Population).ToArray(),
+            PopulationYears = places.Select(p => p.PopulationYear).ToArray(),
+            PopulationSources = places.Select(p => (int?)p.PopulationSource).ToArray(),
+            Latitudes = places.Select(p => p.Latitude).ToArray(),
+            Longitudes = places.Select(p => p.Longitude).ToArray(),
+        }, cancellationToken: cancellationToken))).ToList();
+
+        var added = inserted.Count(i => i);
+        var updated = inserted.Count - added;
+        return new SaveCounts(added, updated, places.Count - added - updated);
+    }
+
+    public async Task ReplaceNearbyAsync(IReadOnlyList<PlaceNearby> nearby, CancellationToken cancellationToken)
+    {
+        await using var connection = await db.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        await connection.ExecuteAsync(new CommandDefinition(ReplaceNearbySql, new
+        {
+            PlaceIds = nearby.Select(n => n.PlaceId).ToArray(),
+            Tiers = nearby.Select(n => (int)n.Tier).ToArray(),
+            Ranks = nearby.Select(n => n.Rank).ToArray(),
+            NearbyIds = nearby.Select(n => n.NearbyId).ToArray(),
+            Kms = nearby.Select(n => n.Km).ToArray(),
+        }, transaction, cancellationToken: cancellationToken));
+        await transaction.CommitAsync(cancellationToken);
+    }
+
+    private sealed record PlaceRow(
+        int Id, string Simc, string Name, int Voivodeship, string? County, string? Municipality, int? Kind, int? Role,
+        int? Population, short? PopulationYear, int? PopulationSource, decimal? Latitude, decimal? Longitude);
+}

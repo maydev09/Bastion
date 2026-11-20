@@ -31,4 +31,27 @@ public sealed record OfferListItem
     public DateTimeOffset? ExternalCreatedAt { get; init; }
 
     public DateTimeOffset? ExternalUpdatedAt { get; init; }
+
+    public string? PlaceName { get; init; }
+
+    public PlaceKind? PlaceKind { get; init; }
+
+    public PlaceSize? PlaceSize { get; init; }
+
+    public PlaceRole? PlaceRole { get; init; }
+
+    public Voivodeship? Voivodeship { get; init; }
+
+    public string? County { get; init; }
+
+    public string? Municipality { get; init; }
+
+    public int? Population { get; init; }
+
+    public short? PopulationYear { get; init; }
+
+    public PlaceSource? PopulationSource { get; init; }
+
+    // Nearest places by tier (see NearbyTier), each tier nearest first.
+    public IReadOnlyList<NearbyPlace> Nearby { get; init; } = [];
 }

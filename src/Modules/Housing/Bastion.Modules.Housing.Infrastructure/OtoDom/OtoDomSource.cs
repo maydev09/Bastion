@@ -1,6 +1,7 @@
 using System.Text;
 using Bastion.BuildingBlocks.Scraping;
 using Bastion.Modules.Housing.Application.Abstractions;
+using Bastion.Modules.Housing.Application.Places;
 using Bastion.Modules.Housing.Application.RawCaptures;
 using Bastion.Modules.Housing.Domain;
 using Microsoft.Extensions.Options;
@@ -47,6 +48,8 @@ public sealed class OtoDomSource(ScrapingClient client, IOptions<OtoDomOptions> 
             return ParseResult.Failed(new Failure(ParseFailed, e.Message, FailureKind.Failed));
         }
     }
+
+    public LocationHint? LocationHintOf(string locationKey) => OtoDomLocation.HintOf(locationKey);
 
     // The listing URL already has a query (sorting, page size); the page number is added to it.
     private Uri ListingPageUrl(int number) => new($"{options.Value.ListingUrl}&page={number}");

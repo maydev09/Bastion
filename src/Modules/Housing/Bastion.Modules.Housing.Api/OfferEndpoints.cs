@@ -48,12 +48,18 @@ public static class OfferEndpoints
         .WithSummary("Parses all stored raw pages again, oldest first, and saves the offers. Nothing is fetched.");
 
         app.MapGet("/offers", async (
-            IOfferRepository repository,
+            ListOffersHandler handler,
             CancellationToken cancellationToken,
             [Range(1, int.MaxValue)] int page = 1,
             [Range(1, PageRequest.MaxPageSize)] int pageSize = PageRequest.DefaultPageSize) =>
-            TypedResults.Ok(await repository.ListAsync(new PageRequest(page, pageSize), cancellationToken)))
+            TypedResults.Ok(await handler.Handle(new PageRequest(page, pageSize), cancellationToken)))
         .WithName("ListHousingOffers")
         .WithSummary("Returns stored offers, newest first.");
+
+        app.MapGet("/offers/{id:int}", async Task<Results<Ok<OfferListItem>, NotFound>> (
+            int id, ListOffersHandler handler, CancellationToken cancellationToken) =>
+            await handler.Get(id, cancellationToken) is { } offer ? TypedResults.Ok(offer) : TypedResults.NotFound())
+        .WithName("GetHousingOffer")
+        .WithSummary("Returns one stored offer with its place and the nearest big cities, also a removed one.");
     }
 }

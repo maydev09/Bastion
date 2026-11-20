@@ -1,4 +1,5 @@
 using Bastion.Modules.Housing.Application.Abstractions;
+using Bastion.Modules.Housing.Application.Places;
 using Bastion.Modules.Housing.Application.RawCaptures;
 using Bastion.Modules.Housing.Domain;
 using Microsoft.Extensions.Options;
@@ -9,6 +10,7 @@ public sealed class ImportOffersHandler(
     OfferSources sources,
     RawCaptureService rawCaptures,
     IOfferRepository repository,
+    IPlaceRepository places,
     IOptions<ImportOptions> options)
 {
     public const string UnknownSource = "housing.unknownSource";
@@ -24,6 +26,7 @@ public sealed class ImportOffersHandler(
             return new ImportOutcome(null, new Failure(UnknownSource, $"No offer source is registered for {source}.", FailureKind.NotFound));
         }
 
+        var resolver = await PlaceResolver.LoadAsync(sources, places, cancellationToken);
         var fullScan = mode == ImportMode.FullScan;
         var maxPages = fullScan ? options.Value.FullScanMaxPages : options.Value.MaxPages;
         var statistics = new SaveStatistics();
@@ -50,7 +53,7 @@ public sealed class ImportOffersHandler(
             }
 
             // New offers posted during the import push offers of a read page onto the next one; they are not saved twice.
-            var offers = parsed.Offers.Where(o => seen.Add(o.ExternalId)).ToList();
+            var offers = parsed.Offers.Where(o => seen.Add(o.ExternalId)).Select(resolver.Link).ToList();
             var saved = await repository.SaveAsync(offers, capture, cancellationToken);
             statistics.Add(saved, parsed.SkippedCount);
             pageCount++;

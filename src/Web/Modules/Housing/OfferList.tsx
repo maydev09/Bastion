@@ -1,10 +1,12 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
+import { Link } from "react-router";
 import { api } from "@shared/api/client";
 import { Button } from "@shared/ui/Button";
 import { useErrorMessage } from "@shared/useErrorMessage";
 import styles from "./Housing.module.css";
+import { PlaceCell } from "./PlaceCell";
 import { offersQueryKey } from "./queryKeys";
 
 export function OfferList() {
@@ -56,6 +58,7 @@ export function OfferList() {
             <thead>
               <tr>
                 <th>{t("list.offer")}</th>
+                <th>{t("list.place")}</th>
                 <th className={styles.number}>{t("list.price")}</th>
                 <th className={styles.number}>{t("list.area")}</th>
                 <th className={styles.number}>{t("list.rooms")}</th>
@@ -66,9 +69,10 @@ export function OfferList() {
               {items.map((offer) => (
                 <tr key={offer.id}>
                   <td>
-                    <a href={offer.url} target="_blank" rel="noreferrer">
-                      {offer.title}
-                    </a>
+                    <Link to={`offers/${offer.id}`}>{offer.title}</Link>
+                  </td>
+                  <td>
+                    <PlaceCell offer={offer} />
                   </td>
                   <td className={styles.number}>
                     {offer.price != null && offer.priceCurrency

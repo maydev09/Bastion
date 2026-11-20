@@ -25,6 +25,35 @@ Path = "/data/raw/housing"
 RetentionDays = 30
 AnonymizationMask = "***"
 
+[Modules.Housing.Wikidata]
+QueryUrl = "https://query.wikidata.org/sparql"
+UserAgent = "Bastion/1.0"
+TimeoutSeconds = 180
+
+# The smallest population of each place size; villages and towns have their own scales.
+# Below Village.Medium a village is small; below Town.Small a town is very small.
+[Modules.Housing.PlaceSizes.Village]
+Medium = 200
+Large = 1000
+VeryLarge = 5000
+
+[Modules.Housing.PlaceSizes.Town]
+Small = 5000
+Medium = 20000
+Larger = 50000
+Large = 100000
+VeryLarge = 200000
+Metropolis = 250000
+
+# Nearby places of each place; changes apply after the next ImportPlaces run.
+# The metropolis tier uses PlaceSizes.Town.Metropolis.
+[Modules.Housing.Places]
+BigCityMinPopulation = 100000   # a town this big is a big city
+BigCityCount = 3                # big cities around a place: at most this many...
+BigCityMaxKm = 50               # ...at most this far
+
+# ImportPlaces has no schedule: it runs from the button in the UI, e.g. after a new census.
+
 [Modules.Housing.Jobs.ImportOffers]
 Every = "00:10:00"
 

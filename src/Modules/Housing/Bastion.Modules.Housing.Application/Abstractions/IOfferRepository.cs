@@ -13,4 +13,12 @@ public interface IOfferRepository
     Task<MissedCounts> MarkMissedAsync(Source source, DateTimeOffset scanStartedAt, int missedScansToRemove, CancellationToken cancellationToken);
 
     Task<PagedResult<OfferListItem>> ListAsync(PageRequest page, CancellationToken cancellationToken);
+
+    // Also a removed offer; null when there is no offer with the id.
+    Task<OfferListItem?> GetAsync(int id, CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<OfferLocation>> ListLocationsAsync(CancellationToken cancellationToken);
+
+    // Returns how many offers changed their place.
+    Task<int> SetPlacesAsync(IReadOnlyList<PlaceLink> links, CancellationToken cancellationToken);
 }

@@ -8,8 +8,10 @@ using Bastion.BuildingBlocks.Jobs;
 using Bastion.Host;
 using Bastion.Modules.Housing.Application.Abstractions;
 using Bastion.Modules.Housing.Application.ListOffers;
+using Bastion.Modules.Housing.Application.Places;
 using Bastion.Modules.Housing.Application.ReparseOffers;
 using Bastion.Modules.Housing.Domain;
+using Bastion.Modules.Housing.Infrastructure.OtoDom;
 using Bastion.Platform.Abstractions;
 using Dapper;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -27,6 +29,10 @@ public class HousingImportTests
 {
     private const string Import = "/api/housing/jobs/ImportOffers";
     private const string Scan = "/api/housing/jobs/ScanOffers";
+    private const string ImportPlaces = "/api/housing/jobs/ImportPlaces";
+
+    private const string WarszawaKey = "mazowieckie/warszawa/warszawa/warszawa";
+    private const string GoscicinoKey = "pomorskie/wejherowski/gmina-wiejska--wejherowo/goscicino";
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } };
 
@@ -34,15 +40,21 @@ public class HousingImportTests
     private static readonly Offer Medium = new(Source.OtoDom, "3", "Medium flat", new Uri("https://www.otodom.pl/pl/oferta/medium-ID3"), PropertyType.Flat, Transaction.Rent, At(11), new Money(3000m, Currency.Pln), 50m, 2);
     private static readonly Offer Large = new(Source.OtoDom, "2", "Large flat", new Uri("https://www.otodom.pl/pl/oferta/large-ID2"), PropertyType.Flat, Transaction.Rent, At(10), new Money(4100m, Currency.Pln), 72.5m, 3);
 
+    private static readonly Place Warszawa = new("0918123", "Warszawa", Voivodeship.Mazowieckie, null, null, PlaceKind.Town, PlaceRole.VoivodeshipCapital, 1_863_056, 2021, PlaceSource.Wikidata, 52.2297m, 21.0122m);
+    private static readonly Place Goscicino = new("0176503", "Gościcino", Voivodeship.Pomorskie, "wejherowski", "Wejherowo", PlaceKind.Village, null, 6_134, 2021, PlaceSource.Wikidata, 54.6011m, 18.2369m);
+
     private FakeOfferSource _source = new();
+    private IPlaceSource _places = Substitute.For<IPlaceSource>();
     private string _rawPath = "";
 
     [SetUp]
     public async Task ClearData()
     {
         _source = new FakeOfferSource();
+        _places = Substitute.For<IPlaceSource>();
+        _places.FetchAsync(Arg.Any<CancellationToken>()).Returns(new PlaceFetchResult([Warszawa, Goscicino]));
         _rawPath = Directory.CreateTempSubdirectory("bastion-raw-").FullName;
-        await Sql("DELETE FROM housing.job_run; DELETE FROM housing.offer; DELETE FROM housing.raw_capture;");
+        await Sql("DELETE FROM housing.job_run; DELETE FROM housing.offer; DELETE FROM housing.raw_capture; DELETE FROM housing.place;");
     }
 
     [TearDown]
@@ -65,6 +77,84 @@ public class HousingImportTests
             Assert.That((second.Added, second.Updated, second.Unchanged), Is.EqualTo((0, 0, 2)));
             Assert.That(list!.TotalCount, Is.EqualTo(2));
             Assert.That(list.Items.Select(o => o.Title), Is.EquivalentTo(new[] { "Small flat", "Large flat" }));
+        });
+    }
+
+    [Test]
+    public async Task Imported_places_are_linked_to_stored_offers()
+    {
+        await using var factory = App(WithFakes);
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small with { LocationKey = WarszawaKey }, Medium with { LocationKey = "podlaskie/moniecki/krypno/krypno-koscielne" }, Large with { LocationKey = GoscicinoKey }]];
+        await RunImport(client);
+        var before = await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json);
+
+        var first = await JobRuns.Run(client, ImportPlaces);
+        var second = await JobRuns.Run(client, ImportPlaces);
+        var list = await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json);
+        var small = list!.Items.Single(o => o.Title == "Small flat");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(before!.Items.Select(o => o.PlaceName), Is.All.Null);
+            Assert.That(first.Summary!.Counts, Is.EquivalentTo(new Dictionary<string, long>
+            {
+                ["places"] = 2, ["added"] = 2, ["updated"] = 0, ["linkedOffers"] = 2, ["unlinkedOffers"] = 1,
+            }));
+            Assert.That((second.Summary!.Counts["added"], second.Summary.Counts["updated"]), Is.EqualTo((0, 0)));
+            Assert.That(list.Items.Select(o => (o.Title, o.PlaceName)), Is.EquivalentTo(new[]
+            {
+                ("Small flat", "Warszawa"), ("Medium flat", null), ("Large flat", "Gościcino"),
+            }));
+            Assert.That((small.PlaceKind, small.PlaceSize, small.PlaceRole, small.Voivodeship, small.Population, small.PopulationYear),
+                Is.EqualTo(((PlaceKind?)PlaceKind.Town, (PlaceSize?)PlaceSize.Metropolis, (PlaceRole?)PlaceRole.VoivodeshipCapital,
+                    (Voivodeship?)Voivodeship.Mazowieckie, (int?)1_863_056, (short?)2021)));
+        });
+    }
+
+    [Test]
+    public async Task Offers_imported_after_the_places_get_their_place_at_once()
+    {
+        await using var factory = App(WithFakes);
+        using var client = factory.CreateClient();
+        await JobRuns.Run(client, ImportPlaces);
+        _source.Pages = [[Large with { LocationKey = GoscicinoKey }]];
+
+        await RunImport(client);
+        var list = await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json);
+
+        var offer = list!.Items.Single();
+        var detail = await client.GetFromJsonAsync<OfferListItem>($"/api/housing/offers/{offer.Id}", Json);
+        var missing = await client.GetAsync(new Uri($"/api/housing/offers/{offer.Id + 1000}", UriKind.Relative));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((offer.PlaceName, offer.County), Is.EqualTo(("Gościcino", "wejherowski")));
+            Assert.That((detail!.PlaceName, detail.PlaceSize), Is.EqualTo(("Gościcino", (PlaceSize?)PlaceSize.VeryLargeVillage)));
+            Assert.That(missing.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
+            Assert.That(offer.Nearby.Select(n => (n.Tier, n.Name)), Is.EqualTo(new[]
+            {
+                (NearbyTier.Town, "Warszawa"), (NearbyTier.CountySeat, "Warszawa"),
+                (NearbyTier.VoivodeshipCapital, "Warszawa"), (NearbyTier.Metropolis, "Warszawa"),
+            }));
+            Assert.That(offer.Nearby[0].Km, Is.InRange(300m, 340m));
+        });
+    }
+
+    [Test]
+    public async Task Failed_place_import_shows_why()
+    {
+        _places.FetchAsync(Arg.Any<CancellationToken>()).Returns(PlaceFetchResult.Failed(
+            new Failure("housing.placesUnavailable", "Wikidata timed out", FailureKind.Unavailable)));
+        await using var factory = App(WithFakes);
+        using var client = factory.CreateClient();
+
+        var run = await JobRuns.Run(client, ImportPlaces);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(run.Status, Is.EqualTo(JobRunStatus.Failed));
+            Assert.That(run.ErrorCode, Is.EqualTo("housing.placesUnavailable"));
         });
     }
 
@@ -365,6 +455,12 @@ public class HousingImportTests
         Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 
+    private void WithFakes(IServiceCollection services)
+    {
+        services.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source));
+        services.Replace(ServiceDescriptor.Singleton(_places));
+    }
+
     private WebApplicationFactory<Program> App(Action<IServiceCollection> services) =>
         TestApp.WithAllModules(b => b
             .UseSetting($"ConnectionStrings:{DatabaseStatusEndpoint.ConnectionStringName}", DatabaseSetup.AppConnectionString)
@@ -443,5 +539,7 @@ public class HousingImportTests
             var parsed = JsonSerializer.Deserialize<FakePage>(page.Content, Json)!;
             return new ParseResult(parsed.Offers, 0, parsed.IsLast);
         }
+
+        public LocationHint? LocationHintOf(string locationKey) => OtoDomLocation.HintOf(locationKey);
     }
 }

@@ -185,6 +185,41 @@
         }
       }
     },
+    "/api/housing/offers/{id}": {
+      "get": {
+        "tags": [
+          "Housing"
+        ],
+        "summary": "Returns one stored offer with its place and the nearest big cities, also a removed one.",
+        "operationId": "GetHousingOffer",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferListItem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
+          }
+        }
+      }
+    },
     "/api/housing/jobs/{job}/runs": {
       "post": {
         "tags": [
@@ -478,6 +513,35 @@
           }
         }
       },
+      "NearbyPlace": {
+        "required": [
+          "tier",
+          "name",
+          "km"
+        ],
+        "type": "object",
+        "properties": {
+          "tier": {
+            "$ref": "#/components/schemas/NearbyTier"
+          },
+          "name": {
+            "type": "string"
+          },
+          "km": {
+            "type": "number",
+            "format": "double"
+          }
+        }
+      },
+      "NearbyTier": {
+        "enum": [
+          "Town",
+          "CountySeat",
+          "VoivodeshipCapital",
+          "Metropolis",
+          "BigCity"
+        ]
+      },
       "OfferListItem": {
         "required": [
           "id",
@@ -562,6 +626,94 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "placeName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "placeKind": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PlaceKind"
+              }
+            ]
+          },
+          "placeSize": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PlaceSize"
+              }
+            ]
+          },
+          "placeRole": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PlaceRole"
+              }
+            ]
+          },
+          "voivodeship": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Voivodeship"
+              }
+            ]
+          },
+          "county": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "municipality": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "population": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "populationYear": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int16"
+          },
+          "populationSource": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PlaceSource"
+              }
+            ]
+          },
+          "nearby": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/NearbyPlace"
+            }
           }
         }
       },
@@ -593,6 +745,43 @@
             "format": "int32"
           }
         }
+      },
+      "PlaceKind": {
+        "enum": [
+          "Town",
+          "Village",
+          null
+        ]
+      },
+      "PlaceRole": {
+        "enum": [
+          "VoivodeshipCapital",
+          "CountySeat",
+          "MunicipalitySeat",
+          null
+        ]
+      },
+      "PlaceSize": {
+        "enum": [
+          "SmallVillage",
+          "MediumVillage",
+          "LargeVillage",
+          "VeryLargeVillage",
+          "VerySmallTown",
+          "SmallTown",
+          "MediumTown",
+          "LargerTown",
+          "LargeCity",
+          "VeryLargeCity",
+          "Metropolis",
+          null
+        ]
+      },
+      "PlaceSource": {
+        "enum": [
+          "Wikidata",
+          null
+        ]
       },
       "ProblemDetails": {
         "type": "object",
@@ -698,6 +887,27 @@
       "Transaction": {
         "enum": [
           "Rent"
+        ]
+      },
+      "Voivodeship": {
+        "enum": [
+          "Dolnoslaskie",
+          "KujawskoPomorskie",
+          "Lubelskie",
+          "Lubuskie",
+          "Lodzkie",
+          "Malopolskie",
+          "Mazowieckie",
+          "Opolskie",
+          "Podkarpackie",
+          "Podlaskie",
+          "Pomorskie",
+          "Slaskie",
+          "Swietokrzyskie",
+          "WarminskoMazurskie",
+          "Wielkopolskie",
+          "Zachodniopomorskie",
+          null
         ]
       }
     }
