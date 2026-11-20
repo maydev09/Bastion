@@ -45,7 +45,8 @@ public static partial class OtoDomListingParser
                     MoneyOf(item, "totalPrice"),
                     Number(item, "areaInSquareMeters"),
                     Rooms(item),
-                    Date(item, "pushedUpAt")));
+                    Date(item, "pushedUpAt"),
+                    OtoDomLocation.KeyOf(item)));
             }
             else
             {

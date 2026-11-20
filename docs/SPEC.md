@@ -88,6 +88,11 @@ Replaces the legacy flat offers scraper.
 - Every run records its parameters and counts of new, unchanged and total offers.
 - Offers are unique per source by the source's external id. Changes to known offers
   are applied and recorded in a changelog.
+- **Places:** every offer is linked to its place (town or village, with municipality, county
+  and voivodeship) from a dictionary of Polish places loaded from Wikidata (CC0) on demand.
+  Next to the official status the user sees a size by population, with thresholds from
+  configuration. Matching is portal-neutral: each source turns its own location format into
+  a hint that one matcher resolves.
 - **Duplicates across portals:** offers that are probably the same flat on different
   portals (or posted twice on one) are grouped, so the list shows one entry with links
   to every source. A grouping is a suggestion: the user can confirm or split it.

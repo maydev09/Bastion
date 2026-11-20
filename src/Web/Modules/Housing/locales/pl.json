@@ -14,11 +14,18 @@
     "result": "Stron: {{captures}}. Nowe {{added}}, zmienione {{updated}}, bez zmian {{unchanged}}.",
     "failed": "Nieudane strony: {{count}}."
   },
+  "places": {
+    "description": "Pobiera z Wikidata słownik miejscowości (miasto czy wieś, liczba mieszkańców) i przypisuje oferty do miejscowości. Trwa minutę lub dwie.",
+    "run": "Pobierz miejscowości",
+    "running": "Pobieram miejscowości…",
+    "result": "Miejscowości: {{places}} (nowe {{added}}, zmienione {{updated}}). Oferty z miejscowością: {{linked}}, bez: {{unlinked}}."
+  },
   "list": {
     "title": "Zapisane oferty ({{total}})",
     "loading": "Wczytywanie ofert…",
     "empty": "Nie ma jeszcze zapisanych ofert. Użyj przycisku importu powyżej.",
     "offer": "Oferta",
+    "place": "Miejscowość",
     "price": "Cena",
     "area": "Powierzchnia",
     "rooms": "Pokoje",
@@ -27,7 +34,80 @@
     "next": "Następna",
     "page": "Strona {{page}} z {{pageCount}}"
   },
+  "detail": {
+    "back": "Wszystkie oferty",
+    "loading": "Wczytywanie oferty…",
+    "notFound": "Nie ma takiej oferty.",
+    "portal": "Otwórz na {{source}}",
+    "place": "Miejscowość",
+    "unknownPlace": "Nie udało się ustalić miejscowości tej oferty.",
+    "county": "powiat {{name}}",
+    "municipality": "gmina {{name}}",
+    "residents": "mieszkańców",
+    "nearby": "Okolica",
+    "nearbyHint": "Najbliższe miasto, siedziba powiatu, stolica województwa i metropolia oraz duże miasta do 50 km. Odległość w linii prostej; drogą jest zwykle dalej.",
+    "selfSufficient": "Wszystko na miejscu: {{what}}.",
+    "tier": {
+      "Town": "najbliższe miasto",
+      "CountySeat": "siedziba powiatu",
+      "VoivodeshipCapital": "stolica województwa",
+      "Metropolis": "metropolia",
+      "BigCity": "duże miasto w okolicy"
+    }
+  },
+  "place": {
+    "name": "{{name}}, {{voivodeship}}",
+    "kind": {
+      "Town": "miasto",
+      "Village": "wieś"
+    },
+    "size": {
+      "SmallVillage": "mała wieś",
+      "MediumVillage": "średnia wieś",
+      "LargeVillage": "duża wieś",
+      "VeryLargeVillage": "bardzo duża wieś",
+      "VerySmallTown": "bardzo małe miasto",
+      "SmallTown": "małe miasto",
+      "MediumTown": "średnie miasto",
+      "LargerTown": "większe miasto",
+      "LargeCity": "duże miasto",
+      "VeryLargeCity": "bardzo duże miasto",
+      "Metropolis": "metropolia"
+    },
+    "role": {
+      "VoivodeshipCapital": "stolica województwa",
+      "CountySeat": "siedziba powiatu",
+      "MunicipalitySeat": "siedziba gminy"
+    },
+    "nearestCity": "{{city}} – {{km}} km",
+    "population": "{{population}} mieszk. ({{year}}, {{source}})",
+    "populationNoYear": "{{population}} mieszk. ({{source}})"
+  },
+  "voivodeship": {
+    "Dolnoslaskie": "dolnośląskie",
+    "KujawskoPomorskie": "kujawsko-pomorskie",
+    "Lubelskie": "lubelskie",
+    "Lubuskie": "lubuskie",
+    "Lodzkie": "łódzkie",
+    "Malopolskie": "małopolskie",
+    "Mazowieckie": "mazowieckie",
+    "Opolskie": "opolskie",
+    "Podkarpackie": "podkarpackie",
+    "Podlaskie": "podlaskie",
+    "Pomorskie": "pomorskie",
+    "Slaskie": "śląskie",
+    "Swietokrzyskie": "świętokrzyskie",
+    "WarminskoMazurskie": "warmińsko-mazurskie",
+    "Wielkopolskie": "wielkopolskie",
+    "Zachodniopomorskie": "zachodniopomorskie"
+  },
+  "units": {
+    "area": "{{value}} m²",
+    "km": "{{value}} km"
+  },
   "errors": {
-    "parseFailed": "OtoDom zmienił wygląd strony, nie udało się odczytać ofert."
+    "parseFailed": "OtoDom zmienił wygląd strony, nie udało się odczytać ofert.",
+    "placesUnavailable": "Wikidata nie odpowiedziała. Spróbuj ponownie za kilka minut.",
+    "placesIncomplete": "Wikidata zwróciła niepełne dane, więc niczego nie zapisano. Spróbuj ponownie za kilka minut."
   }
 }

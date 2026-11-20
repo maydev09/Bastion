@@ -16,9 +16,12 @@ public sealed record Offer(
     Money? Price = null,
     decimal? AreaM2 = null,
     int? Rooms = null,
-    DateTimeOffset? ExternalUpdatedAt = null)
+    DateTimeOffset? ExternalUpdatedAt = null,
+    string? LocationKey = null,
+    int? PlaceId = null)
 {
     // An offer is updated only when the hash of the stored listing fields changes.
+    // The location (LocationKey, PlaceId) is not hashed: it is kept current without counting the offer as changed.
     public string ListingHash()
     {
         var fields = string.Create(CultureInfo.InvariantCulture,

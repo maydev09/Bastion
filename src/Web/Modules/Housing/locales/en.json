@@ -14,11 +14,18 @@
     "result": "Pages: {{captures}}. {{added}} new, {{updated}} changed, {{unchanged}} unchanged.",
     "failed": "Failed pages: {{count}}."
   },
+  "places": {
+    "description": "Downloads the dictionary of places from Wikidata (town or village, population) and links offers to their places. Takes a minute or two.",
+    "run": "Download places",
+    "running": "Downloading places…",
+    "result": "Places: {{places}} ({{added}} new, {{updated}} changed). Offers with a place: {{linked}}, without: {{unlinked}}."
+  },
   "list": {
     "title": "Saved offers ({{total}})",
     "loading": "Loading offers…",
     "empty": "No saved offers yet. Use the import button above.",
     "offer": "Offer",
+    "place": "Place",
     "price": "Price",
     "area": "Area",
     "rooms": "Rooms",
@@ -27,7 +34,80 @@
     "next": "Next",
     "page": "Page {{page}} of {{pageCount}}"
   },
+  "detail": {
+    "back": "All offers",
+    "loading": "Loading the offer…",
+    "notFound": "There is no such offer.",
+    "portal": "Open on {{source}}",
+    "place": "Place",
+    "unknownPlace": "The place of this offer could not be found.",
+    "county": "{{name}} county",
+    "municipality": "{{name}} municipality",
+    "residents": "residents",
+    "nearby": "Surroundings",
+    "nearbyHint": "The nearest town, county seat, voivodeship capital and metropolis, and big cities within 50 km. Straight-line distance; by road it is usually farther.",
+    "selfSufficient": "Everything is here: {{what}}.",
+    "tier": {
+      "Town": "nearest town",
+      "CountySeat": "county seat",
+      "VoivodeshipCapital": "voivodeship capital",
+      "Metropolis": "metropolis",
+      "BigCity": "big city around"
+    }
+  },
+  "place": {
+    "name": "{{name}}, {{voivodeship}}",
+    "kind": {
+      "Town": "town",
+      "Village": "village"
+    },
+    "size": {
+      "SmallVillage": "small village",
+      "MediumVillage": "medium village",
+      "LargeVillage": "large village",
+      "VeryLargeVillage": "very large village",
+      "VerySmallTown": "very small town",
+      "SmallTown": "small town",
+      "MediumTown": "medium town",
+      "LargerTown": "larger town",
+      "LargeCity": "large city",
+      "VeryLargeCity": "very large city",
+      "Metropolis": "metropolis"
+    },
+    "role": {
+      "VoivodeshipCapital": "voivodeship capital",
+      "CountySeat": "county seat",
+      "MunicipalitySeat": "municipality seat"
+    },
+    "nearestCity": "{{city}} – {{km}} km",
+    "population": "{{population}} residents ({{year}}, {{source}})",
+    "populationNoYear": "{{population}} residents ({{source}})"
+  },
+  "voivodeship": {
+    "Dolnoslaskie": "Lower Silesian",
+    "KujawskoPomorskie": "Kuyavian-Pomeranian",
+    "Lubelskie": "Lublin",
+    "Lubuskie": "Lubusz",
+    "Lodzkie": "Łódź",
+    "Malopolskie": "Lesser Poland",
+    "Mazowieckie": "Masovian",
+    "Opolskie": "Opole",
+    "Podkarpackie": "Subcarpathian",
+    "Podlaskie": "Podlaskie",
+    "Pomorskie": "Pomeranian",
+    "Slaskie": "Silesian",
+    "Swietokrzyskie": "Holy Cross",
+    "WarminskoMazurskie": "Warmian-Masurian",
+    "Wielkopolskie": "Greater Poland",
+    "Zachodniopomorskie": "West Pomeranian"
+  },
+  "units": {
+    "area": "{{value}} m²",
+    "km": "{{value}} km"
+  },
   "errors": {
-    "parseFailed": "OtoDom changed its page layout; the offers could not be read."
+    "parseFailed": "OtoDom changed its page layout; the offers could not be read.",
+    "placesUnavailable": "Wikidata did not respond. Try again in a few minutes.",
+    "placesIncomplete": "Wikidata returned incomplete data, so nothing was saved. Try again in a few minutes."
   }
 }

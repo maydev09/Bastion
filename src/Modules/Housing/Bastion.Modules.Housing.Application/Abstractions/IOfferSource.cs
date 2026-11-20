@@ -1,3 +1,4 @@
+using Bastion.Modules.Housing.Application.Places;
 using Bastion.Modules.Housing.Domain;
 
 namespace Bastion.Modules.Housing.Application.Abstractions;
@@ -12,4 +13,7 @@ public interface IOfferSource
     RawPage Anonymize(RawPage page);
 
     ParseResult Parse(RawPage page);
+
+    // Turns the offer's LocationKey, as the parser stored it, into a hint for the place matcher.
+    LocationHint? LocationHintOf(string locationKey);
 }

@@ -107,6 +107,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/housing/offers/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns one stored offer with its place and the nearest big cities, also a removed one. */
+        get: operations["GetHousingOffer"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/housing/jobs/{job}/runs": {
         parameters: {
             query?: never;
@@ -263,6 +280,14 @@ export interface components {
             name: string;
             routePrefix: string;
         };
+        NearbyPlace: {
+            tier: components["schemas"]["NearbyTier"];
+            name: string;
+            /** Format: double */
+            km: number;
+        };
+        /** @enum {unknown} */
+        NearbyTier: "Town" | "CountySeat" | "VoivodeshipCapital" | "Metropolis" | "BigCity";
         OfferListItem: {
             /** Format: int32 */
             id: number;
@@ -286,6 +311,19 @@ export interface components {
             externalCreatedAt?: null | string;
             /** Format: date-time */
             externalUpdatedAt?: null | string;
+            placeName?: null | string;
+            placeKind?: null | components["schemas"]["PlaceKind"];
+            placeSize?: null | components["schemas"]["PlaceSize"];
+            placeRole?: null | components["schemas"]["PlaceRole"];
+            voivodeship?: null | components["schemas"]["Voivodeship"];
+            county?: null | string;
+            municipality?: null | string;
+            /** Format: int32 */
+            population?: null | number;
+            /** Format: int16 */
+            populationYear?: null | number;
+            populationSource?: null | components["schemas"]["PlaceSource"];
+            nearby?: components["schemas"]["NearbyPlace"][];
         };
         PagedResultOfOfferListItem: {
             items: components["schemas"]["OfferListItem"][];
@@ -296,6 +334,14 @@ export interface components {
             /** Format: int32 */
             totalCount: number;
         };
+        /** @enum {unknown} */
+        PlaceKind: "Town" | "Village" | null;
+        /** @enum {unknown} */
+        PlaceRole: "VoivodeshipCapital" | "CountySeat" | "MunicipalitySeat" | null;
+        /** @enum {unknown} */
+        PlaceSize: "SmallVillage" | "MediumVillage" | "LargeVillage" | "VeryLargeVillage" | "VerySmallTown" | "SmallTown" | "MediumTown" | "LargerTown" | "LargeCity" | "VeryLargeCity" | "Metropolis" | null;
+        /** @enum {unknown} */
+        PlaceSource: "Wikidata" | null;
         ProblemDetails: {
             type?: null | string;
             title?: null | string;
@@ -328,6 +374,8 @@ export interface components {
         Source: "OtoDom";
         /** @enum {unknown} */
         Transaction: "Rent";
+        /** @enum {unknown} */
+        Voivodeship: "Dolnoslaskie" | "KujawskoPomorskie" | "Lubelskie" | "Lubuskie" | "Lodzkie" | "Malopolskie" | "Mazowieckie" | "Opolskie" | "Podkarpackie" | "Podlaskie" | "Pomorskie" | "Slaskie" | "Swietokrzyskie" | "WarminskoMazurskie" | "Wielkopolskie" | "Zachodniopomorskie" | null;
     };
     responses: never;
     parameters: never;
@@ -455,6 +503,35 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PagedResultOfOfferListItem"];
                 };
+            };
+        };
+    };
+    GetHousingOffer: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfferListItem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };
