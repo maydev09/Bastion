@@ -161,3 +161,8 @@
   color: var(--color-error);
   font-weight: 600;
 }
+
+.description {
+  white-space: pre-line;
+  line-height: 1.5;
+}

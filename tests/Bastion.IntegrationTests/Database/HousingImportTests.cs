@@ -7,6 +7,7 @@ using Bastion.BuildingBlocks.Scraping;
 using Bastion.BuildingBlocks.Jobs;
 using Bastion.Host;
 using Bastion.Modules.Housing.Application.Abstractions;
+using Bastion.Modules.Housing.Application.FetchDetails;
 using Bastion.Modules.Housing.Application.ListOffers;
 using Bastion.Modules.Housing.Application.Places;
 using Bastion.Modules.Housing.Application.ReparseOffers;
@@ -29,6 +30,7 @@ public class HousingImportTests
 {
     private const string Import = "/api/housing/jobs/ImportOffers";
     private const string Scan = "/api/housing/jobs/ScanOffers";
+    private const string FetchDetails = "/api/housing/jobs/FetchDetails";
     private const string ImportPlaces = "/api/housing/jobs/ImportPlaces";
 
     private const string WarszawaKey = "mazowieckie/warszawa/warszawa/warszawa";
@@ -465,6 +467,230 @@ public class HousingImportTests
     }
 
     [Test]
+    public async Task Details_are_fetched_for_new_and_changed_offers_but_not_bumped_ones()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small, Large]];
+        _source.Details["1"] = new OfferDetails(Rent: new Money(500m, Currency.Pln), Floor: 3, Latitude: 52.2297m, Longitude: 21.0122m,
+            LocationRadiusM: 0, Description: "<p>Small</p>", Features: [Feature.Balcony, Feature.Lift]);
+        _source.Details["2"] = new OfferDetails(Floor: 0);
+
+        await RunImport(client);
+        var first = await RunDetails(client);
+        var second = await RunDetails(client);
+        _source.Pages = [[Small with { Price = new Money(2000m, Currency.Pln) }, Large]];
+        await RunImport(client);
+        var changed = await RunDetails(client);
+        _source.Pages = [[Small with { Price = new Money(2000m, Currency.Pln), ExternalUpdatedAt = At(13) }, Large]];
+        var bump = await RunImport(client);
+        var bumped = await RunDetails(client);
+
+        var small = await Scalar<string>("""
+            SELECT concat_ws('|', rent, rent_currency, floor, latitude, location_radius_m, description)
+            FROM housing.offer WHERE external_id = '1'
+            """);
+        var features = await Scalar<string>("SELECT string_agg(feature::text, ',' ORDER BY feature) FROM housing.offer_feature");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(first, Is.EqualTo(new Fetched(2, 0)));
+            Assert.That(second, Is.EqualTo(new Fetched(0, 0)));
+            Assert.That(changed, Is.EqualTo(new Fetched(1, 0)));
+            Assert.That((bump.Updated, bumped.Count), Is.EqualTo((1, 0)));
+            Assert.That(_source.DetailRequests, Is.EqualTo(new[] { "1", "2", "1" }));
+            Assert.That(small, Is.EqualTo("500.00|1|3|52.229700|0|<p>Small</p>"));
+            Assert.That(features, Is.EqualTo($"{(int)Feature.Balcony},{(int)Feature.Lift}"));
+        });
+    }
+
+    [Test]
+    public async Task New_details_never_clear_known_values_and_replace_features()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small]];
+        _source.Details["1"] = new OfferDetails(Rent: new Money(500m, Currency.Pln), Floor: 3, Features: [Feature.Balcony]);
+        await RunImport(client);
+        await RunDetails(client);
+
+        _source.Pages = [[Small with { Price = new Money(2000m, Currency.Pln) }]];
+        _source.Details["1"] = new OfferDetails(Floor: 4, Features: [Feature.Lift]);
+        await RunImport(client);
+        await RunDetails(client);
+
+        var stored = await Scalar<string>("SELECT concat_ws('|', rent, floor) FROM housing.offer");
+        var features = await Scalar<string>("SELECT string_agg(feature::text, ',') FROM housing.offer_feature");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(stored, Is.EqualTo("500.00|4"));
+            Assert.That(features, Is.EqualTo($"{(int)Feature.Lift}"));
+        });
+    }
+
+    [Test]
+    public async Task Listing_fields_are_kept_and_details_complete_them()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small with { Rent = new Money(400m, Currency.Pln), Floor = 2, Features = [Feature.Balcony] }]];
+        _source.Details["1"] = new OfferDetails(Deposit: new Money(3000m, Currency.Pln), Features: [Feature.Balcony, Feature.Dishwasher]);
+
+        await RunImport(client);
+        await RunDetails(client);
+
+        var stored = await Scalar<string>("SELECT concat_ws('|', rent, floor, deposit) FROM housing.offer");
+        var features = await Scalar<string>("SELECT string_agg(feature::text, ',' ORDER BY feature) FROM housing.offer_feature");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(stored, Is.EqualTo("400.00|2|3000.00"));
+            Assert.That(features, Is.EqualTo($"{(int)Feature.Balcony},{(int)Feature.Dishwasher}"));
+        });
+    }
+
+    [Test]
+    public async Task The_offer_card_shows_the_details()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small]];
+        _source.Details["1"] = new OfferDetails(Deposit: new Money(3000m, Currency.Pln), AvailableFrom: new DateOnly(2026, 12, 1),
+            Floor: 2, BuildingType: BuildingType.Block, Heating: Heating.Gas, Description: "<p>Quiet</p>", Features: [Feature.Lift]);
+        await RunImport(client);
+        var id = (await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json))!.Items.Single().Id;
+        var before = await client.GetFromJsonAsync<OfferListItem>($"/api/housing/offers/{id}", Json);
+
+        await RunDetails(client);
+        var card = await client.GetFromJsonAsync<OfferListItem>($"/api/housing/offers/{id}", Json);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(before!.DetailsFetchedAt, Is.Null);
+            Assert.That(card!.DetailsFetchedAt, Is.Not.Null);
+            Assert.That((card.Deposit, card.DepositCurrency, card.AvailableFrom, card.Floor),
+                Is.EqualTo(((decimal?)3000m, (Currency?)Currency.Pln, (DateOnly?)new DateOnly(2026, 12, 1), (int?)2)));
+            Assert.That((card.BuildingType, card.Heating, card.Description),
+                Is.EqualTo(((BuildingType?)BuildingType.Block, (Heating?)Heating.Gas, "<p>Quiet</p>")));
+            Assert.That(card.Features, Is.EqualTo(new[] { Feature.Lift }));
+        });
+    }
+
+    [Test]
+    public async Task An_unreachable_portal_fails_the_run_and_blames_no_offer()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small, Large]];
+        _source.Details["1"] = new OfferDetails(Floor: 1);
+        _source.Details["2"] = new OfferDetails(Floor: 2);
+        await RunImport(client);
+        _source.DetailsUnavailable = true;
+
+        var failedRuns = new List<JobRun>();
+        for (var run = 0; run < 3; run++)
+        {
+            failedRuns.Add(await JobRuns.Run(client, FetchDetails));
+        }
+
+        var attempts = await Scalar<long>("SELECT count(*) FROM housing.offer_detail_fetch");
+        _source.DetailsUnavailable = false;
+        var later = await RunDetails(client);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(failedRuns.Select(r => (r.Status, r.ErrorCode)),
+                Is.All.EqualTo((JobRunStatus.Failed, (string?)ScrapingException.VpnRequired)));
+            Assert.That(attempts, Is.Zero);
+            Assert.That(later, Is.EqualTo(new Fetched(2, 0)));
+        });
+    }
+
+    [Test]
+    public async Task A_portal_refusing_every_page_stops_the_run_and_blames_no_offer()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        using var client = factory.CreateClient();
+        // No detail pages: every fetch fails as a 403 block would.
+        _source.Pages = [Enumerable.Range(1, FetchDetailsHandler.MaxFetchFailuresInRow + 2)
+            .Select(i => Small with { ExternalId = $"{i}", Url = new Uri($"https://www.otodom.pl/pl/oferta/flat-ID{i}") })
+            .ToList()];
+        await RunImport(client);
+
+        var run = await JobRuns.Run(client, FetchDetails);
+        var blamed = await Scalar<long>("SELECT count(*) FROM housing.offer_detail_fetch");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(run.Status, Is.EqualTo(JobRunStatus.Failed));
+            Assert.That(blamed, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task Listing_tags_do_not_come_back_after_the_details_replaced_them()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small with { Features = [Feature.Garden] }]];
+        _source.Details["1"] = new OfferDetails(Features: []);
+        await RunImport(client);
+        await RunDetails(client);
+
+        await RunImport(client);
+
+        Assert.That(await Scalar<long>("SELECT count(*) FROM housing.offer_feature"), Is.Zero);
+    }
+
+    [Test]
+    public async Task A_failing_detail_page_is_retried_until_the_limit()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small]];
+
+        await RunImport(client);
+        var runs = new List<Fetched>();
+        for (var run = 0; run < 4; run++)
+        {
+            runs.Add(await RunDetails(client));
+        }
+
+        var lastError = await Scalar<string?>("SELECT last_error FROM housing.offer_detail_fetch");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(runs.Select(f => f.Failed), Is.EqualTo(new[] { 1, 1, 1, 0 }));
+            Assert.That(lastError, Is.Not.Null);
+        });
+    }
+
+    [Test]
+    public async Task Reparse_restores_details_from_raw_pages()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small]];
+        _source.Details["1"] = new OfferDetails(Floor: 3, Features: [Feature.Garden]);
+        await RunImport(client);
+        await RunDetails(client);
+        await Sql("UPDATE housing.offer SET floor = NULL; DELETE FROM housing.offer_feature;");
+
+        var response = await client.PostAsync(new Uri("/api/housing/reparse", UriKind.Relative), null);
+        var result = await response.Content.ReadFromJsonAsync<ReparseResult>(Json);
+
+        var floor = await Scalar<int>("SELECT floor FROM housing.offer");
+        var feature = await Scalar<int>("SELECT feature FROM housing.offer_feature");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((result!.CaptureCount, result.FailedCount, result.DetailCount), Is.EqualTo((2, 0, 1)));
+            Assert.That((floor, feature), Is.EqualTo((3, (int)Feature.Garden)));
+        });
+    }
+
+    [Test]
     public async Task Import_of_an_unknown_source_is_not_found()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
@@ -507,6 +733,13 @@ public class HousingImportTests
         return new Imported((int)counts["pages"], (int)counts["added"], (int)counts["updated"], (int)counts["unchanged"]);
     }
 
+    private static async Task<Fetched> RunDetails(HttpClient client)
+    {
+        var run = await JobRuns.Run(client, FetchDetails);
+        Assert.That(run.Status, Is.EqualTo(JobRunStatus.Succeeded), run.ErrorCode);
+        return new Fetched((int)run.Summary!.Counts["fetched"], (int)run.Summary.Counts["failed"]);
+    }
+
     private static async Task<Scanned> RunScan(HttpClient client)
     {
         var run = await JobRuns.Run(client, Scan);
@@ -527,7 +760,11 @@ public class HousingImportTests
 
     private sealed record Scanned(int Pages, int Added, int Missed, int Removed);
 
+    private sealed record Fetched(int Count, int Failed);
+
     private sealed record FakePage(IReadOnlyList<Offer> Offers, bool IsLast);
+
+    private sealed record FakeDetailPage(string ExternalId, OfferDetails Details);
 
     private sealed class FakeOfferSource : IOfferSource
     {
@@ -561,5 +798,38 @@ public class HousingImportTests
         }
 
         public LocationHint? LocationHintOf(string locationKey) => OtoDomLocation.HintOf(locationKey);
+
+        // Detail pages by external id; an offer without an entry, or no longer listed, returns HTTP 404.
+        public Dictionary<string, OfferDetails> Details { get; } = [];
+
+        public List<string> DetailRequests { get; } = [];
+
+        // The portal out of reach, e.g. no VPN.
+        public bool DetailsUnavailable { get; set; }
+
+        public Task<FetchResult> FetchDetailPageAsync(Uri url, CancellationToken cancellationToken)
+        {
+            var externalId = Pages.SelectMany(p => p).FirstOrDefault(o => o.Url == url)?.ExternalId ?? url.ToString();
+            DetailRequests.Add(externalId);
+            if (DetailsUnavailable)
+            {
+                return Task.FromResult(FetchResult.Failed(new Failure(ScrapingException.VpnRequired, "No VPN.", FailureKind.Unavailable)));
+            }
+
+            if (!Details.TryGetValue(externalId, out var details))
+            {
+                return Task.FromResult(FetchResult.Failed(new Failure(ScrapingException.HttpError, $"{url} returned HTTP 404.", FailureKind.Failed)));
+            }
+
+            return Task.FromResult(new FetchResult(new RawPage(
+                url, CaptureKind.DetailPage, "application/json", 200,
+                JsonSerializer.SerializeToUtf8Bytes(new FakeDetailPage(externalId, details), Json))));
+        }
+
+        public DetailsParseResult ParseDetails(RawPage page)
+        {
+            var parsed = JsonSerializer.Deserialize<FakeDetailPage>(page.Content, Json)!;
+            return new DetailsParseResult(parsed.ExternalId, parsed.Details);
+        }
     }
 }

@@ -223,6 +223,10 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /** @enum {unknown} */
+        BuildingType: "Block" | "Tenement" | "Apartment" | "House" | "Loft" | null;
+        /** @enum {unknown} */
+        Condition: "ReadyToUse" | "ToRenovate" | "ToFinish" | null;
+        /** @enum {unknown} */
         Currency: "PLN" | null;
         DatabaseStatus: {
             user: string;
@@ -230,6 +234,10 @@ export interface components {
             canChangeSchema: boolean;
             migrations: components["schemas"]["SchemaMigration"][];
         };
+        /** @enum {unknown} */
+        Feature: "Balcony" | "Terrace" | "Garden" | "Lift" | "Basement" | "Parking" | "AirConditioning" | "Furnished" | "Dishwasher" | "WashingMachine";
+        /** @enum {unknown} */
+        Heating: "District" | "Gas" | "Electric" | "BoilerRoom" | "TiledStove" | null;
         ImportResult: {
             source: components["schemas"]["Source"];
             /** Format: int32 */
@@ -311,6 +319,33 @@ export interface components {
             externalCreatedAt?: null | string;
             /** Format: date-time */
             externalUpdatedAt?: null | string;
+            /** Format: double */
+            rent?: null | number;
+            rentCurrency?: null | components["schemas"]["Currency"];
+            /** Format: double */
+            deposit?: null | number;
+            depositCurrency?: null | components["schemas"]["Currency"];
+            /** Format: date */
+            availableFrom?: null | string;
+            /** Format: int32 */
+            floor?: null | number;
+            /** Format: int32 */
+            buildingFloors?: null | number;
+            /** Format: int32 */
+            buildYear?: null | number;
+            buildingType?: null | components["schemas"]["BuildingType"];
+            heating?: null | components["schemas"]["Heating"];
+            condition?: null | components["schemas"]["Condition"];
+            /** Format: double */
+            latitude?: null | number;
+            /** Format: double */
+            longitude?: null | number;
+            /** Format: int32 */
+            locationRadiusM?: null | number;
+            description?: null | string;
+            features?: components["schemas"]["Feature"][];
+            /** Format: date-time */
+            detailsFetchedAt?: null | string;
             placeName?: null | string;
             placeKind?: null | components["schemas"]["PlaceKind"];
             placeSize?: null | components["schemas"]["PlaceSize"];
@@ -365,6 +400,8 @@ export interface components {
             unchangedCount: number;
             /** Format: int32 */
             skippedCount: number;
+            /** Format: int32 */
+            detailCount: number;
         };
         SchemaMigration: {
             schema: string;

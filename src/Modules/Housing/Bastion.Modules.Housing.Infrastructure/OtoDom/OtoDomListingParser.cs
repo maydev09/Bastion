@@ -46,7 +46,10 @@ public static partial class OtoDomListingParser
                     Number(item, "areaInSquareMeters"),
                     Rooms(item),
                     Date(item, "pushedUpAt"),
-                    OtoDomLocation.KeyOf(item)));
+                    OtoDomLocation.KeyOf(item),
+                    Rent: Plausible(MoneyOf(item, "rentPrice")),
+                    Floor: Floor(item),
+                    Features: Features(item)));
             }
             else
             {
@@ -73,6 +76,58 @@ public static partial class OtoDomListingParser
         && CurrencyOf(money) is { } currency
             ? new Money(amount, currency)
             : null;
+
+    // The rent field is required in OtoDom's form, so some advertisers type 1 zł instead of leaving it out.
+    // 0 is kept: no fees, or fees included in the price.
+    internal static Money? Plausible(Money? rent) => rent is { Amount: > 0 and < 10 } ? null : rent;
+
+    // floorNumber is a word ("GROUND", "FIRST" … "TENTH"); "ABOVE_TENTH" has no exact floor.
+    private static int? Floor(JsonElement item) => Text(item, "floorNumber") switch
+    {
+        "CELLAR" => -1,
+        "GROUND" => 0,
+        "FIRST" => 1,
+        "SECOND" => 2,
+        "THIRD" => 3,
+        "FOURTH" => 4,
+        "FIFTH" => 5,
+        "SIXTH" => 6,
+        "SEVENTH" => 7,
+        "EIGHTH" => 8,
+        "NINTH" => 9,
+        "TENTH" => 10,
+        _ => null,
+    };
+
+    // tags is a list of {value, weight}; only some of them are features, the rest (TOP_FLOOR, SEPARATE_KITCHEN…) are ignored.
+    private static List<Feature> Features(JsonElement item)
+    {
+        var features = new List<Feature>();
+        if (!item.TryGetProperty("tags", out var tags) || tags.ValueKind != JsonValueKind.Array)
+        {
+            return features;
+        }
+
+        foreach (var tag in tags.EnumerateArray())
+        {
+            Feature? feature = tag.ValueKind == JsonValueKind.Object ? Text(tag, "value") switch
+            {
+                "BALCONY" => Feature.Balcony,
+                "TERRACE" => Feature.Terrace,
+                "GARDEN" => Feature.Garden,
+                "BASEMENT" => Feature.Basement,
+                "PARKING_SPOT" => Feature.Parking,
+                "AIR_CONDITIONING" => Feature.AirConditioning,
+                _ => null,
+            } : null;
+            if (feature is { } value && !features.Contains(value))
+            {
+                features.Add(value);
+            }
+        }
+
+        return features;
+    }
 
     private static Currency? CurrencyOf(JsonElement money) => Text(money, "currency") switch
     {
@@ -135,7 +190,7 @@ public static partial class OtoDomListingParser
         };
     }
 
-    private static JsonDocument ParseJson(string json)
+    internal static JsonDocument ParseJson(string json)
     {
         try
         {
@@ -147,7 +202,7 @@ public static partial class OtoDomListingParser
         }
     }
 
-    private static bool TryGetPath(JsonElement element, out JsonElement result, params string[] path)
+    internal static bool TryGetPath(JsonElement element, out JsonElement result, params string[] path)
     {
         result = element;
         foreach (var name in path)

@@ -9,6 +9,52 @@ public class OtoDomAnonymizerTests
     private static readonly Uri BaseUrl = new("https://www.otodom.pl");
 
     [Test]
+    public void Keeps_an_agency_advertiser_and_masks_its_agent()
+    {
+        const string html = """
+            <script id="__NEXT_DATA__" type="application/json">
+            {"props":{"pageProps":{"contactDetails":{"name":"Anna Nowak"},
+              "unifiedAd":{"ownerAccount":{"name":"Best Homes Ltd","type":"AGENCY"}},
+              "ad":{"id":1,"advertiserType":"business","owner":{"name":"Best Homes Ltd","contacts":[{"name":"Anna Nowak"}]},
+                "contactDetails":{"name":"Anna Nowak"},"agency":{"name":"Best Homes Ltd"}}}}}
+            </script>
+            """;
+
+        var redacted = OtoDomAnonymizer.Anonymize(html, "***");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(redacted, Does.Not.Contain("Anna Nowak"));
+            Assert.That(redacted, Does.Contain("Best Homes Ltd"));
+        });
+    }
+
+    [Test]
+    public void Masks_the_advertiser_of_a_detail_page_and_keeps_the_agency()
+    {
+        const string html = """
+            <h1>Jan Kowalski</h1>
+            <script id="__NEXT_DATA__" type="application/json">
+            {"props":{"pageProps":{"contactDetails":{"name":"Jan Kowalski","type":"private"},
+              "unifiedAd":{"contactDetails":[{"name":"Jan Kowalski"}],"description":"<p>Call 600 100 200</p>","resolvedPhone":"600100200",
+                "ownerAccount":{"name":"Jan Kowalski","type":"private"}},
+              "ad":{"id":1,"description":"<p>Call 600 100 200</p>",
+                "owner":{"name":"Jan Kowalski","address":"ul. Prosta 1","contacts":[{"name":"Jan Kowalski"}]},
+                "contactDetails":{"name":"Jan Kowalski"},
+                "agency":{"name":"Best Homes Ltd"}}}}}
+            </script>
+            """;
+
+        var redacted = OtoDomAnonymizer.Anonymize(html, "***");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(redacted, Does.Not.Contain("Kowalski").And.Not.Contain("Prosta").And.Not.Contain("600 100 200").And.Not.Contain("600100200"));
+            Assert.That(redacted, Does.Contain("Best Homes Ltd").And.Contain("Call ***"));
+        });
+    }
+
+    [Test]
     public void Masks_personal_data_and_keeps_the_rest()
     {
         const string html = """
@@ -48,6 +94,7 @@ public class OtoDomAnonymizerTests
         var original = OtoDomListingParser.Parse(html, BaseUrl);
         var masked = OtoDomListingParser.Parse(OtoDomAnonymizer.Anonymize(html, "***"), BaseUrl);
 
-        Assert.That(masked.Offers, Is.EqualTo(original.Offers));
+        // Features is a list, so offers are compared by their stored fields (the listing hash).
+        Assert.That(masked.Offers.Select(o => o.ListingHash()), Is.EqualTo(original.Offers.Select(o => o.ListingHash())));
     }
 }

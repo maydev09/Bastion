@@ -54,6 +54,34 @@ public class OtoDomListingParserTests
     }
 
     [Test]
+    public void Reads_rent_floor_and_features_of_the_listing()
+    {
+        const string html = """
+            <script id="__NEXT_DATA__" type="application/json">
+            {"props":{"pageProps":{"data":{"searchAds":{"items":[
+              {"id":1,"title":"Flat","slug":"flat-ID1","estate":"FLAT","transaction":"RENT","createdAtFirst":"2026-11-19T10:00:00+00:00",
+               "rentPrice":{"value":750,"currency":"PLN"},"floorNumber":"GROUND",
+               "tags":[{"value":"BALCONY","weight":35},{"value":"PARKING_SPOT","weight":15},{"value":"TOP_FLOOR","weight":5}]},
+              {"id":2,"title":"High","slug":"high-ID2","estate":"FLAT","transaction":"RENT","createdAtFirst":"2026-11-19T10:00:00+00:00",
+               "rentPrice":{"value":1,"currency":"PLN"},"floorNumber":"ABOVE_TENTH"}
+            ]}}}}}
+            </script>
+            """;
+
+        var (offers, _, _) = OtoDomListingParser.Parse(html, BaseUrl);
+        var flat = offers.Single(o => o.ExternalId == "1");
+        var high = offers.Single(o => o.ExternalId == "2");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((flat.Rent, flat.Floor), Is.EqualTo((new Money(750m, Currency.Pln), 0)));
+            Assert.That(flat.Features, Is.EquivalentTo(new[] { Feature.Balcony, Feature.Parking }));
+            Assert.That((high.Rent, high.Floor), Is.EqualTo(((Money?)null, (int?)null)));
+            Assert.That(high.Features, Is.Empty);
+        });
+    }
+
+    [Test]
     public void Skips_items_without_required_fields()
     {
         const string html = """

@@ -14,12 +14,12 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
     private const string SaveSql = """
         INSERT INTO housing.offer AS o
             (source_id, external_id, title, url, property_type, transaction, price, price_currency, area_m2, rooms,
-             external_created_at, external_updated_at, location_key, place_id, listing_hash, raw_capture_id,
-             created_at, updated_at, last_seen_at)
+             rent, rent_currency, floor, external_created_at, external_updated_at, location_key, place_id,
+             listing_hash, content_hash, raw_capture_id, created_at, updated_at, last_seen_at)
         VALUES
             (@SourceId, @ExternalId, @Title, @Url, @PropertyType, @Transaction, @Price, @PriceCurrency, @AreaM2, @Rooms,
-             @ExternalCreatedAt, @ExternalUpdatedAt, @LocationKey, @PlaceId, @ListingHash, @RawCaptureId,
-             @SeenAt, @SeenAt, @SeenAt)
+             @Rent, @RentCurrency, @Floor, @ExternalCreatedAt, @ExternalUpdatedAt, @LocationKey, @PlaceId,
+             @ListingHash, @ContentHash, @RawCaptureId, @SeenAt, @SeenAt, @SeenAt)
         ON CONFLICT (source_id, external_id) DO UPDATE SET
             title = excluded.title,
             url = excluded.url,
@@ -29,14 +29,29 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             price_currency = excluded.price_currency,
             area_m2 = excluded.area_m2,
             rooms = excluded.rooms,
+            rent = COALESCE(excluded.rent, o.rent),
+            rent_currency = COALESCE(excluded.rent_currency, o.rent_currency),
+            floor = COALESCE(excluded.floor, o.floor),
             external_created_at = excluded.external_created_at,
             external_updated_at = excluded.external_updated_at,
             listing_hash = excluded.listing_hash,
+            content_hash = excluded.content_hash,
             raw_capture_id = excluded.raw_capture_id,
             updated_at = excluded.updated_at
         WHERE o.listing_hash <> excluded.listing_hash
           AND o.updated_at <= excluded.updated_at
         RETURNING (xmax = 0) AS inserted
+        """;
+
+    // Listing tags fill the features only until the detail page is fetched: it shows the full set and replaces it.
+    // A changed tag changes content_hash, so the details (and the set) are fetched again.
+    private const string AddFeaturesSql = """
+        INSERT INTO housing.offer_feature (offer_id, feature)
+        SELECT o.id, l.feature
+        FROM unnest(@ExternalIds, @Features) AS l (external_id, feature)
+        JOIN housing.offer o ON o.source_id = @SourceId AND o.external_id = l.external_id
+        WHERE NOT EXISTS (SELECT 1 FROM housing.offer_detail_fetch f WHERE f.offer_id = o.id AND f.fetched_at IS NOT NULL)
+        ON CONFLICT DO NOTHING
         """;
 
     // A removed offer seen again is listed again. An older page (re-parse) changes nothing.
@@ -89,10 +104,16 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
 
     // A removed offer is still shown, e.g. from an old link.
     private const string GetSql = $"""
-        SELECT {OfferColumns}
+        SELECT {OfferColumns},
+            o.rent, o.rent_currency, o.deposit, o.deposit_currency, o.available_from, o.floor, o.building_floors,
+            o.build_year, o.building_type, o.heating, o.condition, o.latitude, o.longitude, o.location_radius_m,
+            o.description, f.fetched_at AS details_fetched_at
         FROM housing.offer o
         LEFT JOIN housing.place p ON p.id = o.place_id
-        WHERE o.id = @Id
+        LEFT JOIN housing.offer_detail_fetch f ON f.offer_id = o.id
+        WHERE o.id = @Id;
+
+        SELECT feature FROM housing.offer_feature WHERE offer_id = @Id ORDER BY feature;
         """;
 
     private const string NearbySql = """
@@ -102,6 +123,73 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         JOIN housing.place c ON c.id = n.nearby_id
         WHERE o.id = ANY(@OfferIds)
         ORDER BY o.id, n.tier, n.rank
+        """;
+
+    // Newest first, like the listing, so new offers get their details before the backlog.
+    // An offer stored before content_hash existed waits until an import fills it.
+    private const string PendingDetailsSql = """
+        SELECT o.id AS offer_id, o.external_id, o.url, o.content_hash
+        FROM housing.offer o
+        LEFT JOIN housing.offer_detail_fetch f ON f.offer_id = o.id
+        WHERE o.source_id = @SourceId AND o.removed_at IS NULL AND o.content_hash IS NOT NULL
+          AND (f.offer_id IS NULL
+               OR f.content_hash <> o.content_hash
+               OR (f.failed_attempts BETWEEN 1 AND @MaxFailedAttempts - 1 AND f.attempted_at < @RunStartedAt))
+        ORDER BY o.external_created_at DESC NULLS LAST, o.id DESC
+        LIMIT @Limit
+        """;
+
+    // A null never clears a stored value: another page may not show a field this one showed.
+    private const string SaveDetailsSql = """
+        UPDATE housing.offer
+        SET rent = COALESCE(@Rent, rent),
+            rent_currency = COALESCE(@RentCurrency, rent_currency),
+            deposit = COALESCE(@Deposit, deposit),
+            deposit_currency = COALESCE(@DepositCurrency, deposit_currency),
+            available_from = COALESCE(@AvailableFrom, available_from),
+            floor = COALESCE(@Floor, floor),
+            building_floors = COALESCE(@BuildingFloors, building_floors),
+            build_year = COALESCE(@BuildYear, build_year),
+            building_type = COALESCE(@BuildingType, building_type),
+            heating = COALESCE(@Heating, heating),
+            condition = COALESCE(@Condition, condition),
+            latitude = COALESCE(@Latitude, latitude),
+            longitude = COALESCE(@Longitude, longitude),
+            location_radius_m = COALESCE(@LocationRadiusM, location_radius_m),
+            description = COALESCE(@Description, description)
+        WHERE source_id = @SourceId AND external_id = @ExternalId
+        RETURNING id
+        """;
+
+    private const string ReplaceFeaturesSql = """
+        DELETE FROM housing.offer_feature WHERE offer_id = @OfferId;
+        INSERT INTO housing.offer_feature (offer_id, feature)
+        SELECT @OfferId, unnest(@Features);
+        """;
+
+    // An offer deleted during the run gets no row (and breaks no foreign key).
+    private const string DetailsFetchedSql = """
+        INSERT INTO housing.offer_detail_fetch AS f (offer_id, content_hash, attempted_at, fetched_at, failed_attempts, last_error)
+        SELECT @OfferId, @ContentHash, @At, @At, 0, NULL
+        WHERE EXISTS (SELECT 1 FROM housing.offer WHERE id = @OfferId)
+        ON CONFLICT (offer_id) DO UPDATE SET
+            content_hash = excluded.content_hash,
+            attempted_at = excluded.attempted_at,
+            fetched_at = excluded.fetched_at,
+            failed_attempts = 0,
+            last_error = NULL
+        """;
+
+    // Failures are counted per content version: a changed offer gets fresh attempts.
+    private const string DetailsFailedSql = """
+        INSERT INTO housing.offer_detail_fetch AS f (offer_id, content_hash, attempted_at, fetched_at, failed_attempts, last_error)
+        SELECT @OfferId, @ContentHash, @At, NULL, 1, @LastError
+        WHERE EXISTS (SELECT 1 FROM housing.offer WHERE id = @OfferId)
+        ON CONFLICT (offer_id) DO UPDATE SET
+            failed_attempts = CASE WHEN f.content_hash = excluded.content_hash THEN f.failed_attempts + 1 ELSE 1 END,
+            content_hash = excluded.content_hash,
+            attempted_at = excluded.attempted_at,
+            last_error = excluded.last_error
         """;
 
     private const string LocationsSql = """
@@ -139,11 +227,15 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
                 PriceCurrency = (int?)offer.Price?.Currency,
                 offer.AreaM2,
                 offer.Rooms,
+                Rent = offer.Rent?.Amount,
+                RentCurrency = (int?)offer.Rent?.Currency,
+                offer.Floor,
                 offer.ExternalCreatedAt,
                 offer.ExternalUpdatedAt,
                 offer.LocationKey,
                 offer.PlaceId,
                 ListingHash = offer.ListingHash(),
+                ContentHash = offer.ContentHash(),
                 RawCaptureId = capture.Id,
                 SeenAt = capture.FetchedAt,
             }, transaction, cancellationToken: cancellationToken));
@@ -163,6 +255,14 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             SourceId = (int)capture.SourceId,
             ExternalIds = offers.Select(o => o.ExternalId).ToArray(),
             SeenAt = capture.FetchedAt,
+        }, transaction, cancellationToken: cancellationToken));
+
+        var features = offers.SelectMany(o => (o.Features ?? []).Select(f => (o.ExternalId, Feature: (int)f))).ToList();
+        await connection.ExecuteAsync(new CommandDefinition(AddFeaturesSql, new
+        {
+            SourceId = (int)capture.SourceId,
+            ExternalIds = features.Select(f => f.ExternalId).ToArray(),
+            Features = features.Select(f => f.Feature).ToArray(),
         }, transaction, cancellationToken: cancellationToken));
 
         await connection.ExecuteAsync(new CommandDefinition(LocationSql, new
@@ -204,8 +304,15 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
     public async Task<OfferListItem?> GetAsync(int id, CancellationToken cancellationToken)
     {
         await using var connection = await db.OpenConnectionAsync(cancellationToken);
-        var offer = await connection.QuerySingleOrDefaultAsync<OfferListItem>(new CommandDefinition(GetSql, new { Id = id }, cancellationToken: cancellationToken));
-        return offer is null ? null : (await WithNearbyAsync(connection, [offer], cancellationToken))[0];
+        await using var results = await connection.QueryMultipleAsync(new CommandDefinition(GetSql, new { Id = id }, cancellationToken: cancellationToken));
+        var offer = await results.ReadSingleOrDefaultAsync<OfferListItem>();
+        if (offer is null)
+        {
+            return null;
+        }
+
+        var features = (await results.ReadAsync<int>()).Select(f => (Feature)f).ToList();
+        return (await WithNearbyAsync(connection, [offer with { Features = features }], cancellationToken))[0];
     }
 
     private static async Task<IReadOnlyList<OfferListItem>> WithNearbyAsync(
@@ -215,6 +322,71 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
                 NearbySql, new { OfferIds = offers.Select(o => o.Id).ToArray() }, cancellationToken: cancellationToken)))
             .ToLookup(n => n.OfferId, n => new NearbyPlace((NearbyTier)n.Tier, n.Name, n.Km));
         return offers.Select(o => o with { Nearby = nearby[o.Id].ToList() }).ToList();
+    }
+
+    public async Task<IReadOnlyList<PendingDetails>> ListPendingDetailsAsync(
+        Source source, int limit, int maxFailedAttempts, DateTimeOffset runStartedAt, CancellationToken cancellationToken)
+    {
+        await using var connection = await db.OpenConnectionAsync(cancellationToken);
+        var rows = await connection.QueryAsync<(int OfferId, string ExternalId, string Url, string ContentHash)>(new CommandDefinition(
+            PendingDetailsSql,
+            new { SourceId = (int)source, Limit = limit, MaxFailedAttempts = maxFailedAttempts, RunStartedAt = runStartedAt },
+            cancellationToken: cancellationToken));
+        return rows.Select(r => new PendingDetails(r.OfferId, r.ExternalId, new Uri(r.Url), r.ContentHash)).ToList();
+    }
+
+    public async Task<bool> SaveDetailsAsync(Source source, string externalId, OfferDetails details, CancellationToken cancellationToken)
+    {
+        await using var connection = await db.OpenConnectionAsync(cancellationToken);
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        var offerId = await connection.QuerySingleOrDefaultAsync<int?>(new CommandDefinition(SaveDetailsSql, new
+        {
+            SourceId = (int)source,
+            ExternalId = externalId,
+            Rent = details.Rent?.Amount,
+            RentCurrency = (int?)details.Rent?.Currency,
+            Deposit = details.Deposit?.Amount,
+            DepositCurrency = (int?)details.Deposit?.Currency,
+            details.AvailableFrom,
+            details.Floor,
+            details.BuildingFloors,
+            details.BuildYear,
+            BuildingType = (int?)details.BuildingType,
+            Heating = (int?)details.Heating,
+            Condition = (int?)details.Condition,
+            details.Latitude,
+            details.Longitude,
+            details.LocationRadiusM,
+            details.Description,
+        }, transaction, cancellationToken: cancellationToken));
+        if (offerId is null)
+        {
+            return false;
+        }
+
+        if (details.Features is { } features)
+        {
+            await connection.ExecuteAsync(new CommandDefinition(ReplaceFeaturesSql, new
+            {
+                OfferId = offerId,
+                Features = features.Distinct().Select(f => (int)f).ToArray(),
+            }, transaction, cancellationToken: cancellationToken));
+        }
+
+        await transaction.CommitAsync(cancellationToken);
+        return true;
+    }
+
+    public Task MarkDetailsFetchedAsync(PendingDetails offer, DateTimeOffset at, CancellationToken cancellationToken) =>
+        ExecuteAsync(DetailsFetchedSql, new { offer.OfferId, offer.ContentHash, At = at }, cancellationToken);
+
+    public Task MarkDetailsFailedAsync(PendingDetails offer, DateTimeOffset at, string lastError, CancellationToken cancellationToken) =>
+        ExecuteAsync(DetailsFailedSql, new { offer.OfferId, offer.ContentHash, At = at, LastError = lastError }, cancellationToken);
+
+    private async Task ExecuteAsync(string sql, object parameters, CancellationToken cancellationToken)
+    {
+        await using var connection = await db.OpenConnectionAsync(cancellationToken);
+        await connection.ExecuteAsync(new CommandDefinition(sql, parameters, cancellationToken: cancellationToken));
     }
 
     public async Task<IReadOnlyList<OfferLocation>> ListLocationsAsync(CancellationToken cancellationToken)

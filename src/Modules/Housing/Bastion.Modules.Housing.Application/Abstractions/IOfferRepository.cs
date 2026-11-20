@@ -17,6 +17,18 @@ public interface IOfferRepository
     // Also a removed offer; null when there is no offer with the id.
     Task<OfferListItem?> GetAsync(int id, CancellationToken cancellationToken);
 
+    // Newest offers first; removed offers and offers that failed maxFailedAttempts times for their content are left out,
+    // and so are failures since runStartedAt, so one run does not retry the same offer.
+    Task<IReadOnlyList<PendingDetails>> ListPendingDetailsAsync(
+        Source source, int limit, int maxFailedAttempts, DateTimeOffset runStartedAt, CancellationToken cancellationToken);
+
+    // Returns false when there is no offer with the external id.
+    Task<bool> SaveDetailsAsync(Source source, string externalId, OfferDetails details, CancellationToken cancellationToken);
+
+    Task MarkDetailsFetchedAsync(PendingDetails offer, DateTimeOffset at, CancellationToken cancellationToken);
+
+    Task MarkDetailsFailedAsync(PendingDetails offer, DateTimeOffset at, string lastError, CancellationToken cancellationToken);
+
     Task<IReadOnlyList<OfferLocation>> ListLocationsAsync(CancellationToken cancellationToken);
 
     // Returns how many offers changed their place.

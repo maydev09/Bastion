@@ -13,7 +13,6 @@ public sealed class ImportOffersHandler(
     IPlaceRepository places,
     IOptions<ImportOptions> options)
 {
-    public const string UnknownSource = "housing.unknownSource";
     public const string PageLimitReached = "housing.pageLimitReached";
 
     // One missed scan is not enough: an offer bumped during a scan moves to a page already read.
@@ -23,7 +22,7 @@ public sealed class ImportOffersHandler(
     {
         if (!sources.TryGet(source, out var offerSource))
         {
-            return new ImportOutcome(null, new Failure(UnknownSource, $"No offer source is registered for {source}.", FailureKind.NotFound));
+            return new ImportOutcome(null, new Failure(OfferSources.UnknownSource, $"No offer source is registered for {source}.", FailureKind.NotFound));
         }
 
         var resolver = new PlaceResolver(sources, places);

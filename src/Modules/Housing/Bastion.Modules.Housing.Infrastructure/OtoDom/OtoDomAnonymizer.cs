@@ -10,7 +10,18 @@ public static partial class OtoDomAnonymizer
 {
     private static readonly string[] PeopleFields = ["advertOwner", "organisationAssignedMember"];
 
-    private static readonly string[] PersonalFields = ["name", "firstName", "lastName", "imageUrl", "photoURL"];
+    private static readonly string[] PersonalFields = ["name", "firstName", "lastName", "imageUrl", "photoURL", "imageURLSmall"];
+
+    // A detail page repeats the advertiser in several places; an agency's own object (ad.agency) is kept.
+    // The contact person of a detail page, repeated in several places; for an agency it is an agent.
+    private static readonly string[][] DetailContactPaths =
+        [["ad", "contactDetails"], ["contactDetails"], ["unifiedAd", "contactDetails"], ["ad", "owner", "contacts"]];
+
+    // The advertiser: a private person is masked, an agency's name is kept (ADR 0016).
+    private static readonly string[][] DetailOwnerPaths = [["ad", "owner"], ["unifiedAd", "ownerAccount"]];
+
+    // unifiedAd repeats the offer for another part of the page, the description included.
+    private static readonly string[][] DetailFreeTextPaths = [["ad", "description"], ["unifiedAd", "description"], ["unifiedAd", "aiSummary"]];
 
     private static readonly string[] FreeTextFields = ["shortDescription"];
 
@@ -75,6 +86,38 @@ public static partial class OtoDomAnonymizer
             }
         }
 
+        if (pageProps["ad"] is JsonObject ad)
+        {
+            var isAgency = ad["advertiserType"] is JsonValue type && type.TryGetValue<string>(out var advertiser) && advertiser == "business";
+            foreach (var path in isAgency ? DetailContactPaths : [.. DetailContactPaths, .. DetailOwnerPaths])
+            {
+                if (Node(pageProps, path) is { } person)
+                {
+                    MaskPersonalFields(person, masked, anonymizationMask);
+                }
+            }
+
+            // A private advertiser's address; it is not added to the masked texts, a town name would be masked everywhere.
+            if (!isAgency && ad["owner"] is JsonObject owner && owner["address"] is JsonValue)
+            {
+                owner["address"] = anonymizationMask;
+            }
+
+            if (pageProps["unifiedAd"] is JsonObject unifiedAd && unifiedAd["resolvedPhone"] is JsonValue)
+            {
+                unifiedAd["resolvedPhone"] = anonymizationMask;
+            }
+
+            foreach (var path in DetailFreeTextPaths)
+            {
+                if (Node(pageProps, path[..^1]) is JsonObject parent
+                    && parent[path[^1]] is JsonValue value && value.TryGetValue<string>(out var text))
+                {
+                    parent[path[^1]] = MaskContacts(text, anonymizationMask);
+                }
+            }
+        }
+
         // The offer cards in the markup repeat the names and photo links.
         var data = script.Groups[1];
         var before = MaskTexts(html[..data.Index], masked, anonymizationMask);
@@ -109,6 +152,17 @@ public static partial class OtoDomAnonymizer
                 }
             }
         }
+    }
+
+    private static JsonNode? Node(JsonNode node, string[] path)
+    {
+        JsonNode? current = node;
+        foreach (var name in path)
+        {
+            current = current is JsonObject obj ? obj[name] : null;
+        }
+
+        return current;
     }
 
     private static string MaskTexts(string html, HashSet<string> texts, string anonymizationMask)
