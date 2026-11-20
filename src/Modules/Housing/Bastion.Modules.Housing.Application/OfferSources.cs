@@ -6,6 +6,8 @@ namespace Bastion.Modules.Housing.Application;
 
 public sealed class OfferSources(IEnumerable<IOfferSource> sources)
 {
+    public const string UnknownSource = "housing.unknownSource";
+
     private readonly Dictionary<Source, IOfferSource> _bySource = sources.ToDictionary(s => s.Source);
 
     public IEnumerable<Source> All => _bySource.Keys;

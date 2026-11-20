@@ -20,6 +20,12 @@ ListingUrl = "https://www.otodom.pl/pl/wyniki/wynajem/mieszkanie/cala-polska?by=
 MaxPages = 5             # new offers; 72 offers per page
 FullScanMaxPages = 1000  # safety limit only; the whole listing had 360 pages in November 2026
 
+# FetchDetails fetches detail pages of new and changed offers, newest first, about 4.5 s each.
+# The first runs work through the whole backlog (about 26 000 offers, roughly 32 hours).
+[Modules.Housing.Details]
+MaxMinutes = 50          # per run; the rest waits for the next run
+MaxFailedAttempts = 3    # then the offer waits until its content changes
+
 [Modules.Housing.RawCaptures]
 Path = "/data/raw/housing"
 RetentionDays = 30
@@ -57,8 +63,11 @@ BigCityMaxKm = 50               # ...at most this far
 [Modules.Housing.Jobs.ImportOffers]
 Every = "00:10:00"
 
+[Modules.Housing.Jobs.FetchDetails]
+Every = "01:00:00"
+
 [Modules.Housing.Jobs.ScanOffers]
-DailyAt = "01:00"   # about 40 minutes, done before the database backup at 03:00
+DailyAt = "01:00"   # about 40 minutes alone, longer while FetchDetails shares the portal; done before the backup at 03:00
 
 [Modules.Housing.Jobs.RawCaptureRetention]
 DailyAt = "04:00"   # after the database backup at 03:00

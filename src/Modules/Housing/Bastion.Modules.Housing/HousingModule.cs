@@ -4,6 +4,7 @@ using Bastion.BuildingBlocks.Scraping;
 using Bastion.Modules.Housing.Api;
 using Bastion.Modules.Housing.Application;
 using Bastion.Modules.Housing.Application.Abstractions;
+using Bastion.Modules.Housing.Application.FetchDetails;
 using Bastion.Modules.Housing.Application.ImportOffers;
 using Bastion.Modules.Housing.Application.ImportPlaces;
 using Bastion.Modules.Housing.Application.ListOffers;
@@ -42,6 +43,10 @@ public sealed class HousingModule : IModule
             .Bind(moduleSection.GetSection(ImportOptions.Section))
             .ValidateDataAnnotations()
             .ValidateOnStart();
+        services.AddOptions<DetailsOptions>()
+            .Bind(moduleSection.GetSection(DetailsOptions.Section))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
         services.AddOptions<RawCaptureOptions>()
             .Bind(moduleSection.GetSection(RawCaptureOptions.Section))
             .ValidateDataAnnotations()
@@ -77,6 +82,7 @@ public sealed class HousingModule : IModule
         services.AddSingleton<IRawCaptureFileStorage, RawCaptureFileStorage>();
         services.AddSingleton<RawCaptureService>();
         services.AddTransient<ImportOffersHandler>();
+        services.AddTransient<FetchDetailsHandler>();
         services.AddTransient<ReparseOffersHandler>();
         services.AddTransient<ImportPlacesHandler>();
         services.AddTransient<ListOffersHandler>();
@@ -84,6 +90,7 @@ public sealed class HousingModule : IModule
         services.AddJobs(Schema, moduleSection)
             .Add<ImportOffersJob>(ImportOffersJob.Name)
             .Add<ScanOffersJob>(ScanOffersJob.Name)
+            .Add<FetchDetailsJob>(FetchDetailsJob.Name)
             .Add<RawCaptureRetentionJob>(RawCaptureRetentionJob.Name)
             .Add<ImportPlacesJob>(ImportPlacesJob.Name);
     }

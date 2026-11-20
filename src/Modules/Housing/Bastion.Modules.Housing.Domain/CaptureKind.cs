@@ -4,4 +4,5 @@ namespace Bastion.Modules.Housing.Domain;
 public enum CaptureKind
 {
     ListingPage = 1,
+    DetailPage = 2,
 }

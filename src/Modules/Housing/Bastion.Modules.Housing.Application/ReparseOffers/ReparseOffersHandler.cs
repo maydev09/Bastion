@@ -1,6 +1,7 @@
 using Bastion.Modules.Housing.Application.Abstractions;
 using Bastion.Modules.Housing.Application.Places;
 using Bastion.Modules.Housing.Application.RawCaptures;
+using Bastion.Modules.Housing.Domain;
 
 namespace Bastion.Modules.Housing.Application.ReparseOffers;
 
@@ -13,13 +14,27 @@ public sealed class ReparseOffersHandler(
         var captures = await rawCaptures.ListAsync(cancellationToken);
         var resolver = new PlaceResolver(sources, places);
         var statistics = new SaveStatistics();
-        var failed = 0;
+        int failed = 0, detailCount = 0;
         foreach (var capture in captures)
         {
             var page = await rawCaptures.ReadAsync(capture, cancellationToken);
             if (page is null || !sources.TryGet(capture.SourceId, out var offerSource))
             {
                 failed++;
+                continue;
+            }
+
+            if (capture.Kind == CaptureKind.DetailPage)
+            {
+                var details = offerSource.ParseDetails(page);
+                if (details.Failure is not null
+                    || !await repository.SaveDetailsAsync(capture.SourceId, details.ExternalId!, details.Details!, cancellationToken))
+                {
+                    failed++;
+                    continue;
+                }
+
+                detailCount++;
                 continue;
             }
 
@@ -35,6 +50,6 @@ public sealed class ReparseOffersHandler(
         }
 
         return new ReparseResult(
-            captures.Count, failed, statistics.Added, statistics.Updated, statistics.Unchanged, statistics.Skipped);
+            captures.Count, failed, statistics.Added, statistics.Updated, statistics.Unchanged, statistics.Skipped, detailCount);
     }
 }

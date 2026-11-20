@@ -32,6 +32,42 @@ public sealed record OfferListItem
 
     public DateTimeOffset? ExternalUpdatedAt { get; init; }
 
+    // From Rent to DetailsFetchedAt only on the offer card (GetAsync); the list does not show them.
+    public decimal? Rent { get; init; }
+
+    public Currency? RentCurrency { get; init; }
+
+    public decimal? Deposit { get; init; }
+
+    public Currency? DepositCurrency { get; init; }
+
+    public DateOnly? AvailableFrom { get; init; }
+
+    public int? Floor { get; init; }
+
+    public int? BuildingFloors { get; init; }
+
+    public int? BuildYear { get; init; }
+
+    public BuildingType? BuildingType { get; init; }
+
+    public Heating? Heating { get; init; }
+
+    public Condition? Condition { get; init; }
+
+    public decimal? Latitude { get; init; }
+
+    public decimal? Longitude { get; init; }
+
+    public int? LocationRadiusM { get; init; }
+
+    public string? Description { get; init; }
+
+    public IReadOnlyList<Feature> Features { get; init; } = [];
+
+    // When the detail page was last fetched; null while it never was.
+    public DateTimeOffset? DetailsFetchedAt { get; init; }
+
     public string? PlaceName { get; init; }
 
     public PlaceKind? PlaceKind { get; init; }

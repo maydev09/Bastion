@@ -15,18 +15,26 @@ public sealed class OtoDomSource(ScrapingClient client, IOptions<OtoDomOptions> 
 
     public Source Source => Source.OtoDom;
 
-    public async Task<FetchResult> FetchListingPageAsync(int number, CancellationToken cancellationToken)
+    public Task<FetchResult> FetchListingPageAsync(int number, CancellationToken cancellationToken) =>
+        FetchAsync(ListingPageUrl(number), CaptureKind.ListingPage, cancellationToken);
+
+    public Task<FetchResult> FetchDetailPageAsync(Uri url, CancellationToken cancellationToken) =>
+        FetchAsync(url, CaptureKind.DetailPage, cancellationToken);
+
+    private async Task<FetchResult> FetchAsync(Uri url, CaptureKind kind, CancellationToken cancellationToken)
     {
         try
         {
-            var response = await client.GetAsync(ListingPageUrl(number), cancellationToken);
-            return new FetchResult(
-                new RawPage(response.Url, CaptureKind.ListingPage, response.ContentType, response.StatusCode, response.Content));
+            var response = await client.GetAsync(url, cancellationToken);
+            return new FetchResult(new RawPage(response.Url, kind, response.ContentType, response.StatusCode, response.Content));
         }
         catch (ScrapingException e)
         {
-            var kind = e.Code == ScrapingException.VpnRequired ? FailureKind.Unavailable : FailureKind.Failed;
-            return FetchResult.Failed(new Failure(e.Code, e.Message, kind));
+            // Only an HTTP error or a refused URL is about the page itself; the rest is about reaching the portal at all.
+            var failureKind = e.Code is ScrapingException.HttpError or ScrapingException.DisallowedByRobots
+                ? FailureKind.Failed
+                : FailureKind.Unavailable;
+            return FetchResult.Failed(new Failure(e.Code, e.Message, failureKind));
         }
     }
 
@@ -46,6 +54,19 @@ public sealed class OtoDomSource(ScrapingClient client, IOptions<OtoDomOptions> 
         catch (OtoDomParseException e)
         {
             return ParseResult.Failed(new Failure(ParseFailed, e.Message, FailureKind.Failed));
+        }
+    }
+
+    public DetailsParseResult ParseDetails(RawPage page)
+    {
+        try
+        {
+            var (externalId, details) = OtoDomDetailParser.Parse(Encoding.UTF8.GetString(page.Content));
+            return new DetailsParseResult(externalId, details);
+        }
+        catch (OtoDomParseException e)
+        {
+            return DetailsParseResult.Failed(new Failure(ParseFailed, e.Message, FailureKind.Failed));
         }
     }
 

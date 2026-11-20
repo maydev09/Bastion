@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router";
 import { api } from "@shared/api/client";
 import { useErrorMessage } from "@shared/useErrorMessage";
 import styles from "./OfferDetail.module.css";
+import { OfferDetails } from "./OfferDetails";
 import { offersQueryKey } from "./queryKeys";
 import { useFormat } from "./useFormat";
 
@@ -70,6 +71,19 @@ export function OfferDetail() {
   ]
     .filter(Boolean)
     .join(", ");
+  const floorName =
+    o.floor == null
+      ? null
+      : o.floor === 0
+        ? t("detail.groundFloor")
+        : o.floor < 0
+          ? t("detail.basement")
+          : String(o.floor);
+  const floor = !floorName
+    ? "—"
+    : o.buildingFloors
+      ? t("detail.floorOf", { floor: floorName, floors: o.buildingFloors })
+      : floorName;
   const facts = [
     {
       label: t("list.price"),
@@ -77,6 +91,20 @@ export function OfferDetail() {
     },
     { label: t("list.area"), value: o.areaM2 != null ? format.area(o.areaM2) : "—" },
     { label: t("list.rooms"), value: o.rooms ?? "—" },
+    {
+      label: t("detail.rent"),
+      value: o.rent != null && o.rentCurrency ? format.money(o.rent, o.rentCurrency) : "—",
+    },
+    {
+      label: t("detail.deposit"),
+      value:
+        o.deposit != null && o.depositCurrency ? format.money(o.deposit, o.depositCurrency) : "—",
+    },
+    { label: t("detail.floor"), value: floor },
+    {
+      label: t("detail.availableFrom"),
+      value: o.availableFrom ? format.day(o.availableFrom) : "—",
+    },
     {
       label: t("list.firstSeen"),
       value: o.externalCreatedAt ? format.date(o.externalCreatedAt) : "—",
@@ -173,6 +201,8 @@ export function OfferDetail() {
           )}
         </section>
       </div>
+
+      <OfferDetails offer={o} />
     </article>
   );
 }

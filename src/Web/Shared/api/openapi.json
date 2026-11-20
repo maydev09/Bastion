@@ -303,6 +303,24 @@
   },
   "components": {
     "schemas": {
+      "BuildingType": {
+        "enum": [
+          "Block",
+          "Tenement",
+          "Apartment",
+          "House",
+          "Loft",
+          null
+        ]
+      },
+      "Condition": {
+        "enum": [
+          "ReadyToUse",
+          "ToRenovate",
+          "ToFinish",
+          null
+        ]
+      },
       "Currency": {
         "enum": [
           "PLN",
@@ -334,6 +352,30 @@
             }
           }
         }
+      },
+      "Feature": {
+        "enum": [
+          "Balcony",
+          "Terrace",
+          "Garden",
+          "Lift",
+          "Basement",
+          "Parking",
+          "AirConditioning",
+          "Furnished",
+          "Dishwasher",
+          "WashingMachine"
+        ]
+      },
+      "Heating": {
+        "enum": [
+          "District",
+          "Gas",
+          "Electric",
+          "BoilerRoom",
+          "TiledStove",
+          null
+        ]
       },
       "ImportResult": {
         "required": [
@@ -627,6 +669,138 @@
             ],
             "format": "date-time"
           },
+          "rent": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "rentCurrency": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ]
+          },
+          "deposit": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "depositCurrency": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ]
+          },
+          "availableFrom": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date"
+          },
+          "floor": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "buildingFloors": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "buildYear": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "buildingType": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BuildingType"
+              }
+            ]
+          },
+          "heating": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Heating"
+              }
+            ]
+          },
+          "condition": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Condition"
+              }
+            ]
+          },
+          "latitude": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "longitude": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "locationRadiusM": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "description": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/Feature"
+            }
+          },
+          "detailsFetchedAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
           "placeName": {
             "type": [
               "null",
@@ -831,7 +1005,8 @@
           "addedCount",
           "updatedCount",
           "unchangedCount",
-          "skippedCount"
+          "skippedCount",
+          "detailCount"
         ],
         "type": "object",
         "properties": {
@@ -856,6 +1031,10 @@
             "format": "int32"
           },
           "skippedCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "detailCount": {
             "type": "integer",
             "format": "int32"
           }

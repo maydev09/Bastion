@@ -53,6 +53,49 @@
       "VoivodeshipCapital": "voivodeship capital",
       "Metropolis": "metropolis",
       "BigCity": "big city around"
+    },
+    "rent": "Monthly fees",
+    "deposit": "Deposit",
+    "floor": "Floor",
+    "floorOf": "{{floor}} of {{floors}}",
+    "groundFloor": "ground floor",
+    "basement": "basement",
+    "availableFrom": "Available from",
+    "details": "Details",
+    "notFetched": "The details of this offer have not been fetched yet.",
+    "buildYear": "built in {{year}}",
+    "map": "Show on map",
+    "mapApproximate": "approximate location, within {{km}} km",
+    "buildingType": {
+      "Block": "block of flats",
+      "Tenement": "tenement",
+      "Apartment": "apartment building",
+      "House": "house",
+      "Loft": "loft"
+    },
+    "heating": {
+      "District": "district heating",
+      "Gas": "gas heating",
+      "Electric": "electric heating",
+      "BoilerRoom": "boiler room",
+      "TiledStove": "tiled stove"
+    },
+    "condition": {
+      "ReadyToUse": "ready to move in",
+      "ToRenovate": "needs renovation",
+      "ToFinish": "needs finishing"
+    },
+    "feature": {
+      "Balcony": "balcony",
+      "Terrace": "terrace",
+      "Garden": "garden",
+      "Lift": "lift",
+      "Basement": "basement",
+      "Parking": "parking",
+      "AirConditioning": "air conditioning",
+      "Furnished": "furnished",
+      "Dishwasher": "dishwasher",
+      "WashingMachine": "washing machine"
     }
   },
   "place": {

@@ -53,6 +53,49 @@
       "VoivodeshipCapital": "stolica województwa",
       "Metropolis": "metropolia",
       "BigCity": "duże miasto w okolicy"
+    },
+    "rent": "Czynsz",
+    "deposit": "Kaucja",
+    "floor": "Piętro",
+    "floorOf": "{{floor}} z {{floors}}",
+    "groundFloor": "parter",
+    "basement": "suterena",
+    "availableFrom": "Dostępne od",
+    "details": "Szczegóły",
+    "notFetched": "Szczegóły tej oferty nie zostały jeszcze pobrane.",
+    "buildYear": "rok budowy {{year}}",
+    "map": "Pokaż na mapie",
+    "mapApproximate": "lokalizacja przybliżona, do {{km}} km",
+    "buildingType": {
+      "Block": "blok",
+      "Tenement": "kamienica",
+      "Apartment": "apartamentowiec",
+      "House": "dom",
+      "Loft": "loft"
+    },
+    "heating": {
+      "District": "ogrzewanie miejskie",
+      "Gas": "ogrzewanie gazowe",
+      "Electric": "ogrzewanie elektryczne",
+      "BoilerRoom": "kotłownia",
+      "TiledStove": "piec kaflowy"
+    },
+    "condition": {
+      "ReadyToUse": "do zamieszkania",
+      "ToRenovate": "do remontu",
+      "ToFinish": "do wykończenia"
+    },
+    "feature": {
+      "Balcony": "balkon",
+      "Terrace": "taras",
+      "Garden": "ogród",
+      "Lift": "winda",
+      "Basement": "piwnica",
+      "Parking": "parking",
+      "AirConditioning": "klimatyzacja",
+      "Furnished": "umeblowane",
+      "Dishwasher": "zmywarka",
+      "WashingMachine": "pralka"
     }
   },
   "place": {

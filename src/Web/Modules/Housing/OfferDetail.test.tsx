@@ -106,4 +106,71 @@ describe("OfferDetail", () => {
 
     expect(await screen.findByText(t("detail.notFound"))).toBeInTheDocument();
   });
+
+  it("shows the details, with the description as plain text", async () => {
+    const offer = {
+      id: 1,
+      source: "OtoDom",
+      title: "Flat in Gdańsk",
+      url: "https://www.otodom.pl/pl/oferta/flat-ID1",
+      propertyType: "Flat",
+      transaction: "Rent",
+      createdAt: "2026-11-16T10:00:00+00:00",
+      updatedAt: "2026-11-16T10:00:00+00:00",
+      nearby: [],
+    };
+    stubApi({
+      "/api/housing/offers/1": {
+        status: 200,
+        body: {
+          ...offer,
+          floor: 2,
+          buildingFloors: 5,
+          buildingType: "Block",
+          heating: "Gas",
+          features: ["Balcony", "Lift"],
+          latitude: 54.41982,
+          longitude: 18.60517,
+          locationRadiusM: 0,
+          description: "<p>Quiet flat.</p><script>alert(1)</script><p>Pets welcome.</p>",
+          detailsFetchedAt: "2026-11-20T10:00:00+00:00",
+        },
+      },
+    });
+
+    renderDetail();
+
+    expect(await screen.findByText(t("detail.feature.Balcony"))).toBeInTheDocument();
+    expect(screen.getByText(t("detail.feature.Lift"))).toBeInTheDocument();
+    expect(screen.getByText(t("detail.floorOf", { floor: "2", floors: 5 }))).toBeInTheDocument();
+    expect(screen.getByText(/Quiet flat\.\s+Pets welcome\./)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: new RegExp(t("detail.map")) })).toHaveAttribute(
+      "href",
+      expect.stringContaining("mlat=54.41982"),
+    );
+    expect(screen.queryByText(/alert/)).not.toBeInTheDocument();
+  });
+
+  it("says when the details are not fetched yet", async () => {
+    stubApi({
+      "/api/housing/offers/1": {
+        status: 200,
+        body: {
+          id: 1,
+          source: "OtoDom",
+          title: "Flat in Gdańsk",
+          url: "https://www.otodom.pl/pl/oferta/flat-ID1",
+          propertyType: "Flat",
+          transaction: "Rent",
+          createdAt: "2026-11-16T10:00:00+00:00",
+          updatedAt: "2026-11-16T10:00:00+00:00",
+          nearby: [],
+        },
+      },
+    });
+
+    renderDetail();
+
+    expect(await screen.findByText(t("detail.notFetched"))).toBeInTheDocument();
+  });
 });
