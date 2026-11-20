@@ -238,8 +238,9 @@ Update the matching file in the same change that makes it outdated:
   turns on automatic Debian security updates, creates the encrypted secrets and the `bastion`
   systemd service (`deploy/`). Idempotent; run it again after changes.
   The server runs the image CI published for the commit checked out in `/opt/bastion`
-  (`ghcr.io/maydev09/bastion:<commit>`): deploy = `systemctl start bastion-backup` + `git pull` +
-  `server-setup.sh` (installs changed units, restarts), rollback = `git checkout <commit>` + restart. Run Compose there only through `deploy/compose.sh`.
+  (`ghcr.io/maydev09/bastion:<commit>`): deploy = `sudo deploy/update.sh` (waits for the CI image of the newest
+  `master`, backs up, fast-forwards, runs `server-setup.sh`, waits until the app answers), rollback =
+  `git checkout <commit>` + restart. Run Compose there only through `deploy/compose.sh`.
 - Backups (ADR 0020): `deploy/backup.sh` dumps the database nightly (`bastion-backup.timer`) and on
   demand (`systemctl start bastion-backup`); `scripts/backup-pull.sh <user@server>` copies the dumps to another machine.
 - Image: `docker build -t bastion .` (frontend, backend and Playwright Firefox in one image, ADR 0011).

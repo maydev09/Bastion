@@ -102,16 +102,18 @@ Its scraping traffic goes through a VPN container (ADR 0019); secrets are encryp
    your VPN provider and starts the `bastion` service. Docker, reboots and Bastion are updated by hand.
 2. Open `http://<server>:8080` from the home network. Do not forward the port to the internet:
    Bastion has no login.
-3. **Update:** back up, pull, then run the setup again (it installs changed units and restarts
-   Bastion):
+3. **Update:** after a merge to `master`, run one script on the server:
 
    ```bash
-   cd /opt/bastion && sudo systemctl start bastion-backup && sudo git pull && sudo scripts/server-setup.sh
+   sudo /opt/bastion/deploy/update.sh
    ```
 
-   The server pulls the image CI published for that commit; it never builds one. When Bastion
-   is not running, the backup step fails: leave it out, the newest dump is the nightly one.
-4. **Roll back:** `sudo git checkout <older commit>` and restart.
+   It waits until CI has published the image for the newest commit (the server never builds
+   one; until then nothing changes), backs up the database, updates the checkout, runs the setup
+   again (installs changed units, restarts Bastion) and waits until Bastion answers. When
+   Bastion is not running, the backup is skipped: the newest dump is the nightly one.
+4. **Roll back:** `sudo git checkout <older commit>` and `sudo systemctl restart bastion`; the next
+   update returns to `master`.
 5. **Logs:** `sudo journalctl -u bastion -f`. When a container exits, the whole stack restarts;
    after 3 failed retries it stays stopped. Fix the cause, then
    `sudo systemctl reset-failed bastion && sudo systemctl start bastion`.
