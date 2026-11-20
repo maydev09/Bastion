@@ -1,8 +1,7 @@
 using System.Globalization;
 using System.Text;
-using Bastion.Modules.Housing.Domain;
 
-namespace Bastion.Modules.Housing.Application.Places;
+namespace Bastion.Modules.Housing.Domain;
 
 public static class PlaceNames
 {

@@ -5,13 +5,13 @@ using Bastion.Modules.Housing.Application.RawCaptures;
 namespace Bastion.Modules.Housing.Application.ReparseOffers;
 
 public sealed class ReparseOffersHandler(
-    OfferSources sources, RawCaptureService rawCaptures, IOfferRepository repository, PlaceMatchers matchers)
+    OfferSources sources, RawCaptureService rawCaptures, IOfferRepository repository, IPlaceRepository places)
 {
     public async Task<ReparseResult> Handle(CancellationToken cancellationToken)
     {
         // Oldest first: a deleted offer gets its creation time back; older pages never overwrite newer data.
         var captures = await rawCaptures.ListAsync(cancellationToken);
-        var resolver = new PlaceResolver(sources, await matchers.GetAsync(cancellationToken));
+        var resolver = new PlaceResolver(sources, places);
         var statistics = new SaveStatistics();
         var failed = 0;
         foreach (var capture in captures)
@@ -30,7 +30,7 @@ public sealed class ReparseOffersHandler(
                 continue;
             }
 
-            var offers = parsed.Offers.Select(resolver.Link).ToList();
+            var offers = await resolver.LinkAsync(parsed.Offers, cancellationToken);
             statistics.Add(await repository.SaveAsync(offers, capture, cancellationToken), parsed.SkippedCount);
         }
 

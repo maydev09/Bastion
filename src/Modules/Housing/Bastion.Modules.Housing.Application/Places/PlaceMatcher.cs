@@ -2,37 +2,21 @@ using Bastion.Modules.Housing.Domain;
 
 namespace Bastion.Modules.Housing.Application.Places;
 
-// Finds the place of a location hint. Names repeat (hundreds of "Nowa Wieś"), so the voivodeship
-// is required and the county, municipality and kind narrow the candidates down.
-public sealed class PlaceMatcher
+// Finds the place of a location hint among places of the same name. Names repeat (hundreds of "Nowa Wieś"),
+// so the voivodeship is required and the county, municipality and kind narrow the candidates down.
+public static class PlaceMatcher
 {
-    private readonly Dictionary<(Voivodeship, string), List<Place>> _byName = [];
-
-    public PlaceMatcher(IEnumerable<Place> places)
+    public static Place? Match(LocationHint hint, IEnumerable<Place> places)
     {
-        foreach (var place in places)
-        {
-            var key = (place.Voivodeship, PlaceNames.Normalize(place.Name));
-            if (!_byName.TryGetValue(key, out var candidates))
-            {
-                candidates = [];
-                _byName[key] = candidates;
-            }
-
-            candidates.Add(place);
-        }
-    }
-
-    public Place? Match(LocationHint hint)
-    {
-        if (PlaceNames.VoivodeshipOf(hint.Voivodeship) is not { } voivodeship
-            || !_byName.TryGetValue((voivodeship, PlaceNames.Normalize(hint.Place)), out var candidates))
+        if (PlaceNames.VoivodeshipOf(hint.Voivodeship) is not { } voivodeship)
         {
             return null;
         }
 
+        var name = PlaceNames.Normalize(hint.Place);
+        IReadOnlyList<Place> result = places.Where(p => p.Voivodeship == voivodeship && p.NameKey == name).ToList();
+
         // A hint that fits no candidate is ignored, e.g. a county the dictionary does not know.
-        IReadOnlyList<Place> result = candidates;
         result = Narrow(result, p => hint.County is not null && SameName(p.County, hint.County));
         result = Narrow(result, p => hint.Municipality is not null && SameName(p.Municipality, hint.Municipality));
         result = Narrow(result, p => hint.Kind is not null && p.Kind == hint.Kind);

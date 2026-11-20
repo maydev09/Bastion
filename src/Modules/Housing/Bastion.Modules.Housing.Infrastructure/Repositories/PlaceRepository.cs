@@ -7,21 +7,25 @@ namespace Bastion.Modules.Housing.Infrastructure.Repositories;
 
 public sealed class PlaceRepository(NpgsqlDataSource db) : IPlaceRepository
 {
-    private const string ListSql = """
-        SELECT id, simc, name, voivodeship, county, municipality, kind, role, population, population_year, population_source,
-               latitude, longitude
-        FROM housing.place
+    private const string Columns = """
+        id, simc, name, voivodeship, county, municipality, kind, role, population, population_year, population_source,
+        latitude, longitude
         """;
+
+    private const string ListSql = $"SELECT {Columns} FROM housing.place";
+
+    private const string ListByNameSql = $"SELECT {Columns} FROM housing.place WHERE voivodeship = @Voivodeship AND name_key = @NameKey";
 
     // One statement for all places (about 65 000); returns no row for an unchanged place.
     private const string SaveSql = """
         INSERT INTO housing.place AS p
-            (simc, name, voivodeship, county, municipality, kind, role, population, population_year, population_source,
+            (simc, name, name_key, voivodeship, county, municipality, kind, role, population, population_year, population_source,
              latitude, longitude)
-        SELECT * FROM unnest(@Simcs, @Names, @Voivodeships, @Counties, @Municipalities, @Kinds, @Roles, @Populations,
+        SELECT * FROM unnest(@Simcs, @Names, @NameKeys, @Voivodeships, @Counties, @Municipalities, @Kinds, @Roles, @Populations,
                              @PopulationYears, @PopulationSources, @Latitudes, @Longitudes)
         ON CONFLICT (simc) DO UPDATE SET
             name = excluded.name,
+            name_key = excluded.name_key,
             voivodeship = excluded.voivodeship,
             county = excluded.county,
             municipality = excluded.municipality,
@@ -51,10 +55,15 @@ public sealed class PlaceRepository(NpgsqlDataSource db) : IPlaceRepository
     {
         await using var connection = await db.OpenConnectionAsync(cancellationToken);
         var rows = await connection.QueryAsync<PlaceRow>(new CommandDefinition(ListSql, cancellationToken: cancellationToken));
-        return rows.Select(r => new Place(
-            r.Simc, r.Name, (Voivodeship)r.Voivodeship, r.County, r.Municipality, (PlaceKind?)r.Kind, (PlaceRole?)r.Role,
-            r.Population, r.PopulationYear, (PlaceSource?)r.PopulationSource, r.Latitude, r.Longitude)
-        { Id = r.Id }).ToList();
+        return rows.Select(ToPlace).ToList();
+    }
+
+    public async Task<IReadOnlyList<Place>> ListByNameAsync(Voivodeship voivodeship, string nameKey, CancellationToken cancellationToken)
+    {
+        await using var connection = await db.OpenConnectionAsync(cancellationToken);
+        var rows = await connection.QueryAsync<PlaceRow>(new CommandDefinition(
+            ListByNameSql, new { Voivodeship = (int)voivodeship, NameKey = nameKey }, cancellationToken: cancellationToken));
+        return rows.Select(ToPlace).ToList();
     }
 
     public async Task<SaveCounts> SaveAsync(IReadOnlyList<Place> places, CancellationToken cancellationToken)
@@ -64,6 +73,7 @@ public sealed class PlaceRepository(NpgsqlDataSource db) : IPlaceRepository
         {
             Simcs = places.Select(p => p.Simc).ToArray(),
             Names = places.Select(p => p.Name).ToArray(),
+            NameKeys = places.Select(p => p.NameKey).ToArray(),
             Voivodeships = places.Select(p => (int)p.Voivodeship).ToArray(),
             Counties = places.Select(p => p.County).ToArray(),
             Municipalities = places.Select(p => p.Municipality).ToArray(),
@@ -95,6 +105,11 @@ public sealed class PlaceRepository(NpgsqlDataSource db) : IPlaceRepository
         }, transaction, cancellationToken: cancellationToken));
         await transaction.CommitAsync(cancellationToken);
     }
+
+    private static Place ToPlace(PlaceRow r) => new(
+        r.Simc, r.Name, (Voivodeship)r.Voivodeship, r.County, r.Municipality, (PlaceKind?)r.Kind, (PlaceRole?)r.Role,
+        r.Population, r.PopulationYear, (PlaceSource?)r.PopulationSource, r.Latitude, r.Longitude)
+    { Id = r.Id };
 
     private sealed record PlaceRow(
         int Id, string Simc, string Name, int Voivodeship, string? County, string? Municipality, int? Kind, int? Role,

@@ -17,12 +17,12 @@ public class PlaceMatcherTests
     private static readonly Place BakowoVillage = new("0155001", "Bąkowo", Voivodeship.Pomorskie, "gdański", "Kolbudy", PlaceKind.Village, null, 1_200);
     private static readonly Place BakowoSettlement = new("0155002", "Bąkowo", Voivodeship.Pomorskie, "gdański", "Kolbudy", PlaceKind.Village, null, 40);
 
-    private static readonly PlaceMatcher Matcher = new(
-        [PruszkowTown, PruszkowLaski, PruszkowSkierniewicki, KoninCity, KoninVillage, Goscicino, BielskoBiala, BakowoVillage, BakowoSettlement]);
+    private static readonly Place[] Places =
+        [PruszkowTown, PruszkowLaski, PruszkowSkierniewicki, KoninCity, KoninVillage, Goscicino, BielskoBiala, BakowoVillage, BakowoSettlement];
 
     [TestCaseSource(nameof(Matches))]
     public void Finds_the_place_of_an_offer(string locationKey, Place expected) =>
-        Assert.That(Matcher.Match(OtoDomLocation.HintOf(locationKey)!), Is.EqualTo(expected));
+        Assert.That(PlaceMatcher.Match(OtoDomLocation.HintOf(locationKey)!, Places), Is.EqualTo(expected));
 
     private static IEnumerable<TestCaseData> Matches()
     {
@@ -39,16 +39,16 @@ public class PlaceMatcherTests
     {
         Assert.Multiple(() =>
         {
-            Assert.That(Matcher.Match(OtoDomLocation.HintOf("podlaskie/moniecki/krypno/krypno-koscielne")!), Is.Null);
-            Assert.That(Matcher.Match(new LocationHint("unknown", null, null, "Pruszków")), Is.Null);
+            Assert.That(PlaceMatcher.Match(OtoDomLocation.HintOf("podlaskie/moniecki/krypno/krypno-koscielne")!, Places), Is.Null);
+            Assert.That(PlaceMatcher.Match(new LocationHint("unknown", null, null, "Pruszków"), Places), Is.Null);
         });
     }
 
     [Test]
     public void Finds_nothing_when_two_places_cannot_be_told_apart()
     {
-        var twins = new PlaceMatcher([BakowoVillage, BakowoSettlement with { Population = BakowoVillage.Population }]);
+        Place[] twins = [BakowoVillage, BakowoSettlement with { Population = BakowoVillage.Population }];
 
-        Assert.That(twins.Match(OtoDomLocation.HintOf("pomorskie/gdanski/kolbudy/bakowo")!), Is.Null);
+        Assert.That(PlaceMatcher.Match(OtoDomLocation.HintOf("pomorskie/gdanski/kolbudy/bakowo")!, twins), Is.Null);
     }
 }

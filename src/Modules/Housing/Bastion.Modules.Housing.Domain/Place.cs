@@ -16,4 +16,6 @@ public sealed record Place(
     decimal? Longitude = null)
 {
     public int Id { get; init; }
+
+    public string NameKey => PlaceNames.Normalize(Name);
 }

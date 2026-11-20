@@ -10,8 +10,7 @@ public sealed class ImportPlacesHandler(
     IOfferRepository offers,
     OfferSources sources,
     IOptions<PlaceOptions> options,
-    IOptions<PlaceSizeOptions> sizes,
-    PlaceMatchers matchers)
+    IOptions<PlaceSizeOptions> sizes)
 {
     public async Task<ImportPlacesOutcome> Handle(CancellationToken cancellationToken)
     {
@@ -29,11 +28,15 @@ public sealed class ImportPlacesHandler(
         await places.ReplaceNearbyAsync(nearby, cancellationToken);
 
         // Stored offers get their places again: new places, and better matches after a fix in the matcher.
-        var resolver = new PlaceResolver(sources, matchers.Replace(stored));
+        var resolver = new PlaceResolver(sources, places);
         var locations = await offers.ListLocationsAsync(cancellationToken);
-        var links = locations
-            .Select(l => new PlaceLink(l.Source, l.LocationKey, resolver.PlaceIdOf(l.Source, l.LocationKey)))
-            .ToList();
+        var links = new List<PlaceLink>();
+        foreach (var location in locations)
+        {
+            var placeId = await resolver.PlaceIdOfAsync(location.Source, location.LocationKey, cancellationToken);
+            links.Add(new PlaceLink(location.Source, location.LocationKey, placeId));
+        }
+
         await offers.SetPlacesAsync(links, cancellationToken);
 
         var linked = locations.Zip(links).Where(p => p.Second.PlaceId is not null).Sum(p => p.First.OfferCount);
