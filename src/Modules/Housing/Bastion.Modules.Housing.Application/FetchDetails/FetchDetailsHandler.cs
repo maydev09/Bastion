@@ -136,7 +136,7 @@ public sealed class FetchDetailsHandler(
             return $"{offer.Url} shows offer {parsed.ExternalId}, not {offer.ExternalId}.";
         }
 
-        await repository.SaveDetailsAsync(capture, offer.ExternalId, parsed.Details!, logChanges: true, cancellationToken);
+        await repository.SaveDetailsAsync(capture, offer.ExternalId, parsed.Details!, recordChanges: true, cancellationToken);
         return null;
     }
 }

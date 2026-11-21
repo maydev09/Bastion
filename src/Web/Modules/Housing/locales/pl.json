@@ -98,6 +98,38 @@
       "WashingMachine": "pralka"
     }
   },
+  "changes": {
+    "title": "Historia zmian",
+    "none": "Nie zapisano jeszcze żadnych zmian tej oferty.",
+    "descriptionChanged": "ogłoszeniodawca zmienił opis",
+    "added": "dodano: {{list}}",
+    "removed": "usunięto: {{list}}",
+    "field": {
+      "title": "Tytuł",
+      "propertyType": "Rodzaj nieruchomości",
+      "transaction": "Transakcja",
+      "price": "Cena",
+      "priceCurrency": "Waluta ceny",
+      "areaM2": "Powierzchnia",
+      "rooms": "Pokoje",
+      "rent": "Czynsz",
+      "rentCurrency": "Waluta czynszu",
+      "deposit": "Kaucja",
+      "depositCurrency": "Waluta kaucji",
+      "availableFrom": "Dostępne od",
+      "floor": "Piętro",
+      "buildingFloors": "Piętra w budynku",
+      "buildYear": "Rok budowy",
+      "buildingType": "Rodzaj budynku",
+      "heating": "Ogrzewanie",
+      "condition": "Stan",
+      "latitude": "Szerokość geograficzna",
+      "longitude": "Długość geograficzna",
+      "locationRadiusM": "Dokładność lokalizacji",
+      "description": "Opis",
+      "features": "Udogodnienia"
+    }
+  },
   "place": {
     "name": "{{name}}, {{voivodeship}}",
     "kind": {
@@ -146,7 +178,8 @@
   },
   "units": {
     "area": "{{value}} m²",
-    "km": "{{value}} km"
+    "km": "{{value}} km",
+    "m": "{{value}} m"
   },
   "errors": {
     "parseFailed": "OtoDom zmienił wygląd strony, nie udało się odczytać ofert.",

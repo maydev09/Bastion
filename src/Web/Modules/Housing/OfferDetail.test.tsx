@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import i18n from "i18next";
 import { Route, Routes } from "react-router";
 import { describe, expect, it } from "vitest";
@@ -172,5 +172,55 @@ describe("OfferDetail", () => {
     renderDetail();
 
     expect(await screen.findByText(t("detail.notFetched"))).toBeInTheDocument();
+    expect(screen.getByText(t("changes.none"))).toBeInTheDocument();
+  });
+
+  it("shows the changes newest first with translated fields and values", async () => {
+    stubApi({
+      "/api/housing/offers/1": {
+        status: 200,
+        body: {
+          id: 1,
+          source: "OtoDom",
+          title: "Flat in Gdańsk",
+          url: "https://www.otodom.pl/pl/oferta/flat-ID1",
+          propertyType: "Flat",
+          transaction: "Rent",
+          price: 2000,
+          priceCurrency: "PLN",
+          createdAt: "2026-11-16T10:00:00+00:00",
+          updatedAt: "2026-11-21T10:00:00+00:00",
+          nearby: [],
+          changes: [
+            {
+              id: 2,
+              changedAt: "2026-11-21T10:00:00+00:00",
+              changes: [
+                { field: "features", before: ["Lift"], after: ["Balcony"] },
+                { field: "heating", before: "Gas", after: "District" },
+              ],
+            },
+            {
+              id: 1,
+              changedAt: "2026-11-20T10:00:00+00:00",
+              changes: [{ field: "price", before: 2200, after: 2000 }],
+            },
+          ],
+        },
+      },
+    });
+
+    renderDetail();
+
+    const history = await screen.findByRole("region", { name: t("changes.title") });
+    const days = within(history)
+      .getAllByRole("time")
+      .map((time) => time.getAttribute("dateTime"));
+    expect(days).toEqual(["2026-11-21T10:00:00+00:00", "2026-11-20T10:00:00+00:00"]);
+    expect(within(history).getByText(t("changes.field.heating"))).toBeInTheDocument();
+    expect(within(history).getByText(t("detail.heating.District"))).toBeInTheDocument();
+    expect(history).toHaveTextContent(t("changes.added", { list: t("detail.feature.Balcony") }));
+    expect(history).toHaveTextContent(t("changes.removed", { list: t("detail.feature.Lift") }));
+    expect(within(history).getByText(t("changes.field.price"))).toBeInTheDocument();
   });
 });

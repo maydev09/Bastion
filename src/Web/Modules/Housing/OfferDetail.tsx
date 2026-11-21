@@ -4,6 +4,7 @@ import { Link, useParams } from "react-router";
 import { api } from "@shared/api/client";
 import { useErrorMessage } from "@shared/useErrorMessage";
 import styles from "./OfferDetail.module.css";
+import { OfferChanges } from "./OfferChanges";
 import { OfferDetails } from "./OfferDetails";
 import { offersQueryKey } from "./queryKeys";
 import { useFormat } from "./useFormat";
@@ -71,14 +72,7 @@ export function OfferDetail() {
   ]
     .filter(Boolean)
     .join(", ");
-  const floorName =
-    o.floor == null
-      ? null
-      : o.floor === 0
-        ? t("detail.groundFloor")
-        : o.floor < 0
-          ? t("detail.basement")
-          : String(o.floor);
+  const floorName = o.floor == null ? null : format.floor(o.floor);
   const floor = !floorName
     ? "—"
     : o.buildingFloors
@@ -203,6 +197,7 @@ export function OfferDetail() {
       </div>
 
       <OfferDetails offer={o} />
+      <OfferChanges offer={o} />
     </article>
   );
 }

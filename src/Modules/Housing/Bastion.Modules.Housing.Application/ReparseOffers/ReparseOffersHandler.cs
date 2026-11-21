@@ -11,7 +11,7 @@ public sealed class ReparseOffersHandler(
     public async Task<ReparseResult> Handle(CancellationToken cancellationToken)
     {
         // Oldest first: a deleted offer gets its creation time back; older pages never overwrite newer data.
-        // Old pages show no new changes, so nothing goes to the change log.
+        // Old pages show no new changes, so no changes are recorded.
         var captures = await rawCaptures.ListAsync(cancellationToken);
         var resolver = new PlaceResolver(sources, places);
         var statistics = new SaveStatistics();
@@ -29,7 +29,7 @@ public sealed class ReparseOffersHandler(
             {
                 var details = offerSource.ParseDetails(page);
                 if (details.Failure is not null
-                    || !await repository.SaveDetailsAsync(capture, details.ExternalId!, details.Details!, logChanges: false, cancellationToken))
+                    || !await repository.SaveDetailsAsync(capture, details.ExternalId!, details.Details!, recordChanges: false, cancellationToken))
                 {
                     failed++;
                     continue;
@@ -47,7 +47,7 @@ public sealed class ReparseOffersHandler(
             }
 
             var offers = await resolver.LinkAsync(parsed.Offers, cancellationToken);
-            statistics.Add(await repository.SaveAsync(offers, capture, logChanges: false, cancellationToken), parsed.SkippedCount);
+            statistics.Add(await repository.SaveAsync(offers, capture, recordChanges: false, cancellationToken), parsed.SkippedCount);
         }
 
         return new ReparseResult(

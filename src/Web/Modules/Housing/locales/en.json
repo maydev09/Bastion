@@ -98,6 +98,38 @@
       "WashingMachine": "washing machine"
     }
   },
+  "changes": {
+    "title": "Change history",
+    "none": "No changes of this offer have been recorded yet.",
+    "descriptionChanged": "the advertiser changed the description",
+    "added": "added: {{list}}",
+    "removed": "removed: {{list}}",
+    "field": {
+      "title": "Title",
+      "propertyType": "Property type",
+      "transaction": "Transaction",
+      "price": "Price",
+      "priceCurrency": "Price currency",
+      "areaM2": "Area",
+      "rooms": "Rooms",
+      "rent": "Monthly fees",
+      "rentCurrency": "Fees currency",
+      "deposit": "Deposit",
+      "depositCurrency": "Deposit currency",
+      "availableFrom": "Available from",
+      "floor": "Floor",
+      "buildingFloors": "Floors in the building",
+      "buildYear": "Year built",
+      "buildingType": "Building type",
+      "heating": "Heating",
+      "condition": "Condition",
+      "latitude": "Latitude",
+      "longitude": "Longitude",
+      "locationRadiusM": "Location accuracy",
+      "description": "Description",
+      "features": "Features"
+    }
+  },
   "place": {
     "name": "{{name}}, {{voivodeship}}",
     "kind": {
@@ -146,7 +178,8 @@
   },
   "units": {
     "area": "{{value}} m²",
-    "km": "{{value}} km"
+    "km": "{{value}} km",
+    "m": "{{value}} m"
   },
   "errors": {
     "parseFailed": "OtoDom changed its page layout; the offers could not be read.",
