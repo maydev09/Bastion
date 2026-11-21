@@ -1,6 +1,3 @@
-[Logs]
-Path = "/data/logs"
-
 [Serilog.MinimumLevel]
 Default = "Information"
 
@@ -28,8 +25,8 @@ MaxFailedAttempts = 3    # then the offer waits until its content changes
 Retries = 4              # when the portal is out of reach (timeout, network, VPN; not 429): wait 30 s, 1, 2, 4 min
 FirstRetrySeconds = 30
 
+# Path is set per environment (bastion.<Environment>.toml).
 [Modules.Housing.RawCaptures]
-Path = "/data/raw/housing"
 RetentionDays = 30
 AnonymizationMask = "***"
 

@@ -68,9 +68,9 @@ It also stores the backend's connection string in the .NET user secrets of `Bast
 
 | What | Command | URL |
 |---|---|---|
-| Backend | `dotnet run --project src/Host/Bastion.Host` | http://localhost:5080 (Swagger: `/swagger`) |
-| UI with hot reload | `npm run dev` | http://localhost:5173 |
-| UI served by the backend | `npm run build`, then the backend | http://localhost:5080 |
+| Backend | `dotnet run --project src/Host/Bastion.Host` | http://localhost:5000 (Swagger: `/swagger`) |
+| UI with hot reload | `npm run dev` | http://localhost:3000 |
+| UI served by the backend | `npm run build`, then the backend | http://localhost:5000 |
 
 Without a connection string the backend stops at startup and says to run `scripts/dev-up.sh`.
 In containers the same key comes from the file `/run/secrets/ConnectionStrings__Bastion`.
@@ -85,7 +85,8 @@ and run the migrations exactly as Compose does (same images, read from `compose.
 `src/Host/Bastion.Host/data/raw/housing/<day>/<id>.zst` (git-ignored; open with `zstd -dc <id>.zst`).
 The folder is `[Modules.Housing.RawCaptures] Path` in the configuration.
 
-**Configuration**: `src/Host/Bastion.Host/bastion.toml` (not `appsettings.json`); local overrides
+**Configuration**: `src/Host/Bastion.Host/bastion.toml` (not `appsettings.json`); per environment
+`bastion.Development.toml` (local runs) and `bastion.Production.toml` (the container); local overrides
 in the git-ignored `bastion.local.toml`; environment variables win, e.g. `Modules__JobOffers__Enabled=false`.
 
 **Windows** is not documented or tested. Bastion can run there too, but the scripts (bash,

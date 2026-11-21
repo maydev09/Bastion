@@ -34,4 +34,6 @@ COPY --from=backend /app .
 RUN mkdir /data && chown app:app /data
 USER app
 VOLUME /data
+# The default port of the .NET image (ASPNETCORE_HTTP_PORTS).
+EXPOSE 8080
 ENTRYPOINT ["dotnet", "Bastion.Host.dll"]
