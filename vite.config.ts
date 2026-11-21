@@ -14,8 +14,8 @@ export default defineConfig({
     },
   },
   server: {
-    port: 5173,
-    proxy: { "/api": "http://localhost:5080" },
+    port: 3000,
+    proxy: { "/api": "http://localhost:5000" },
     fs: { allow: [repo] },
   },
   build: {

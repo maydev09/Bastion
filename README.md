@@ -68,9 +68,9 @@ It also stores the backend's connection string in the .NET user secrets of `Bast
 
 | What | Command | URL |
 |---|---|---|
-| Backend | `dotnet run --project src/Host/Bastion.Host` | http://localhost:5080 (Swagger: `/swagger`) |
-| UI with hot reload | `npm run dev` | http://localhost:5173 |
-| UI served by the backend | `npm run build`, then the backend | http://localhost:5080 |
+| Backend | `dotnet run --project src/Host/Bastion.Host` | http://localhost:5000 (Swagger: `/swagger`) |
+| UI with hot reload | `npm run dev` | http://localhost:3000 |
+| UI served by the backend | `npm run build`, then the backend | http://localhost:5000 |
 
 Without a connection string the backend stops at startup and says to run `scripts/dev-up.sh`.
 In containers the same key comes from the file `/run/secrets/ConnectionStrings__Bastion`.

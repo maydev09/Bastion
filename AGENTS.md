@@ -230,9 +230,9 @@ Update the matching file in the same change that makes it outdated:
   `scripts/dev-restore-prod.sh <user@server>` replaces the local database and raw captures with a
   snapshot of production taken now (all or nothing); run it only when the maintainer asks.
   In Development `[Jobs] Scheduled = false`: jobs run only when started from the UI.
-- Run: `dotnet run --project src/Host/Bastion.Host` or Rider (http://localhost:5080); in Development the
+- Run: `dotnet run --project src/Host/Bastion.Host` or Rider (http://localhost:5000); in Development the
   connection string comes from the .NET user secrets. Without it the backend stops at startup.
-- Frontend (repository root): `npm install`, `npm run dev` (http://localhost:5173, proxies `/api`
+- Frontend (repository root): `npm install`, `npm run dev` (http://localhost:3000, proxies `/api`
   to the backend), `npm run build` (into the Host's `wwwroot`), `npm run lint`, `npm test`.
 - API types: `dotnet build` writes `src/Web/Shared/api/openapi.json`; then `npm run api`
   regenerates `src/Web/Shared/api/schema.ts`. Commit both.
