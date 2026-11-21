@@ -25,6 +25,8 @@ FullScanMaxPages = 1000  # safety limit only; the whole listing had 360 pages in
 [Modules.Housing.Details]
 MaxMinutes = 50          # per run; the rest waits for the next run
 MaxFailedAttempts = 3    # then the offer waits until its content changes
+Retries = 4              # when the portal is out of reach (timeout, 429, VPN): wait 30 s, 1, 2, 4 min
+FirstRetrySeconds = 30
 
 [Modules.Housing.RawCaptures]
 Path = "/data/raw/housing"

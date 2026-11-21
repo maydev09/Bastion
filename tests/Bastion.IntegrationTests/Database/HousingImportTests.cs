@@ -578,6 +578,27 @@ public class HousingImportTests
     }
 
     [Test]
+    public async Task A_short_outage_is_retried_and_the_run_goes_on()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small, Large]];
+        _source.Details["1"] = new OfferDetails(Floor: 1);
+        _source.Details["2"] = new OfferDetails(Floor: 2);
+        await RunImport(client);
+        _source.DetailTimeouts = 2;
+
+        var run = await JobRuns.Run(client, FetchDetails);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(run.Status, Is.EqualTo(JobRunStatus.Succeeded), run.ErrorCode);
+            Assert.That(run.Summary!.Counts["fetched"], Is.EqualTo(2));
+            Assert.That(run.Summary.Counts["retried"], Is.EqualTo(2));
+        });
+    }
+
+    [Test]
     public async Task An_unreachable_portal_fails_the_run_and_blames_no_offer()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
@@ -711,6 +732,7 @@ public class HousingImportTests
         TestApp.WithAllModules(b => b
             .UseSetting($"ConnectionStrings:{DatabaseStatusEndpoint.ConnectionStringName}", DatabaseSetup.AppConnectionString)
             .UseSetting("Modules:Housing:RawCaptures:Path", _rawPath)
+            .UseSetting("Modules:Housing:Details:FirstRetrySeconds", "0")
             .ConfigureTestServices(services));
 
     private static async Task Sql(string sql)
@@ -807,10 +829,19 @@ public class HousingImportTests
         // The portal out of reach, e.g. no VPN.
         public bool DetailsUnavailable { get; set; }
 
+        // The next detail requests that time out, before the portal answers again.
+        public int DetailTimeouts { get; set; }
+
         public Task<FetchResult> FetchDetailPageAsync(Uri url, CancellationToken cancellationToken)
         {
             var externalId = Pages.SelectMany(p => p).FirstOrDefault(o => o.Url == url)?.ExternalId ?? url.ToString();
             DetailRequests.Add(externalId);
+            if (DetailTimeouts > 0)
+            {
+                DetailTimeouts--;
+                return Task.FromResult(FetchResult.Failed(new Failure(ScrapingException.NetworkError, "Timed out.", FailureKind.Unavailable)));
+            }
+
             if (DetailsUnavailable)
             {
                 return Task.FromResult(FetchResult.Failed(new Failure(ScrapingException.VpnRequired, "No VPN.", FailureKind.Unavailable)));
