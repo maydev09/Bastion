@@ -752,6 +752,67 @@ public class HousingImportTests
     }
 
     [Test]
+    public async Task Changes_of_a_stored_offer_are_logged_but_first_values_and_bumps_are_not()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small with { Features = [Feature.Garden] }]];
+        _source.Details["1"] = new OfferDetails(Floor: 3, Features: [Feature.Balcony]);
+        await RunImport(client);
+        await RunDetails(client);
+
+        var cheaper = Small with { Price = new Money(2000m, Currency.Pln), Rent = new Money(500m, Currency.Pln) };
+        _source.Pages = [[cheaper]];
+        _source.Details["1"] = new OfferDetails(Floor: 4, Features: [Feature.Lift, Feature.Balcony]);
+        await RunImport(client);
+        await RunDetails(client);
+        _source.Pages = [[cheaper with { ExternalUpdatedAt = At(13) }]];
+        await RunImport(client);
+
+        var logged = await Scalar<string>("""
+            SELECT string_agg(key, ',' ORDER BY id, key)
+            FROM housing.offer_change_log, jsonb_object_keys(changes) AS key
+            """);
+        var price = await Scalar<bool>("SELECT changes -> 'price' = '[2200, 2000]' FROM housing.offer_change_log WHERE changes ? 'price'");
+        var newFeatures = string.Join(",", new[] { (int)Feature.Balcony, (int)Feature.Lift }.Order());
+        var features = await Scalar<bool>($"""
+            SELECT changes -> 'features' = '[[{(int)Feature.Balcony}], [{newFeatures}]]'
+            FROM housing.offer_change_log WHERE changes ? 'features'
+            """);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(logged, Is.EqualTo("price,features,floor"));
+            Assert.That((price, features), Is.EqualTo((true, true)));
+        });
+    }
+
+    [Test]
+    public async Task Reparse_logs_no_changes()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small]];
+        _source.Details["1"] = new OfferDetails(Floor: 3);
+        await RunImport(client);
+        await RunDetails(client);
+        _source.Pages = [[Small with { Price = new Money(2000m, Currency.Pln) }]];
+        _source.Details["1"] = new OfferDetails(Floor: 4);
+        await RunImport(client);
+        await RunDetails(client);
+        var before = await Scalar<long>("SELECT count(*) FROM housing.offer_change_log");
+
+        var response = await client.PostAsync(new Uri("/api/housing/reparse", UriKind.Relative), null);
+        response.EnsureSuccessStatusCode();
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(before, Is.EqualTo(2));
+            Assert.That(await Scalar<long>("SELECT count(*) FROM housing.offer_change_log"), Is.EqualTo(before));
+        });
+    }
+
+    [Test]
     public async Task Import_of_an_unknown_source_is_not_found()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));

@@ -100,6 +100,9 @@ Spend effort only on what solves a real problem the maintainer has today
   gives the context (`Bastion/bastion_app password`, not `Bastion/Bastion: password of the
   bastion_app role`; `db-app-password`, not `db-app`). This applies to identifiers, files,
   folders, configuration keys and secret-store entries.
+- Method names start with a verb that says what they do (Clean Code): `BuildChangeMap`, not
+  `Changes`; a bool method asks a question (`IsRemoved`, `AreEqual`). Nouns are for types,
+  properties and variables.
 - Module layers are projects `Bastion.Modules.<Module>.<Layer>`: Domain -> nothing; Application -> Domain;
   Infrastructure and Api -> Application; the root -> all layers. Namespaces equal project names.
   Create a layer project only when it has code. Use cases are vertical slices in `Application/<UseCase>/`.
