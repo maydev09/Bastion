@@ -196,9 +196,10 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
     // The fields whose changes are logged, read before and after a save (locked, so another job cannot change them in between).
     // Not logged: the portal's dates (a bump), the URL, the location (not part of the content) and the place (our match).
     // Features count only after the first detail page: before it they are listing tags, a part of the full set.
+    // available_from as text: read without a type, a date comes as DateTime and would be logged with a time.
     private const string ContentSql = """
         SELECT o.id, o.title, o.property_type, o.transaction, o.price, o.price_currency, o.area_m2, o.rooms,
-            o.rent, o.rent_currency, o.deposit, o.deposit_currency, o.available_from, o.floor, o.building_floors,
+            o.rent, o.rent_currency, o.deposit, o.deposit_currency, o.available_from::text AS available_from, o.floor, o.building_floors,
             o.build_year, o.building_type, o.heating, o.condition, o.latitude, o.longitude, o.location_radius_m,
             o.description,
             CASE WHEN f.fetched_at IS NOT NULL
@@ -279,7 +280,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         await connection.ExecuteAsync(new CommandDefinition(SeenSql, new
         {
             SourceId = (int)capture.SourceId,
-            ExternalIds = offers.Select(o => o.ExternalId).ToArray(),
+            ExternalIds = externalIds,
             SeenAt = capture.FetchedAt,
         }, transaction, cancellationToken: cancellationToken));
 
@@ -294,7 +295,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         await connection.ExecuteAsync(new CommandDefinition(LocationSql, new
         {
             SourceId = (int)capture.SourceId,
-            ExternalIds = offers.Select(o => o.ExternalId).ToArray(),
+            ExternalIds = externalIds,
             LocationKeys = offers.Select(o => o.LocationKey).ToArray(),
             PlaceIds = offers.Select(o => o.PlaceId).ToArray(),
         }, transaction, cancellationToken: cancellationToken));

@@ -752,28 +752,37 @@ public class HousingImportTests
     }
 
     [Test]
-    public async Task Changes_of_a_stored_offer_are_logged_but_first_values_and_bumps_are_not()
+    public async Task Content_changes_are_logged_but_first_values_and_bumps_are_not()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
         using var client = factory.CreateClient();
         _source.Pages = [[Small with { Features = [Feature.Garden] }]];
-        _source.Details["1"] = new OfferDetails(Floor: 3, Features: [Feature.Balcony]);
+        _source.Details["1"] = new OfferDetails(Floor: 3, AvailableFrom: new DateOnly(2026, 12, 1), Features: [Feature.Balcony]);
         await RunImport(client);
         await RunDetails(client);
 
         var cheaper = Small with { Price = new Money(2000m, Currency.Pln), Rent = new Money(500m, Currency.Pln) };
         _source.Pages = [[cheaper]];
-        _source.Details["1"] = new OfferDetails(Floor: 4, Features: [Feature.Lift, Feature.Balcony]);
+        _source.Details["1"] = new OfferDetails(Floor: 4, AvailableFrom: new DateOnly(2027, 1, 1), Features: [Feature.Lift, Feature.Balcony]);
         await RunImport(client);
         await RunDetails(client);
         _source.Pages = [[cheaper with { ExternalUpdatedAt = At(13) }]];
+        await RunImport(client);
+        _source.Pages = [[cheaper with { ExternalUpdatedAt = At(13), Price = null }]];
         await RunImport(client);
 
         var logged = await Scalar<string>("""
             SELECT string_agg(key, ',' ORDER BY id, key)
             FROM housing.offer_change_log, jsonb_object_keys(changes) AS key
             """);
-        var price = await Scalar<bool>("SELECT changes -> 'price' = '[2200, 2000]' FROM housing.offer_change_log WHERE changes ? 'price'");
+        var price = await Scalar<bool>("""
+            SELECT array_agg(changes -> 'price' ORDER BY id) = ARRAY['[2200, 2000]', '[2000, null]']::jsonb[]
+            FROM housing.offer_change_log WHERE changes ? 'price'
+            """);
+        var availableFrom = await Scalar<bool>("""
+            SELECT changes -> 'available_from' = '["2026-12-01", "2027-01-01"]'
+            FROM housing.offer_change_log WHERE changes ? 'available_from'
+            """);
         var newFeatures = string.Join(",", new[] { (int)Feature.Balcony, (int)Feature.Lift }.Order());
         var features = await Scalar<bool>($"""
             SELECT changes -> 'features' = '[[{(int)Feature.Balcony}], [{newFeatures}]]'
@@ -782,8 +791,8 @@ public class HousingImportTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(logged, Is.EqualTo("price,features,floor"));
-            Assert.That((price, features), Is.EqualTo((true, true)));
+            Assert.That(logged, Is.EqualTo("price,available_from,features,floor,price,price_currency"));
+            Assert.That((price, availableFrom, features), Is.EqualTo((true, true, true)));
         });
     }
 
