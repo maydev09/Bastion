@@ -14,9 +14,13 @@ public sealed class FetchDetailsHandler(
 {
     // A single bad page (HTTP 404 of an offer removed since the last scan) is that offer's failure.
     // Many in a row mean the portal refuses us (403, CAPTCHA): the run stops and those offers are not blamed.
-    // A portal out of reach (no VPN, rate limited, timeout) is retried after FirstRetrySeconds, then twice as long
-    // each time; when the retries run out it stops the run and blames no offer.
+    // A portal out of reach (no VPN, network, timeout) is retried after FirstRetrySeconds, then twice as long each time;
+    // when the retries run out it stops the run and blames no offer.
+    // A rate limited portal (429, 503) stops the run at once: the scraping client already backs off before its next request.
     public const int MaxFetchFailuresInRow = 10;
+
+    // The longest a retried request may take (the HTTP timeout plus the pause between requests), so a retry ends before the deadline.
+    private static readonly TimeSpan RequestAllowance = TimeSpan.FromMinutes(1);
 
     private const int BatchSize = 100;
 
@@ -51,22 +55,25 @@ public sealed class FetchDetailsHandler(
                 }
 
                 var fetch = await offerSource.FetchDetailPageAsync(offer.Url, cancellationToken);
-                for (var retry = 0; fetch.Failure is { Kind: FailureKind.Unavailable } && retry < options.Value.Retries; retry++)
+                var retries = 0;
+                while (fetch.Failure is { Kind: FailureKind.Unavailable } && retries < options.Value.Retries)
                 {
-                    var wait = TimeSpan.FromSeconds(options.Value.FirstRetrySeconds * (1 << retry));
-                    if (time.GetUtcNow() + wait >= deadline)
+                    var wait = TimeSpan.FromSeconds(options.Value.FirstRetrySeconds * (1 << retries));
+                    if (time.GetUtcNow() + wait + RequestAllowance >= deadline)
                     {
                         break;
                     }
 
                     await Task.Delay(wait, time, cancellationToken);
                     fetch = await offerSource.FetchDetailPageAsync(offer.Url, cancellationToken);
-                    retried++;
+                    retries++;
                 }
 
-                if (fetch.Failure is { Kind: FailureKind.Unavailable } unavailable)
+                retried += retries;
+                if (fetch.Failure is { Kind: FailureKind.Unavailable or FailureKind.RateLimited } unavailable)
                 {
-                    return new DetailsOutcome(null, unavailable);
+                    // A failed run keeps no summary, so the retries go into the error.
+                    return new DetailsOutcome(null, unavailable with { Detail = $"{unavailable.Detail} (after {retries} retries)" });
                 }
 
                 if (fetch.Failure is { } fetchFailure)
