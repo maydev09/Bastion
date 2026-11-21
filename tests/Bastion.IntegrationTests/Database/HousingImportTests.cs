@@ -761,6 +761,27 @@ public class HousingImportTests
     }
 
     [Test]
+    public async Task A_portal_answering_404_to_every_page_stops_the_run_and_blames_no_offer()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        using var client = factory.CreateClient();
+        // No detail pages: every fetch answers 404, as after the portal changed its URLs.
+        _source.Pages = [Enumerable.Range(1, FetchDetailsHandler.MaxGonePagesInRow + 2)
+            .Select(i => Small with { ExternalId = $"{i}", Url = new Uri($"https://www.otodom.pl/pl/oferta/flat-ID{i}") })
+            .ToList()];
+        await RunImport(client);
+
+        var run = await JobRuns.Run(client, FetchDetails);
+        var blamed = await Scalar<long>("SELECT count(*) FROM housing.offer_detail_fetch");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(run.Status, Is.EqualTo(JobRunStatus.Failed));
+            Assert.That(blamed, Is.Zero);
+        });
+    }
+
+    [Test]
     public async Task Listing_tags_do_not_come_back_after_the_details_replaced_them()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));

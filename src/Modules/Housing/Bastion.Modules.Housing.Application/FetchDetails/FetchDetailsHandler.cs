@@ -12,13 +12,18 @@ public sealed class FetchDetailsHandler(
     TimeProvider time,
     IOptions<DetailsOptions> options)
 {
-    // A page that is gone (HTTP 404, 410 of an offer removed since the last scan) is always that offer's failure,
-    // however many there are: removed offers at the head of the queue must not stop every run.
-    // Other bad pages in a row mean the portal refuses us (403, CAPTCHA): the run stops and those offers are not blamed.
+    // A single bad page is that offer's failure.
+    // Many in a row mean the portal refuses us (403, CAPTCHA): the run stops and those offers are not blamed.
+    // A page that is gone (HTTP 404, 410 of an offer removed since the last scan) is no sign of a refusal, so removed
+    // offers at the head of the queue cannot stop every run; only far more of them in a row mean the whole portal
+    // answers so (changed URLs, a block page) and stop the run.
     // A portal out of reach (no VPN, network, timeout) is retried after FirstRetrySeconds, then twice as long each time;
     // when the retries run out it stops the run and blames no offer.
     // A rate limited portal (429, 503) stops the run at once: the scraping client already backs off before its next request.
     public const int MaxFetchFailuresInRow = 10;
+
+    // Below BatchSize: the streak is blamed before each batch.
+    public const int MaxGonePagesInRow = 50;
 
     // The longest a retried request may take (the HTTP timeout plus the pause between requests), so a retry ends before the deadline.
     private static readonly TimeSpan RequestAllowance = TimeSpan.FromMinutes(1);
@@ -37,7 +42,7 @@ public sealed class FetchDetailsHandler(
         int fetched = 0, failed = 0, retried = 0;
 
         // Failed fetches since the last success; blamed on their offers only when the streak ends without stopping the run.
-        var streak = new List<(PendingDetails Offer, DateTimeOffset At, string Error)>();
+        var streak = new List<(PendingDetails Offer, DateTimeOffset At, string Error, bool IsGone)>();
         while (time.GetUtcNow() < deadline)
         {
             // Before the next batch, or these offers would come back in it.
@@ -77,17 +82,10 @@ public sealed class FetchDetailsHandler(
                     return new DetailsOutcome(null, unavailable with { Detail = $"{unavailable.Detail} (after {retries} retries)" });
                 }
 
-                if (fetch.Failure is { Kind: FailureKind.Gone } gone)
-                {
-                    await repository.MarkDetailsFailedAsync(offer, time.GetUtcNow(), gone.Detail, cancellationToken);
-                    failed++;
-                    continue;
-                }
-
                 if (fetch.Failure is { } fetchFailure)
                 {
-                    streak.Add((offer, time.GetUtcNow(), fetchFailure.Detail));
-                    if (streak.Count >= MaxFetchFailuresInRow)
+                    streak.Add((offer, time.GetUtcNow(), fetchFailure.Detail, fetchFailure.Kind == FailureKind.Gone));
+                    if (streak.Count(f => !f.IsGone) >= MaxFetchFailuresInRow || streak.Count(f => f.IsGone) >= MaxGonePagesInRow)
                     {
                         return new DetailsOutcome(null, fetchFailure);
                     }
@@ -116,9 +114,9 @@ public sealed class FetchDetailsHandler(
         return new DetailsOutcome(new DetailsResult(source, fetched, failed, retried), null);
     }
 
-    private async Task<int> BlameAsync(List<(PendingDetails Offer, DateTimeOffset At, string Error)> streak, CancellationToken cancellationToken)
+    private async Task<int> BlameAsync(List<(PendingDetails Offer, DateTimeOffset At, string Error, bool IsGone)> streak, CancellationToken cancellationToken)
     {
-        foreach (var (offer, at, error) in streak)
+        foreach (var (offer, at, error, _) in streak)
         {
             await repository.MarkDetailsFailedAsync(offer, at, error, cancellationToken);
         }
