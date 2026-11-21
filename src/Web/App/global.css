@@ -1,34 +1,110 @@
+/*
+ * Design tokens with the colors of the Noctalia palette (default), light and dark:
+ * https://github.com/noctalia-dev/noctalia/blob/main/src/theme/builtin_palettes.cpp
+ * Noctalia defines the roles (primary, surface, outline...); the shades it computes at runtime
+ * (panel backgrounds, borders, hovers) and the success color are chosen here from its hues.
+ * Each color is light-dark(light, dark). The theme follows the system unless the user picks one
+ * in the top bar, which sets data-theme on <html>.
+ */
 :root {
-  --color-bg: #070722;
-  --color-surface: #11112d;
-  --color-surface-raised: #17173c;
-  --color-surface-hover: #1a1a42;
-  --color-text: #f3edf7;
-  --color-text-secondary: #c4c3e0;
-  --color-muted: #8589bd;
-  --color-border: rgb(243 237 247 / 10%);
-  --color-accent: #fff59b;
-  --color-success: #9bfece;
-  --color-warning: #ffc66b;
-  --color-error: #fd4663;
-  --color-info: #a9aefe;
-  --color-on-accent: #070722;
+  color-scheme: light dark;
+  --color-bg: light-dark(#dcddea, #15162e); /* surface */
+  --color-surface: light-dark(#e9eaf3, #1b1c37);
+  --color-surface-raised: light-dark(#f0f0f7, #262848);
+  --color-surface-sunken: light-dark(#cfd2e4, #20213d); /* surface_container */
+  --color-surface-hover: light-dark(#d4d7ea, #26284a);
+  --color-text: light-dark(#292b45, #ece9f4); /* on_surface */
+  --color-text-secondary: light-dark(#414765, #a5a7c6); /* on_surface_variant */
+  --color-muted: light-dark(#5d6386, #8587ab);
+  --color-border: light-dark(#bfc3dc, #2c2e51);
+  --color-border-strong: light-dark(#a4aac9, #3e4166); /* outline_variant */
+  --color-accent: light-dark(#5058b1, #f7e9a8); /* primary */
+  --color-accent-hover: light-dark(#434a9c, #fff3c8);
+  --color-accent-soft: light-dark(#d0d3ef, #34334a);
+  --color-on-accent: light-dark(#f0eff7, #302c1e); /* on_primary */
+  --color-highlight: light-dark(#3b4168, #a0ddc0); /* hover */
+  --color-on-highlight: light-dark(#fff0bd, #1d3029); /* on_hover */
+  --color-success: light-dark(#2a6e51, #a0ddc0); /* dark: tertiary */
+  --color-warning: light-dark(#8a5a00, #f0c27a);
+  --color-error: light-dark(#a53c59, #ed8296); /* error */
+  --color-info: light-dark(#555e88, #b3b8ed); /* secondary */
+  --color-focus: light-dark(#5058b1, #b3b8ed);
+  --shadow-popup:
+    0 8px 24px light-dark(rgb(51 54 82 / 22%), rgb(11 12 27 / 60%)),
+    0 1px 2px light-dark(rgb(51 54 82 / 14%), rgb(11 12 27 / 40%)); /* shadow */
+
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
   --space-6: 24px;
-  --radius: 8px;
-  color-scheme: dark;
-  font-family: system-ui, sans-serif;
+  --space-8: 32px;
+  --radius: 6px;
+  --radius-sm: 4px;
+  --control-height: 32px;
+  --font-size-sm: 0.8125rem;
+  --font-size: 0.875rem;
+  --font-size-lg: 1rem;
+  --font-size-title: 1.25rem;
+
+  font-family:
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    Roboto,
+    sans-serif;
+  font-size: 16px;
   color: var(--color-text);
   background: var(--color-bg);
 }
 
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
+:root[data-theme="dark"] {
+  color-scheme: dark;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
 body {
+  margin: 0;
+  font-size: var(--font-size);
+  line-height: 1.45;
+}
+
+h1 {
+  margin: 0;
+  font-size: var(--font-size-title);
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+h2 {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: 600;
+}
+
+p {
   margin: 0;
 }
 
 a {
-  color: var(--color-info);
+  color: var(--color-accent);
+  text-decoration: none;
+
+  &:hover {
+    text-decoration: underline;
+  }
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-focus);
+  outline-offset: 1px;
 }

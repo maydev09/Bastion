@@ -14,6 +14,12 @@
   "language": {
     "label": "Język"
   },
+  "theme": {
+    "label": "Motyw: {{theme}}. Kliknij, aby zmienić.",
+    "system": "systemowy",
+    "light": "jasny",
+    "dark": "ciemny"
+  },
   "status": {
     "loading": "Wczytywanie…",
     "modulesFailed": "Nie udało się wczytać listy modułów. Czy backend działa?",
@@ -40,5 +46,16 @@
     "running": "Sprawdzam…",
     "ok": "Połączenie z bazą danych działa.",
     "canChangeSchema": "Uwaga: aplikacja ma za szerokie uprawnienia w bazie (może zmieniać schemat)."
+  },
+  "table": {
+    "pagination": "Strony wyników",
+    "range": "{{from}}–{{to}} z {{total}}",
+    "pageSize": "Na stronie",
+    "first": "Pierwsza strona",
+    "previous": "Poprzednia strona",
+    "next": "Następna strona",
+    "last": "Ostatnia strona",
+    "page": "Numer strony",
+    "of": "z {{pages}}"
   }
 }

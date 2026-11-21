@@ -1,0 +1,63 @@
+.trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  height: var(--control-height);
+  min-width: 64px;
+  padding: 0 var(--space-2) 0 var(--space-3);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-surface-hover);
+  }
+}
+
+.icon {
+  color: var(--color-muted);
+}
+
+.positioner {
+  z-index: 20;
+  outline: none;
+}
+
+.popup {
+  min-width: var(--anchor-width);
+  padding: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface-raised);
+  box-shadow: var(--shadow-popup);
+  outline: none;
+}
+
+.item {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-2);
+  border-radius: var(--radius-sm);
+  outline: none;
+  cursor: default;
+  user-select: none;
+
+  &[data-highlighted] {
+    background: var(--color-highlight);
+    color: var(--color-on-highlight);
+  }
+}
+
+.indicator {
+  grid-column: 1;
+}
+
+.item > :last-child {
+  grid-column: 2;
+}

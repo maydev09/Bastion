@@ -22,7 +22,7 @@ export function DatabaseStatus() {
     <section className={styles.card}>
       <h2>{t("database.title")}</h2>
       <p>{t("database.description")}</p>
-      <Button variant="success" onClick={() => check.mutate()} disabled={check.isPending}>
+      <Button variant="primary" onClick={() => check.mutate()} disabled={check.isPending}>
         {check.isPending ? t("database.running") : t("database.run")}
       </Button>
       {check.data &&
