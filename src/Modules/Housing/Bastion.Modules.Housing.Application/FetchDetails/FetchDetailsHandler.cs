@@ -12,8 +12,9 @@ public sealed class FetchDetailsHandler(
     TimeProvider time,
     IOptions<DetailsOptions> options)
 {
-    // A single bad page (HTTP 404 of an offer removed since the last scan) is that offer's failure.
-    // Many in a row mean the portal refuses us (403, CAPTCHA): the run stops and those offers are not blamed.
+    // A page that is gone (HTTP 404, 410 of an offer removed since the last scan) is always that offer's failure,
+    // however many there are: removed offers at the head of the queue must not stop every run.
+    // Other bad pages in a row mean the portal refuses us (403, CAPTCHA): the run stops and those offers are not blamed.
     // A portal out of reach (no VPN, network, timeout) is retried after FirstRetrySeconds, then twice as long each time;
     // when the retries run out it stops the run and blames no offer.
     // A rate limited portal (429, 503) stops the run at once: the scraping client already backs off before its next request.
@@ -74,6 +75,13 @@ public sealed class FetchDetailsHandler(
                 {
                     // A failed run keeps no summary, so the retries go into the error.
                     return new DetailsOutcome(null, unavailable with { Detail = $"{unavailable.Detail} (after {retries} retries)" });
+                }
+
+                if (fetch.Failure is { Kind: FailureKind.Gone } gone)
+                {
+                    await repository.MarkDetailsFailedAsync(offer, time.GetUtcNow(), gone.Detail, cancellationToken);
+                    failed++;
+                    continue;
                 }
 
                 if (fetch.Failure is { } fetchFailure)
