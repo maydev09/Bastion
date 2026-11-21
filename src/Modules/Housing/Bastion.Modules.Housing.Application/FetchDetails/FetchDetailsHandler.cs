@@ -90,7 +90,7 @@ public sealed class FetchDetailsHandler(
                 failed += await BlameAsync(streak, cancellationToken);
                 var page = offerSource.Anonymize(fetch.Page!);
                 var capture = await rawCaptures.SaveAsync(source, page, cancellationToken);
-                var error = await SaveAsync(offerSource, page, offer, cancellationToken);
+                var error = await SaveAsync(offerSource, page, capture, offer, cancellationToken);
                 if (error is null)
                 {
                     await repository.MarkDetailsFetchedAsync(offer, capture.FetchedAt, cancellationToken);
@@ -121,7 +121,8 @@ public sealed class FetchDetailsHandler(
     }
 
     // Returns the error, or null when the details were saved.
-    private async Task<string?> SaveAsync(IOfferSource offerSource, RawPage page, PendingDetails offer, CancellationToken cancellationToken)
+    private async Task<string?> SaveAsync(
+        IOfferSource offerSource, RawPage page, RawCapture capture, PendingDetails offer, CancellationToken cancellationToken)
     {
         var parsed = offerSource.ParseDetails(page);
         if (parsed.Failure is { } failure)
@@ -135,7 +136,7 @@ public sealed class FetchDetailsHandler(
             return $"{offer.Url} shows offer {parsed.ExternalId}, not {offer.ExternalId}.";
         }
 
-        await repository.SaveDetailsAsync(offerSource.Source, offer.ExternalId, parsed.Details!, cancellationToken);
+        await repository.SaveDetailsAsync(capture, offer.ExternalId, parsed.Details!, recordChanges: true, cancellationToken);
         return null;
     }
 }

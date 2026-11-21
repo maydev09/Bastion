@@ -7,7 +7,8 @@ namespace Bastion.Modules.Housing.Application.Abstractions;
 public interface IOfferRepository
 {
     // Every saved offer counts as seen at the time of the capture.
-    Task<SaveCounts> SaveAsync(IReadOnlyList<Offer> offers, RawCapture capture, CancellationToken cancellationToken);
+    // recordChanges: content changes of stored offers go to housing.offer_change, dated by the capture.
+    Task<SaveCounts> SaveAsync(IReadOnlyList<Offer> offers, RawCapture capture, bool recordChanges, CancellationToken cancellationToken);
 
     // Called after a complete full scan: listed offers not seen since it started miss one more scan.
     Task<MissedCounts> MarkMissedAsync(Source source, DateTimeOffset scanStartedAt, int missedScansToRemove, CancellationToken cancellationToken);
@@ -22,8 +23,8 @@ public interface IOfferRepository
     Task<IReadOnlyList<PendingDetails>> ListPendingDetailsAsync(
         Source source, int limit, int maxFailedAttempts, DateTimeOffset runStartedAt, CancellationToken cancellationToken);
 
-    // Returns false when there is no offer with the external id.
-    Task<bool> SaveDetailsAsync(Source source, string externalId, OfferDetails details, CancellationToken cancellationToken);
+    // Returns false when there is no offer with the external id. recordChanges as in SaveAsync.
+    Task<bool> SaveDetailsAsync(RawCapture capture, string externalId, OfferDetails details, bool recordChanges, CancellationToken cancellationToken);
 
     Task MarkDetailsFetchedAsync(PendingDetails offer, DateTimeOffset at, CancellationToken cancellationToken);
 

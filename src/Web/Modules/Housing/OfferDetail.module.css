@@ -166,3 +166,66 @@
   white-space: pre-line;
   line-height: 1.5;
 }
+
+.changes {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0 0 0 var(--space-4);
+  list-style: none;
+  border-left: 2px solid var(--color-border);
+
+  & li {
+    position: relative;
+  }
+
+  & li::before {
+    content: "";
+    position: absolute;
+    top: 0.4em;
+    left: calc(-1 * var(--space-4) - 6px);
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--color-accent);
+  }
+
+  & dl {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: var(--space-1) var(--space-4);
+    margin: var(--space-2) 0 0;
+  }
+
+  & div {
+    display: contents;
+  }
+
+  & dt {
+    color: var(--color-text-secondary);
+  }
+
+  & dd {
+    margin: 0;
+  }
+}
+
+.changedAt {
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+
+.down,
+.up {
+  margin-left: var(--space-2);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.down {
+  color: var(--color-success);
+}
+
+.up {
+  color: var(--color-error);
+}

@@ -236,6 +236,11 @@ export interface components {
         };
         /** @enum {unknown} */
         Feature: "Balcony" | "Terrace" | "Garden" | "Lift" | "Basement" | "Parking" | "AirConditioning" | "Furnished" | "Dishwasher" | "WashingMachine";
+        FieldChange: {
+            field: string;
+            before: unknown;
+            after: unknown;
+        };
         /** @enum {unknown} */
         Heating: "District" | "Gas" | "Electric" | "BoilerRoom" | "TiledStove" | null;
         ImportResult: {
@@ -296,6 +301,13 @@ export interface components {
         };
         /** @enum {unknown} */
         NearbyTier: "Town" | "CountySeat" | "VoivodeshipCapital" | "Metropolis" | "BigCity";
+        OfferChange: {
+            /** Format: int32 */
+            id: number;
+            /** Format: date-time */
+            changedAt: string;
+            changes: components["schemas"]["FieldChange"][];
+        };
         OfferListItem: {
             /** Format: int32 */
             id: number;
@@ -359,6 +371,7 @@ export interface components {
             populationYear?: null | number;
             populationSource?: null | components["schemas"]["PlaceSource"];
             nearby?: components["schemas"]["NearbyPlace"][];
+            changes?: components["schemas"]["OfferChange"][];
         };
         PagedResultOfOfferListItem: {
             items: components["schemas"]["OfferListItem"][];

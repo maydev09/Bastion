@@ -90,4 +90,7 @@ public sealed record OfferListItem
 
     // Nearest places by tier (see NearbyTier), each tier nearest first.
     public IReadOnlyList<NearbyPlace> Nearby { get; init; } = [];
+
+    // Only on the offer card; newest first.
+    public IReadOnlyList<OfferChange> Changes { get; init; } = [];
 }

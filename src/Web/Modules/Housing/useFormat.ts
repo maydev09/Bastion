@@ -18,5 +18,7 @@ export function useFormat() {
     day: (iso: string) => dateOnly.format(new Date(`${iso}T00:00`)),
     area: (m2: number) => t("units.area", { value: number.format(m2) }),
     km: (km: number) => whole.format(km),
+    floor: (floor: number) =>
+      floor === 0 ? t("detail.groundFloor") : floor < 0 ? t("detail.basement") : String(floor),
   };
 }

@@ -578,6 +578,35 @@ public class HousingImportTests
     }
 
     [Test]
+    public async Task The_offer_card_shows_the_changes_newest_first_with_enum_names()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small]];
+        _source.Details["1"] = new OfferDetails(Heating: Heating.Gas, Features: [Feature.Lift]);
+        await RunImport(client);
+        await RunDetails(client);
+        _source.Pages = [[Small with { Price = new Money(2000m, Currency.Pln) }]];
+        _source.Details["1"] = new OfferDetails(Heating: Heating.District, Features: [Feature.Lift, Feature.Balcony]);
+        await RunImport(client);
+        await RunDetails(client);
+        var id = (await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json))!.Items.Single().Id;
+
+        using var card = await client.GetFromJsonAsync<JsonDocument>($"/api/housing/offers/{id}", Json);
+        var changes = card!.RootElement.GetProperty("changes").EnumerateArray()
+            .Select(o => o.GetProperty("changes").EnumerateArray()
+                .Select(c => (Field: c.GetProperty("field").GetString(), Before: c.GetProperty("before").ToString(), After: c.GetProperty("after").ToString()))
+                .ToList())
+            .ToList();
+
+        Assert.That(changes, Is.EqualTo(new[]
+        {
+            new[] { ("features", """["Lift"]""", """["Balcony","Lift"]"""), ("heating", "Gas", "District") },
+            new[] { ("price", "2200.00", "2000.00") },
+        }));
+    }
+
+    [Test]
     public async Task A_short_outage_is_retried_and_the_run_goes_on()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)), QuickRetry);
@@ -748,6 +777,76 @@ public class HousingImportTests
         {
             Assert.That((result!.CaptureCount, result.FailedCount, result.DetailCount), Is.EqualTo((2, 0, 1)));
             Assert.That((floor, feature), Is.EqualTo((3, (int)Feature.Garden)));
+        });
+    }
+
+    [Test]
+    public async Task Content_changes_are_recorded_but_first_values_and_bumps_are_not()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small with { Features = [Feature.Garden] }]];
+        _source.Details["1"] = new OfferDetails(Floor: 3, AvailableFrom: new DateOnly(2026, 12, 1), Features: [Feature.Balcony]);
+        await RunImport(client);
+        await RunDetails(client);
+
+        var cheaper = Small with { Price = new Money(2000m, Currency.Pln), Rent = new Money(500m, Currency.Pln) };
+        _source.Pages = [[cheaper]];
+        _source.Details["1"] = new OfferDetails(Floor: 4, AvailableFrom: new DateOnly(2027, 1, 1), Features: [Feature.Lift, Feature.Balcony]);
+        await RunImport(client);
+        await RunDetails(client);
+        _source.Pages = [[cheaper with { ExternalUpdatedAt = At(13) }]];
+        await RunImport(client);
+        _source.Pages = [[cheaper with { ExternalUpdatedAt = At(13), Price = null }]];
+        await RunImport(client);
+
+        var logged = await Scalar<string>("""
+            SELECT string_agg(key, ',' ORDER BY id, key)
+            FROM housing.offer_change, jsonb_object_keys(changes) AS key
+            """);
+        var price = await Scalar<bool>("""
+            SELECT array_agg(changes -> 'price' ORDER BY id) = ARRAY['[2200, 2000]', '[2000, null]']::jsonb[]
+            FROM housing.offer_change WHERE changes ? 'price'
+            """);
+        var availableFrom = await Scalar<bool>("""
+            SELECT changes -> 'available_from' = '["2026-12-01", "2027-01-01"]'
+            FROM housing.offer_change WHERE changes ? 'available_from'
+            """);
+        var newFeatures = string.Join(",", new[] { (int)Feature.Balcony, (int)Feature.Lift }.Order());
+        var features = await Scalar<bool>($"""
+            SELECT changes -> 'features' = '[[{(int)Feature.Balcony}], [{newFeatures}]]'
+            FROM housing.offer_change WHERE changes ? 'features'
+            """);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(logged, Is.EqualTo("price,available_from,features,floor,price,price_currency"));
+            Assert.That((price, availableFrom, features), Is.EqualTo((true, true, true)));
+        });
+    }
+
+    [Test]
+    public async Task Reparse_records_no_changes()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small]];
+        _source.Details["1"] = new OfferDetails(Floor: 3);
+        await RunImport(client);
+        await RunDetails(client);
+        _source.Pages = [[Small with { Price = new Money(2000m, Currency.Pln) }]];
+        _source.Details["1"] = new OfferDetails(Floor: 4);
+        await RunImport(client);
+        await RunDetails(client);
+        var before = await Scalar<long>("SELECT count(*) FROM housing.offer_change");
+
+        var response = await client.PostAsync(new Uri("/api/housing/reparse", UriKind.Relative), null);
+        response.EnsureSuccessStatusCode();
+
+        Assert.Multiple(async () =>
+        {
+            Assert.That(before, Is.EqualTo(2));
+            Assert.That(await Scalar<long>("SELECT count(*) FROM housing.offer_change"), Is.EqualTo(before));
         });
     }
 

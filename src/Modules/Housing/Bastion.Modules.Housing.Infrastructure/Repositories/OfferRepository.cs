@@ -1,3 +1,4 @@
+using System.Text.Json;
 using Bastion.Modules.Housing.Application.Abstractions;
 using Bastion.Modules.Housing.Application.ListOffers;
 using Bastion.Modules.Housing.Domain;
@@ -114,6 +115,11 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         WHERE o.id = @Id;
 
         SELECT feature FROM housing.offer_feature WHERE offer_id = @Id ORDER BY feature;
+
+        SELECT id, changed_at, changes::text AS changes
+        FROM housing.offer_change
+        WHERE offer_id = @Id
+        ORDER BY changed_at DESC, id DESC;
         """;
 
     private const string NearbySql = """
@@ -192,6 +198,30 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             last_error = excluded.last_error
         """;
 
+    // The fields whose changes are logged, read before and after a save (locked, so another job cannot change them in between).
+    // Not logged: the portal's dates (a bump), the URL, the location (not part of the content) and the place (our match).
+    // Features count only after the first detail page: before it they are listing tags, a part of the full set.
+    // available_from as text: read without a type, a date comes as DateTime and would be logged with a time.
+    private const string ContentSql = """
+        SELECT o.id, o.title, o.property_type, o.transaction, o.price, o.price_currency, o.area_m2, o.rooms,
+            o.rent, o.rent_currency, o.deposit, o.deposit_currency, o.available_from::text AS available_from, o.floor, o.building_floors,
+            o.build_year, o.building_type, o.heating, o.condition, o.latitude, o.longitude, o.location_radius_m,
+            o.description,
+            CASE WHEN f.fetched_at IS NOT NULL
+                THEN ARRAY(SELECT feature FROM housing.offer_feature WHERE offer_id = o.id ORDER BY feature)
+            END AS features
+        FROM housing.offer o
+        LEFT JOIN housing.offer_detail_fetch f ON f.offer_id = o.id
+        WHERE o.source_id = @SourceId AND o.external_id = ANY(@ExternalIds)
+        FOR UPDATE OF o
+        """;
+
+    private const string RecordChangesSql = """
+        INSERT INTO housing.offer_change (offer_id, changed_at, changes)
+        SELECT l.offer_id, @ChangedAt, l.changes
+        FROM unnest(@OfferIds, @Changes::jsonb[]) AS l (offer_id, changes)
+        """;
+
     private const string LocationsSql = """
         SELECT source_id AS source, location_key, count(*)::int AS offer_count
         FROM housing.offer
@@ -207,10 +237,12 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
           AND o.place_id IS DISTINCT FROM l.place_id
         """;
 
-    public async Task<SaveCounts> SaveAsync(IReadOnlyList<Offer> offers, RawCapture capture, CancellationToken cancellationToken)
+    public async Task<SaveCounts> SaveAsync(IReadOnlyList<Offer> offers, RawCapture capture, bool recordChanges, CancellationToken cancellationToken)
     {
         await using var connection = await db.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        var externalIds = offers.Select(o => o.ExternalId).ToArray();
+        var before = recordChanges ? await ReadContentAsync(connection, transaction, capture.SourceId, externalIds, cancellationToken) : [];
 
         int added = 0, updated = 0;
         foreach (var offer in offers)
@@ -253,7 +285,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         await connection.ExecuteAsync(new CommandDefinition(SeenSql, new
         {
             SourceId = (int)capture.SourceId,
-            ExternalIds = offers.Select(o => o.ExternalId).ToArray(),
+            ExternalIds = externalIds,
             SeenAt = capture.FetchedAt,
         }, transaction, cancellationToken: cancellationToken));
 
@@ -268,14 +300,66 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         await connection.ExecuteAsync(new CommandDefinition(LocationSql, new
         {
             SourceId = (int)capture.SourceId,
-            ExternalIds = offers.Select(o => o.ExternalId).ToArray(),
+            ExternalIds = externalIds,
             LocationKeys = offers.Select(o => o.LocationKey).ToArray(),
             PlaceIds = offers.Select(o => o.PlaceId).ToArray(),
         }, transaction, cancellationToken: cancellationToken));
 
+        if (recordChanges && updated > 0)
+        {
+            await RecordChangesAsync(connection, transaction, capture, externalIds, before, cancellationToken);
+        }
+
         await transaction.CommitAsync(cancellationToken);
         return new SaveCounts(added, updated, offers.Count - added - updated);
     }
+
+    private static async Task<Dictionary<int, IDictionary<string, object?>>> ReadContentAsync(
+        NpgsqlConnection connection, NpgsqlTransaction transaction, Source source, string[] externalIds, CancellationToken cancellationToken)
+    {
+        var rows = await connection.QueryAsync(new CommandDefinition(ContentSql, new
+        {
+            SourceId = (int)source,
+            ExternalIds = externalIds,
+        }, transaction, cancellationToken: cancellationToken));
+        return rows.Cast<IDictionary<string, object?>>().ToDictionary(r => (int)r["id"]!);
+    }
+
+    private static async Task RecordChangesAsync(
+        NpgsqlConnection connection,
+        NpgsqlTransaction transaction,
+        RawCapture capture,
+        string[] externalIds,
+        Dictionary<int, IDictionary<string, object?>> before,
+        CancellationToken cancellationToken)
+    {
+        var after = await ReadContentAsync(connection, transaction, capture.SourceId, externalIds, cancellationToken);
+        var changes = after
+            .Where(a => before.ContainsKey(a.Key))
+            .Select(a => (OfferId: a.Key, Changes: BuildChangeMap(before[a.Key], a.Value)))
+            .Where(c => c.Changes.Count > 0)
+            .ToList();
+        if (changes.Count == 0)
+        {
+            return;
+        }
+
+        await connection.ExecuteAsync(new CommandDefinition(RecordChangesSql, new
+        {
+            ChangedAt = capture.FetchedAt,
+            OfferIds = changes.Select(c => c.OfferId).ToArray(),
+            Changes = changes.Select(c => JsonSerializer.Serialize(c.Changes)).ToArray(),
+        }, transaction, cancellationToken: cancellationToken));
+    }
+
+    // A field that had no value gets its first one, which is not a change.
+    private static Dictionary<string, object?[]> BuildChangeMap(IDictionary<string, object?> before, IDictionary<string, object?> after) =>
+        after
+            .Where(f => f.Key != "id" && before[f.Key] is { } old && !AreEqual(old, f.Value))
+            .ToDictionary(f => f.Key, f => new[] { before[f.Key], f.Value });
+
+    private static bool AreEqual(object old, object? value) =>
+        old is int[] oldFeatures && value is int[] features ? oldFeatures.SequenceEqual(features) : old.Equals(value);
 
     public async Task<MissedCounts> MarkMissedAsync(Source source, DateTimeOffset scanStartedAt, int missedScansToRemove, CancellationToken cancellationToken)
     {
@@ -312,8 +396,39 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         }
 
         var features = (await results.ReadAsync<int>()).Select(f => (Feature)f).ToList();
-        return (await WithNearbyAsync(connection, [offer with { Features = features }], cancellationToken))[0];
+        var changes = (await results.ReadAsync<(int Id, DateTimeOffset ChangedAt, string Changes)>())
+            .Select(c => new OfferChange(c.Id, c.ChangedAt, ReadFieldChanges(c.Changes)))
+            .ToList();
+        return (await WithNearbyAsync(connection, [offer with { Features = features, Changes = changes }], cancellationToken))[0];
     }
+
+    private static List<FieldChange> ReadFieldChanges(string changes)
+    {
+        using var document = JsonDocument.Parse(changes);
+        return document.RootElement.EnumerateObject()
+            .OrderBy(f => f.Name, StringComparer.Ordinal)
+            .Select(f => new FieldChange(ConvertToCamelCase(f.Name), ReadChangedValue(f.Name, f.Value[0])!, ReadChangedValue(f.Name, f.Value[1])))
+            .ToList();
+    }
+
+    private static string ConvertToCamelCase(string column)
+    {
+        var words = column.Split('_');
+        return words[0] + string.Concat(words.Skip(1).Select(w => char.ToUpperInvariant(w[0]) + w[1..]));
+    }
+
+    // housing.offer_change keeps enum numbers, like the offer table; the card gets the enums, which the API writes as names.
+    private static object? ReadChangedValue(string column, JsonElement value) => column switch
+    {
+        "property_type" => value.Deserialize<PropertyType?>(),
+        "transaction" => value.Deserialize<Transaction?>(),
+        "price_currency" or "rent_currency" or "deposit_currency" => value.Deserialize<Currency?>(),
+        "building_type" => value.Deserialize<BuildingType?>(),
+        "heating" => value.Deserialize<Heating?>(),
+        "condition" => value.Deserialize<Condition?>(),
+        "features" => value.Deserialize<Feature[]>(),
+        _ => value.ValueKind == JsonValueKind.Null ? null : value.Clone(),
+    };
 
     private static async Task<IReadOnlyList<OfferListItem>> WithNearbyAsync(
         NpgsqlConnection connection, IReadOnlyList<OfferListItem> offers, CancellationToken cancellationToken)
@@ -335,13 +450,16 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         return rows.Select(r => new PendingDetails(r.OfferId, r.ExternalId, new Uri(r.Url), r.ContentHash)).ToList();
     }
 
-    public async Task<bool> SaveDetailsAsync(Source source, string externalId, OfferDetails details, CancellationToken cancellationToken)
+    public async Task<bool> SaveDetailsAsync(
+        RawCapture capture, string externalId, OfferDetails details, bool recordChanges, CancellationToken cancellationToken)
     {
         await using var connection = await db.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        string[] externalIds = [externalId];
+        var before = recordChanges ? await ReadContentAsync(connection, transaction, capture.SourceId, externalIds, cancellationToken) : [];
         var offerId = await connection.QuerySingleOrDefaultAsync<int?>(new CommandDefinition(SaveDetailsSql, new
         {
-            SourceId = (int)source,
+            SourceId = (int)capture.SourceId,
             ExternalId = externalId,
             Rent = details.Rent?.Amount,
             RentCurrency = (int?)details.Rent?.Currency,
@@ -371,6 +489,11 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
                 OfferId = offerId,
                 Features = features.Distinct().Select(f => (int)f).ToArray(),
             }, transaction, cancellationToken: cancellationToken));
+        }
+
+        if (recordChanges)
+        {
+            await RecordChangesAsync(connection, transaction, capture, externalIds, before, cancellationToken);
         }
 
         await transaction.CommitAsync(cancellationToken);
