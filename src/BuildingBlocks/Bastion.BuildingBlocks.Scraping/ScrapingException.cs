@@ -16,4 +16,7 @@ public sealed class ScrapingException : Exception
     }
 
     public string Code { get; }
+
+    // The HTTP status of an HttpError.
+    public int? StatusCode { get; init; }
 }

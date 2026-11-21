@@ -9,6 +9,9 @@ public enum FailureKind
 
     Failed,
 
+    // The page no longer exists (HTTP 404, 410): the portal removed the offer.
+    Gone,
+
     // The source asked us to slow down (HTTP 429, 503); the scraping client already waits before its next request.
     RateLimited,
 }

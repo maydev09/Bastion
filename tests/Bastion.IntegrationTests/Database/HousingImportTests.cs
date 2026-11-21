@@ -726,8 +726,47 @@ public class HousingImportTests
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
         using var client = factory.CreateClient();
-        // No detail pages: every fetch fails as a 403 block would.
         _source.Pages = [Enumerable.Range(1, FetchDetailsHandler.MaxFetchFailuresInRow + 2)
+            .Select(i => Small with { ExternalId = $"{i}", Url = new Uri($"https://www.otodom.pl/pl/oferta/flat-ID{i}") })
+            .ToList()];
+        await RunImport(client);
+        _source.DetailsRefused = true;
+
+        var run = await JobRuns.Run(client, FetchDetails);
+        var blamed = await Scalar<long>("SELECT count(*) FROM housing.offer_detail_fetch");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(run.Status, Is.EqualTo(JobRunStatus.Failed));
+            Assert.That(blamed, Is.Zero);
+        });
+    }
+
+    [Test]
+    public async Task Removed_offers_at_the_head_of_the_queue_do_not_stop_the_run()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        using var client = factory.CreateClient();
+        // Newer than Large, so first in the queue; without detail pages they answer 404 as removed offers do.
+        var removed = Enumerable.Range(1, FetchDetailsHandler.MaxFetchFailuresInRow + 2)
+            .Select(i => Small with { ExternalId = $"removed-{i}", Url = new Uri($"https://www.otodom.pl/pl/oferta/removed-ID{i}") })
+            .ToList();
+        _source.Pages = [[.. removed, Large]];
+        _source.Details["2"] = new OfferDetails(Floor: 2);
+        await RunImport(client);
+
+        var fetched = await RunDetails(client);
+
+        Assert.That(fetched, Is.EqualTo(new Fetched(1, removed.Count)));
+    }
+
+    [Test]
+    public async Task A_portal_answering_404_to_every_page_stops_the_run_and_blames_no_offer()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        using var client = factory.CreateClient();
+        // No detail pages: every fetch answers 404, as after the portal changed its URLs.
+        _source.Pages = [Enumerable.Range(1, FetchDetailsHandler.MaxGonePagesInRow + 2)
             .Select(i => Small with { ExternalId = $"{i}", Url = new Uri($"https://www.otodom.pl/pl/oferta/flat-ID{i}") })
             .ToList()];
         await RunImport(client);
@@ -1005,6 +1044,9 @@ public class HousingImportTests
         // HTTP 429 on every detail request.
         public bool DetailsRateLimited { get; set; }
 
+        // HTTP 403 on every detail request, as when the portal blocks us.
+        public bool DetailsRefused { get; set; }
+
         public Task<FetchResult> FetchDetailPageAsync(Uri url, CancellationToken cancellationToken)
         {
             var externalId = Pages.SelectMany(p => p).FirstOrDefault(o => o.Url == url)?.ExternalId ?? url.ToString();
@@ -1025,9 +1067,14 @@ public class HousingImportTests
                 return Task.FromResult(FetchResult.Failed(new Failure(ScrapingException.VpnRequired, "No VPN.", FailureKind.Unavailable)));
             }
 
+            if (DetailsRefused)
+            {
+                return Task.FromResult(FetchResult.Failed(new Failure(ScrapingException.HttpError, $"{url} returned HTTP 403.", FailureKind.Failed)));
+            }
+
             if (!Details.TryGetValue(externalId, out var details))
             {
-                return Task.FromResult(FetchResult.Failed(new Failure(ScrapingException.HttpError, $"{url} returned HTTP 404.", FailureKind.Failed)));
+                return Task.FromResult(FetchResult.Failed(new Failure(ScrapingException.HttpError, $"{url} returned HTTP 404.", FailureKind.Gone)));
             }
 
             return Task.FromResult(new FetchResult(new RawPage(

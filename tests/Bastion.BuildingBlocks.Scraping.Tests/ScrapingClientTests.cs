@@ -103,6 +103,20 @@ public class ScrapingClientTests
         Assert.That(error.Code, Is.EqualTo(ScrapingException.RateLimited));
     }
 
+    [Test]
+    public async Task A_removed_page_is_reported_with_its_status()
+    {
+        var handler = new FakeHandler
+        {
+            ["/robots.txt"] = Ok("User-agent: *\nAllow: /"),
+            ["/pl/wyniki?page=1"] = () => new HttpResponseMessage(HttpStatusCode.Gone),
+        };
+
+        var error = (await Assert.ThrowsAsync<ScrapingException>(() => CreateClient(handler).GetAsync(Page, CancellationToken.None)))!;
+
+        Assert.That((error.Code, error.StatusCode), Is.EqualTo((ScrapingException.HttpError, 410)));
+    }
+
     private static ScrapingClient CreateClient(FakeHandler handler, bool vpnUp = true)
     {
         var vpn = Substitute.For<IVpnCheck>();

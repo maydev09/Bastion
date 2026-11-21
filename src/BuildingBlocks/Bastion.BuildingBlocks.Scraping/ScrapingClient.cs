@@ -50,7 +50,10 @@ public sealed partial class ScrapingClient : IDisposable
             using var response = await SendAsync(gate, url, userAgent, cancellationToken);
             if (!response.IsSuccessStatusCode)
             {
-                throw new ScrapingException(ScrapingException.HttpError, $"{url} returned HTTP {(int)response.StatusCode}.");
+                throw new ScrapingException(ScrapingException.HttpError, $"{url} returned HTTP {(int)response.StatusCode}.")
+                {
+                    StatusCode = (int)response.StatusCode,
+                };
             }
 
             LogFetched(_logger, url, (int)response.StatusCode);
