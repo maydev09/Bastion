@@ -16,6 +16,9 @@ internal static class TestApp
                 builder.UseSetting(ModuleOptions.EnabledKey(module), "true");
             }
 
+            // Tests run as Development, which turns the schedules off; they test the production ones.
+            builder.UseSetting("Jobs:Scheduled", "true");
+
             // Nothing listens here; database tests set the real connection string.
             builder.UseSetting(ConnectionStringKey, "Host=localhost;Port=1;Database=none");
 

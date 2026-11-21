@@ -90,6 +90,28 @@ public class HousingJobsTests
     }
 
     [Test]
+    public async Task With_schedules_off_a_job_runs_only_when_started()
+    {
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 1, 15, 12, 0, 0, TimeSpan.Zero));
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<TimeProvider>(clock)))
+            .WithWebHostBuilder(b => b.UseSetting("Jobs:Scheduled", "false"));
+        using var client = factory.CreateClient();
+
+        // Past 04:00 in Warsaw, when retention runs on its schedule.
+        clock.Advance(TimeSpan.FromDays(1));
+        await Task.Delay(500);
+        var latest = await client.GetFromJsonAsync<LatestJobRun>($"{Retention}/runs/latest", Json);
+        var run = await JobRuns.Run(client, Retention);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(latest!.Run, Is.Null);
+            Assert.That(run.Trigger, Is.EqualTo(JobTrigger.Manual));
+            Assert.That(run.Status, Is.EqualTo(JobRunStatus.Succeeded));
+        });
+    }
+
+    [Test]
     public async Task Manual_start_runs_the_job_in_the_background()
     {
         await using var factory = App();

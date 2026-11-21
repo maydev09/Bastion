@@ -54,6 +54,8 @@ It also stores the backend's connection string in the .NET user secrets of `Bast
 - Stop: `docker compose stop`. Delete the database: `docker compose down -v`.
 - Recreate it from scratch (all data lost, local raw captures too): `scripts/dev-reset-db.sh`. Useful to check that the
   migrations alone build the schema you expect, e.g. after renaming tables in an unmerged migration.
+- Copy the production data here: `scripts/dev-restore-prod.sh <user>@<server>`.
+- In Development jobs run only from the UI (`[Jobs] Scheduled = false`).
 - Roles and privileges come from `db/init/01-roles.sh`, which PostgreSQL runs only when it
   creates an empty database. After changing it, delete the database and run `scripts/dev-up.sh` again.
 - Migrations: plain SQL files in each module's Infrastructure project
@@ -93,7 +95,9 @@ check (`ip route`) to see the VPN interface, which WSL 2 does not by default.
 
 ## Running on a server
 
-Bastion runs on a small home server with Debian (no desktop, SSH only), started by systemd.
+For now Bastion is meant to run in a home lab: a small server with Debian (no desktop, SSH only),
+started by systemd, in the same local network as the developer machine. The tooling assumes that
+network: updates, backups and `scripts/dev-restore-prod.sh` reach the server over SSH there.
 Its scraping traffic goes through a VPN container (ADR 0019); secrets are encrypted with
 `systemd-creds` (ADR 0010).
 

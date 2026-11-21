@@ -2,7 +2,8 @@
 set -eu
 
 password="$(cat /run/secrets/db_owner_password)"
-export DATABASE_URL="postgres://bastion_owner:${password}@db:5432/bastion?sslmode=disable"
+# DB_NAME: scripts/dev-restore-prod.sh migrates its copy before swapping it in.
+export DATABASE_URL="postgres://bastion_owner:${password}@db:5432/${DB_NAME:-bastion}?sslmode=disable"
 
 # /modules/Housing/Bastion.Modules.Housing.Infrastructure/Migrations -> schema housing
 for dir in /modules/*/*.Infrastructure/Migrations/; do
