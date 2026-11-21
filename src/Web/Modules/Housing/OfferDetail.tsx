@@ -1,11 +1,16 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Link, useParams } from "react-router";
+import { Link, useLocation, useParams } from "react-router";
 import { api } from "@shared/api/client";
+import { Icon } from "@shared/ui/Icon";
+import { Panel } from "@shared/ui/Panel";
+import { PropertyList } from "@shared/ui/PropertyList";
 import { useErrorMessage } from "@shared/useErrorMessage";
 import styles from "./OfferDetail.module.css";
 import { OfferChanges } from "./OfferChanges";
+import { OfferDescription } from "./OfferDescription";
 import { OfferDetails } from "./OfferDetails";
+import { OfferPlace } from "./OfferPlace";
 import { offersQueryKey } from "./queryKeys";
 import { useFormat } from "./useFormat";
 
@@ -13,6 +18,7 @@ export function OfferDetail() {
   const { t } = useTranslation("housing");
   const errorMessage = useErrorMessage();
   const id = Number(useParams().id);
+  const location = useLocation();
   const offer = useQuery({
     queryKey: [...offersQueryKey, "detail", id],
     queryFn: async () => {
@@ -31,9 +37,16 @@ export function OfferDetail() {
 
   const format = useFormat();
 
+  // Back to the list view (page, sort order) the user came from.
+  const from: unknown = (location.state as { from?: unknown } | null)?.from;
   const back = (
-    <Link to="../.." relative="path" className={styles.back}>
-      ← {t("detail.back")}
+    <Link
+      to={{ pathname: "../..", search: typeof from === "string" ? from : "" }}
+      relative="path"
+      className={styles.back}
+    >
+      <Icon name="previous" size={14} />
+      {t("detail.back")}
     </Link>
   );
 
@@ -57,147 +70,72 @@ export function OfferDetail() {
   }
 
   const o = offer.data;
-  // One row per place: Wejherowo can be both the nearest town and the county seat.
-  const byName = new Map<string, { name: string; km: number; tiers: string[] }>();
-  for (const n of o.nearby ?? []) {
-    const row = byName.get(n.name) ?? { name: n.name, km: n.km, tiers: [] };
-    row.tiers.push(t(`detail.tier.${n.tier}`));
-    byName.set(n.name, row);
-  }
-  const nearby = [...byName.values()].sort((a, b) => a.km - b.km);
-  const farthest = Math.max(...nearby.map((n) => n.km), 1);
-  const ownFeatures = [
-    o.placeRole && t(`place.role.${o.placeRole}`),
-    o.placeSize && t(`place.size.${o.placeSize}`),
-  ]
-    .filter(Boolean)
-    .join(", ");
-  const floorName = o.floor == null ? null : format.floor(o.floor);
-  const floor = !floorName
-    ? "—"
-    : o.buildingFloors
-      ? t("detail.floorOf", { floor: floorName, floors: o.buildingFloors })
-      : floorName;
-  const facts = [
+  const money = (value: number | null | undefined, currency: string | null | undefined) =>
+    value != null && currency ? format.money(value, currency) : "—";
+  const summary = [
+    { label: t("field.price"), value: money(o.price, o.priceCurrency) },
     {
-      label: t("list.price"),
-      value: o.price != null && o.priceCurrency ? format.money(o.price, o.priceCurrency) : "—",
-    },
-    { label: t("list.area"), value: o.areaM2 != null ? format.area(o.areaM2) : "—" },
-    { label: t("list.rooms"), value: o.rooms ?? "—" },
-    {
-      label: t("detail.rent"),
-      value: o.rent != null && o.rentCurrency ? format.money(o.rent, o.rentCurrency) : "—",
-    },
-    {
-      label: t("detail.deposit"),
+      label: t("field.pricePerM2"),
       value:
-        o.deposit != null && o.depositCurrency ? format.money(o.deposit, o.depositCurrency) : "—",
+        o.pricePerM2 != null && o.priceCurrency
+          ? format.wholeMoney(o.pricePerM2, o.priceCurrency)
+          : "—",
     },
-    { label: t("detail.floor"), value: floor },
-    {
-      label: t("detail.availableFrom"),
-      value: o.availableFrom ? format.day(o.availableFrom) : "—",
-    },
-    {
-      label: t("list.firstSeen"),
-      value: o.externalCreatedAt ? format.date(o.externalCreatedAt) : "—",
-    },
+    { label: t("field.rent"), value: money(o.rent, o.rentCurrency) },
+    { label: t("field.deposit"), value: money(o.deposit, o.depositCurrency) },
+    { label: t("field.areaM2"), value: o.areaM2 != null ? format.area(o.areaM2) : "—" },
+    { label: t("field.rooms"), value: o.rooms ?? "—" },
   ];
+  const place =
+    o.placeName && o.voivodeship
+      ? t("place.name", { name: o.placeName, voivodeship: t(`voivodeship.${o.voivodeship}`) })
+      : o.placeName;
+  const date = (iso: string | null | undefined) => iso && format.date(iso);
 
   return (
-    <article className={styles.detail}>
+    <article className={styles.page}>
       {back}
       <header className={styles.header}>
-        <h1>{o.title}</h1>
+        <div className={styles.heading}>
+          <h1>{o.title}</h1>
+          {place && <p className={styles.subtitle}>{place}</p>}
+        </div>
         <a className={styles.portal} href={o.url} target="_blank" rel="noreferrer">
-          {t("detail.portal", { source: o.source })} ↗
+          {t("detail.portal", { source: o.source })}
+          <Icon name="external" size={14} />
         </a>
       </header>
 
-      <dl className={styles.facts}>
-        {facts.map((f) => (
-          <div key={f.label} className={styles.fact}>
-            <dt>{f.label}</dt>
-            <dd>{f.value}</dd>
+      <dl className={styles.summary}>
+        {summary.map((item) => (
+          <div key={item.label}>
+            <dt>{item.label}</dt>
+            <dd>{item.value}</dd>
           </div>
         ))}
       </dl>
 
-      <div className={styles.columns}>
-        <section className={styles.card} aria-labelledby="place">
-          <h2 id="place">{t("detail.place")}</h2>
-          {o.placeName ? (
-            <>
-              <p className={styles.placeName}>{o.placeName}</p>
-              <p className={styles.muted}>
-                {[
-                  o.voivodeship && t(`voivodeship.${o.voivodeship}`),
-                  o.county && t("detail.county", { name: o.county }),
-                  o.municipality && t("detail.municipality", { name: o.municipality }),
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </p>
-              <p className={styles.badges}>
-                {o.placeSize ? (
-                  <span className={styles.badge}>{t(`place.size.${o.placeSize}`)}</span>
-                ) : (
-                  o.placeKind && (
-                    <span className={styles.badge}>{t(`place.kind.${o.placeKind}`)}</span>
-                  )
-                )}
-                {o.placeRole && (
-                  <span className={styles.badgeRole}>{t(`place.role.${o.placeRole}`)}</span>
-                )}
-              </p>
-              {o.population != null && (
-                <p>
-                  <strong>{format.number(o.population)}</strong> {t("detail.residents")}{" "}
-                  <span className={styles.muted}>
-                    ({[o.populationYear, o.populationSource].filter(Boolean).join(", ")})
-                  </span>
-                </p>
-              )}
-            </>
-          ) : (
-            <p className={styles.muted}>{t("detail.unknownPlace")}</p>
-          )}
-        </section>
-
-        <section className={styles.card} aria-labelledby="nearby">
-          <h2 id="nearby">{t("detail.nearby")}</h2>
-          {nearby.length > 0 ? (
-            <>
-              <ol className={styles.cities}>
-                {nearby.map((n) => (
-                  <li key={n.name}>
-                    <span>
-                      <span className={styles.cityName}>{n.name}</span>
-                      <br />
-                      <small className={styles.muted}>{n.tiers.join(", ")}</small>
-                    </span>
-                    <span className={styles.bar} aria-hidden="true">
-                      <span style={{ width: `${(n.km / farthest) * 100}%` }} />
-                    </span>
-                    <span className={styles.km}>{t("units.km", { value: format.km(n.km) })}</span>
-                  </li>
-                ))}
-              </ol>
-              <p className={styles.hint}>{t("detail.nearbyHint")}</p>
-            </>
-          ) : (
-            <p className={styles.muted}>
-              {o.placeName
-                ? t("detail.selfSufficient", { what: ownFeatures })
-                : t("detail.unknownPlace")}
-            </p>
-          )}
-        </section>
+      <div className={styles.layout}>
+        <div className={styles.column}>
+          <OfferChanges offer={o} />
+          <OfferDescription offer={o} />
+        </div>
+        <aside className={styles.column}>
+          <OfferDetails offer={o} />
+          <OfferPlace offer={o} />
+          <Panel title={t("detail.listing")} flush>
+            <PropertyList
+              items={[
+                { label: t("detail.source"), value: o.source },
+                { label: t("detail.addedOnPortal"), value: date(o.externalCreatedAt) },
+                { label: t("detail.updatedOnPortal"), value: date(o.externalUpdatedAt) },
+                { label: t("detail.firstFetched"), value: date(o.createdAt) },
+                { label: t("detail.detailsFetched"), value: date(o.detailsFetchedAt) },
+              ]}
+            />
+          </Panel>
+        </aside>
       </div>
-
-      <OfferDetails offer={o} />
-      <OfferChanges offer={o} />
     </article>
   );
 }

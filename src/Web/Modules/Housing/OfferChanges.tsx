@@ -1,12 +1,13 @@
 import { useTranslation } from "react-i18next";
 import type { components } from "@shared/api/schema";
+import { Panel } from "@shared/ui/Panel";
 import type pl from "./locales/pl.json";
 import styles from "./OfferDetail.module.css";
 import { useFormat } from "./useFormat";
 
 type Schemas = components["schemas"];
 type FieldChange = Schemas["FieldChange"];
-type ChangedField = keyof typeof pl.changes.field;
+type ChangedField = keyof typeof pl.field;
 
 export function OfferChanges({ offer: o }: { offer: Schemas["OfferListItem"] }) {
   const { t } = useTranslation("housing");
@@ -66,14 +67,23 @@ export function OfferChanges({ offer: o }: { offer: Schemas["OfferListItem"] }) 
       .join(" · ");
   }
 
-  function renderChange(change: FieldChange) {
+  // Description and features changes take the before, after and difference cells together.
+  function renderValues(change: FieldChange) {
     if (change.field === "description") {
-      return <span className={styles.muted}>{t("changes.descriptionChanged")}</span>;
+      return (
+        <td colSpan={3} className={styles.muted}>
+          {t("changes.descriptionChanged")}
+        </td>
+      );
     }
     if (change.field === "features") {
-      return describeFeatures(
-        change.before as Schemas["Feature"][],
-        (change.after as Schemas["Feature"][] | null) ?? [],
+      return (
+        <td colSpan={3}>
+          {describeFeatures(
+            change.before as Schemas["Feature"][],
+            (change.after as Schemas["Feature"][] | null) ?? [],
+          )}
+        </td>
       );
     }
     const currency = findCurrency(change.field);
@@ -83,42 +93,52 @@ export function OfferChanges({ offer: o }: { offer: Schemas["OfferListItem"] }) 
         : 0;
     return (
       <>
-        <span className={styles.muted}>{formatValue(change.field, change.before)}</span> →{" "}
-        <strong>{formatValue(change.field, change.after)}</strong>
-        {currency && difference !== 0 && (
-          <span className={difference < 0 ? styles.down : styles.up}>
-            {difference > 0 ? "+" : "−"}
-            {format.money(Math.abs(difference), currency)}
-          </span>
-        )}
+        <td className={styles.muted}>{formatValue(change.field, change.before)}</td>
+        <td>{formatValue(change.field, change.after)}</td>
+        <td className={styles.number}>
+          {currency && difference !== 0 && (
+            <span className={difference < 0 ? styles.down : styles.up}>
+              {difference > 0 ? "+" : "−"}
+              {format.money(Math.abs(difference), currency)}
+            </span>
+          )}
+        </td>
       </>
     );
   }
 
   return (
-    <section className={styles.card} aria-labelledby="changes">
-      <h2 id="changes">{t("changes.title")}</h2>
+    <Panel title={t("changes.title")} flush>
       {changes.length === 0 ? (
-        <p className={styles.muted}>{t("changes.none")}</p>
+        <p className={styles.notice}>{t("changes.none")}</p>
       ) : (
-        <ol className={styles.changes}>
+        <table className={styles.changes}>
+          <thead>
+            <tr>
+              <th>{t("changes.column.date")}</th>
+              <th>{t("changes.column.field")}</th>
+              <th>{t("changes.column.before")}</th>
+              <th>{t("changes.column.after")}</th>
+              <th className={styles.number}>{t("changes.column.difference")}</th>
+            </tr>
+          </thead>
           {changes.map((change) => (
-            <li key={change.id}>
-              <time dateTime={change.changedAt} className={styles.changedAt}>
-                {format.date(change.changedAt)}
-              </time>
-              <dl>
-                {change.changes.map((c) => (
-                  <div key={c.field}>
-                    <dt>{t(`changes.field.${c.field as ChangedField}`)}</dt>
-                    <dd>{renderChange(c)}</dd>
-                  </div>
-                ))}
-              </dl>
-            </li>
+            <tbody key={change.id}>
+              {change.changes.map((c, index) => (
+                <tr key={c.field}>
+                  {index === 0 && (
+                    <td rowSpan={change.changes.length} className={styles.changedAt}>
+                      <time dateTime={change.changedAt}>{format.shortDate(change.changedAt)}</time>
+                    </td>
+                  )}
+                  <td>{t(`field.${c.field as ChangedField}`)}</td>
+                  {renderValues(c)}
+                </tr>
+              ))}
+            </tbody>
           ))}
-        </ol>
+        </table>
       )}
-    </section>
+    </Panel>
   );
 }

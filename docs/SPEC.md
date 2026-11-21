@@ -96,7 +96,8 @@ Replaces the legacy flat offers scraper.
 - **Duplicates across portals:** offers that are probably the same flat on different
   portals (or posted twice on one) are grouped, so the list shows one entry with links
   to every source. A grouping is a suggestion: the user can confirm or split it.
-- Triage: browse, filter and sort offers; change status (e.g. not interested,
+- Triage: browse, filter and sort offers (the view, e.g. page and sort order, is part of the
+  link, so a copied link opens the same view); change status (e.g. not interested,
   waiting, visit scheduled, still interested after visit), bookmark, add notes.
   Every manual change is recorded in the changelog.
 

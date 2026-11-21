@@ -59,7 +59,10 @@ describe("OfferDetail", () => {
     );
     expect(screen.getByText(t("place.size.SmallTown"))).toBeInTheDocument();
     expect(screen.getByText(t("place.role.CountySeat"))).toBeInTheDocument();
-    const rows = screen.getAllByRole("listitem").map((li) => li.textContent);
+    const nearby = screen.getByRole("region", { name: t("detail.nearby") });
+    const rows = within(nearby)
+      .getAllByRole("listitem")
+      .map((li) => li.textContent);
     expect(rows).toHaveLength(2);
     expect(rows[0]).toContain("Bydgoszcz");
     expect(rows[1]).toContain(t("detail.tier.VoivodeshipCapital"));
@@ -217,10 +220,10 @@ describe("OfferDetail", () => {
       .getAllByRole("time")
       .map((time) => time.getAttribute("dateTime"));
     expect(days).toEqual(["2026-11-21T10:00:00+00:00", "2026-11-20T10:00:00+00:00"]);
-    expect(within(history).getByText(t("changes.field.heating"))).toBeInTheDocument();
+    expect(within(history).getByText(t("field.heating"))).toBeInTheDocument();
     expect(within(history).getByText(t("detail.heating.District"))).toBeInTheDocument();
     expect(history).toHaveTextContent(t("changes.added", { list: t("detail.feature.Balcony") }));
     expect(history).toHaveTextContent(t("changes.removed", { list: t("detail.feature.Lift") }));
-    expect(within(history).getByText(t("changes.field.price"))).toBeInTheDocument();
+    expect(within(history).getByText(t("field.price"))).toBeInTheDocument();
   });
 });

@@ -1,51 +1,71 @@
+.page {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.tools {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: var(--space-3);
+}
+
 .card {
-  padding: var(--space-4);
-  background: var(--color-surface-raised);
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-3);
+  padding: var(--space-3);
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
+  background: var(--color-surface-sunken);
+
+  & > p:first-child {
+    color: var(--color-text-secondary);
+  }
 }
 
 .result {
-  font-weight: 600;
   color: var(--color-success);
+  font-weight: 550;
 }
 
 .error {
   color: var(--color-error);
-  font-weight: 600;
+  font-weight: 550;
 }
 
-.card + .card {
-  margin-top: var(--space-4);
-}
-
-.table {
-  width: 100%;
-  border-collapse: collapse;
-
-  & th,
-  & td {
-    padding: var(--space-2);
-    text-align: left;
-    border-bottom: 1px solid var(--color-border);
-  }
-
-  & th {
-    color: var(--color-text-secondary);
-    font-weight: 600;
-  }
-}
-
-.number {
-  white-space: nowrap;
-  text-align: right !important;
-}
-
-.pager {
-  display: flex;
-  align-items: center;
+.list {
+  display: grid;
   gap: var(--space-3);
-  margin-top: var(--space-3);
+}
+
+.toolbar {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-3);
+}
+
+.count {
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Offer titles read as text in a long column; the accent shows on hover. */
+.title {
+  color: var(--color-text);
+  font-weight: 550;
+
+  &:hover {
+    color: var(--color-accent);
+  }
+}
+
+.empty {
+  padding: var(--space-6);
+  border: 1px dashed var(--color-border-strong);
+  border-radius: var(--radius);
+  color: var(--color-muted);
+  text-align: center;
 }
 
 .muted {
