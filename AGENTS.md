@@ -224,6 +224,9 @@ Update the matching file in the same change that makes it outdated:
   folder in snake_case. Never edit an applied migration.
   `scripts/dev-reset-db.sh` deletes the local database and raw captures and recreates the database; it
   destroys all local data, so run it only when the maintainer asks.
+  `scripts/dev-restore-prod.sh <user@server>` replaces the local database and raw captures with a
+  snapshot of production taken now (all or nothing); run it only when the maintainer asks.
+  In Development `[Jobs] Scheduled = false`: jobs run only when started from the UI.
 - Run: `dotnet run --project src/Host/Bastion.Host` or Rider (http://localhost:5080); in Development the
   connection string comes from the .NET user secrets. Without it the backend stops at startup.
 - Frontend (repository root): `npm install`, `npm run dev` (http://localhost:5173, proxies `/api`

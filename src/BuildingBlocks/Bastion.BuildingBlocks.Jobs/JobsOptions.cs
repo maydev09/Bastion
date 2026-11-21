@@ -9,4 +9,7 @@ public sealed class JobsOptions
 
     [Required]
     public string TimeZone { get; set; } = "";
+
+    // False: no job runs on its schedule, only when started from the UI.
+    public bool Scheduled { get; set; } = true;
 }
