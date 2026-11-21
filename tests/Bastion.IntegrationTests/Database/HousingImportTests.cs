@@ -221,6 +221,30 @@ public class HousingImportTests
     }
 
     [Test]
+    public async Task List_is_sorted_by_the_chosen_column_with_missing_values_last()
+    {
+        await using var factory = App(WithFakes);
+        using var client = factory.CreateClient();
+        var noPrice = new Offer(Source.OtoDom, "4", "Flat without price", new Uri("https://www.otodom.pl/pl/oferta/none-ID4"), PropertyType.Flat, Transaction.Rent, At(13), AreaM2: 40m, Rooms: 2);
+        _source.Pages = [[noPrice, Small, Medium, Large]];
+        await RunImport(client);
+
+        var cheapest = await ListedTitles(client, "?sort=Price&direction=Ascending");
+        var dearest = await ListedTitles(client, "?sort=Price&direction=Descending");
+        var perM2 = await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers?sort=PricePerM2&direction=Ascending", Json);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(cheapest, Is.EqualTo(new[] { "Small flat", "Medium flat", "Large flat", "Flat without price" }));
+            Assert.That(dearest, Is.EqualTo(new[] { "Large flat", "Medium flat", "Small flat", "Flat without price" }));
+            Assert.That(perM2!.Items.Select(o => (o.Title, o.PricePerM2)), Is.EqualTo(new[]
+            {
+                ("Large flat", (decimal?)56.55m), ("Medium flat", 60m), ("Small flat", 73.33m), ("Flat without price", null),
+            }));
+        });
+    }
+
+    [Test]
     public async Task Import_refuses_to_run_without_vpn()
     {
         var noVpn = Substitute.For<IVpnCheck>();
@@ -916,9 +940,9 @@ public class HousingImportTests
         return new Scanned((int)counts["pages"], (int)counts["added"], (int)counts["missed"], (int)counts["removed"]);
     }
 
-    private static async Task<IReadOnlyList<string>> ListedTitles(HttpClient client)
+    private static async Task<IReadOnlyList<string>> ListedTitles(HttpClient client, string query = "")
     {
-        var list = await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json);
+        var list = await client.GetFromJsonAsync<PagedResult<OfferListItem>>($"/api/housing/offers{query}", Json);
         return list!.Items.Select(o => o.Title).ToList();
     }
 

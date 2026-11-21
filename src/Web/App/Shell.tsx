@@ -4,10 +4,13 @@ import { useTranslation } from "react-i18next";
 import { NavLink, Route, Routes } from "react-router";
 import { api } from "@shared/api/client";
 import { ModuleTitle } from "@shared/ModuleTitle";
+import { IconButton } from "@shared/ui/IconButton";
+import { Select } from "@shared/ui/Select";
 import { HomePage } from "./HomePage";
 import { languages } from "./i18n";
 import { allModules } from "./modules";
 import styles from "./Shell.module.css";
+import { ThemeSwitch } from "./ThemeSwitch";
 
 const sidebarKey = "sidebarOpen";
 
@@ -62,36 +65,22 @@ export function Shell() {
       </aside>
       <div className={styles.page}>
         <header className={styles.topbar}>
-          <button
-            type="button"
-            className={styles.toggle}
-            aria-label={t("nav.toggle")}
+          <IconButton
+            icon="menu"
+            label={t("nav.toggle")}
             aria-controls="sidebar"
             aria-expanded={sidebarOpen}
             onClick={() => setSidebarOpen((open) => !open)}
-          >
-            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">
-              <path
-                d="M3 6h18M3 12h18M3 18h18"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-              />
-            </svg>
-          </button>
-          <label className={styles.language}>
-            {t("language.label")}
-            <select
-              value={i18n.resolvedLanguage}
-              onChange={(e) => void i18n.changeLanguage(e.target.value)}
-            >
-              {languages.map((l) => (
-                <option key={l} value={l}>
-                  {l.toUpperCase()}
-                </option>
-              ))}
-            </select>
-          </label>
+          />
+          <div className={styles.actions}>
+            <ThemeSwitch />
+            <Select
+              label={t("language.label")}
+              value={i18n.resolvedLanguage ?? "pl"}
+              items={languages.map((l) => ({ value: l, label: l.toUpperCase() }))}
+              onChange={(language) => void i18n.changeLanguage(language)}
+            />
+          </div>
         </header>
         <main className={styles.main}>
           {enabled.isPending && <p>{t("status.loading")}</p>}

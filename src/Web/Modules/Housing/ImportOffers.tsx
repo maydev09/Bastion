@@ -27,7 +27,7 @@ export function ImportOffers() {
     <section className={styles.card}>
       <p>{t("import.description")}</p>
       <Button
-        variant="success"
+        variant="primary"
         onClick={() => importOffers.mutate()}
         disabled={importOffers.isPending}
       >

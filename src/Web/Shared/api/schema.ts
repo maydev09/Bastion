@@ -97,7 +97,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Returns stored offers, newest first. */
+        /** Returns stored offers, by default newest first; offers without the sorted value come last. */
         get: operations["ListHousingOffers"];
         put?: never;
         post?: never;
@@ -321,6 +321,8 @@ export interface components {
             priceCurrency?: null | components["schemas"]["Currency"];
             /** Format: double */
             areaM2?: null | number;
+            /** Format: double */
+            pricePerM2?: null | number;
             /** Format: int32 */
             rooms?: null | number;
             /** Format: date-time */
@@ -373,6 +375,8 @@ export interface components {
             nearby?: components["schemas"]["NearbyPlace"][];
             changes?: components["schemas"]["OfferChange"][];
         };
+        /** @enum {unknown} */
+        OfferSort: "FirstSeen" | "Price" | "PricePerM2" | "AreaM2" | "Rooms";
         PagedResultOfOfferListItem: {
             items: components["schemas"]["OfferListItem"][];
             /** Format: int32 */
@@ -420,6 +424,8 @@ export interface components {
             schema: string;
             version: null | string;
         };
+        /** @enum {unknown} */
+        SortDirection: "Ascending" | "Descending";
         /** @enum {unknown} */
         Source: "OtoDom";
         /** @enum {unknown} */
@@ -538,6 +544,8 @@ export interface operations {
             query?: {
                 page?: number;
                 pageSize?: number;
+                sort?: components["schemas"]["OfferSort"];
+                direction?: components["schemas"]["SortDirection"];
             };
             header?: never;
             path?: never;

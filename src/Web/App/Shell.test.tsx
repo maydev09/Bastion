@@ -35,7 +35,7 @@ describe("Shell", () => {
 
   it("hides and shows the menu and remembers the choice", async () => {
     renderWithProviders(<Shell />);
-    const toggle = screen.getByRole("button");
+    const toggle = screen.getByRole("button", { name: i18n.t("nav.toggle") });
 
     await userEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-expanded", "false");

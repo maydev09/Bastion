@@ -1,74 +1,52 @@
+import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 import type { components } from "@shared/api/schema";
-import styles from "./OfferDetail.module.css";
+import { Panel } from "@shared/ui/Panel";
+import { PropertyList } from "@shared/ui/PropertyList";
 import { useFormat } from "./useFormat";
 
 type Offer = components["schemas"]["OfferListItem"];
 
-// The description is the advertiser's HTML; it is shown as plain text, never as markup.
-function plainText(html: string) {
-  const document = new DOMParser().parseFromString(
-    html.replace(/<br\s*\/?>|<\/(p|li|div|h\d)>/gi, "$&\n"),
-    "text/html",
-  );
-  // textContent would include the code of scripts and styles.
-  document.querySelectorAll("script, style").forEach((element) => element.remove());
-  return (document.body.textContent ?? "").replace(/\n{3,}/g, "\n\n").trim();
-}
-
+// What the flat and its building are like; most of it comes from the detail page.
 export function OfferDetails({ offer: o }: { offer: Offer }) {
   const { t } = useTranslation("housing");
   const format = useFormat();
 
-  if (!o.detailsFetchedAt) {
-    return (
-      <section className={styles.card} aria-labelledby="details">
-        <h2 id="details">{t("detail.details")}</h2>
-        <p className={styles.muted}>{t("detail.notFetched")}</p>
-      </section>
-    );
-  }
-
-  const building = [
-    o.buildingType && t(`detail.buildingType.${o.buildingType}`),
-    o.buildYear && t("detail.buildYear", { year: o.buildYear }),
-    o.heating && t(`detail.heating.${o.heating}`),
-    o.condition && t(`detail.condition.${o.condition}`),
-  ].filter(Boolean);
-  const map =
-    o.latitude != null && o.longitude != null
-      ? `https://www.openstreetmap.org/?mlat=${o.latitude}&mlon=${o.longitude}#map=16/${o.latitude}/${o.longitude}`
-      : null;
-  const description = o.description ? plainText(o.description) : "";
+  const floorName = o.floor == null ? null : format.floor(o.floor);
+  const floor =
+    floorName && o.buildingFloors
+      ? t("detail.floorOf", { floor: floorName, floors: o.buildingFloors })
+      : floorName;
+  // Each feature is its own element, separated by commas.
+  const features = (o.features ?? []).map((f, index) => (
+    <Fragment key={f}>
+      {index > 0 && ", "}
+      <span>{t(`detail.feature.${f}`)}</span>
+    </Fragment>
+  ));
 
   return (
-    <section className={styles.card} aria-labelledby="details">
-      <h2 id="details">{t("detail.details")}</h2>
-      {building.length > 0 && <p>{building.join(" · ")}</p>}
-      {o.features && o.features.length > 0 && (
-        <p className={styles.badges}>
-          {o.features.map((f) => (
-            <span key={f} className={styles.badge}>
-              {t(`detail.feature.${f}`)}
-            </span>
-          ))}
-        </p>
-      )}
-      {map && (
-        <p>
-          <a href={map} target="_blank" rel="noreferrer">
-            {t("detail.map")} ↗
-          </a>{" "}
-          {o.locationRadiusM ? (
-            <span className={styles.muted}>
-              {t("detail.mapApproximate", {
-                km: format.number(Math.max(o.locationRadiusM / 1000, 0.1)),
-              })}
-            </span>
-          ) : null}
-        </p>
-      )}
-      {description && <p className={styles.description}>{description}</p>}
-    </section>
+    <Panel title={t("detail.apartment")} flush>
+      <PropertyList
+        items={[
+          { label: t("field.floor"), value: floor },
+          {
+            label: t("field.availableFrom"),
+            value: o.availableFrom && format.day(o.availableFrom),
+          },
+          {
+            label: t("field.buildingType"),
+            value: o.buildingType && t(`detail.buildingType.${o.buildingType}`),
+          },
+          { label: t("field.buildYear"), value: o.buildYear },
+          { label: t("field.heating"), value: o.heating && t(`detail.heating.${o.heating}`) },
+          {
+            label: t("field.condition"),
+            value: o.condition && t(`detail.condition.${o.condition}`),
+          },
+          { label: t("field.features"), value: features.length > 0 ? features : null },
+        ]}
+      />
+    </Panel>
   );
 }

@@ -14,6 +14,12 @@
   "language": {
     "label": "Language"
   },
+  "theme": {
+    "label": "Theme: {{theme}}. Click to change.",
+    "system": "system",
+    "light": "light",
+    "dark": "dark"
+  },
   "status": {
     "loading": "Loading…",
     "modulesFailed": "Could not load the list of modules. Is the backend running?",
@@ -40,5 +46,16 @@
     "running": "Checking…",
     "ok": "Database connection works.",
     "canChangeSchema": "Warning: the application has too many database privileges (it can change the schema)."
+  },
+  "table": {
+    "pagination": "Result pages",
+    "range": "{{from}}–{{to}} of {{total}}",
+    "pageSize": "Per page",
+    "first": "First page",
+    "previous": "Previous page",
+    "next": "Next page",
+    "last": "Last page",
+    "page": "Page number",
+    "of": "of {{pages}}"
   }
 }

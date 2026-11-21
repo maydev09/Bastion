@@ -22,6 +22,9 @@ public sealed record OfferListItem
 
     public decimal? AreaM2 { get; init; }
 
+    // In PriceCurrency; null without a price or an area.
+    public decimal? PricePerM2 { get; init; }
+
     public int? Rooms { get; init; }
 
     public required DateTimeOffset CreatedAt { get; init; }
