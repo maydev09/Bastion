@@ -68,17 +68,24 @@ public sealed partial class JobRunner(
         var startedAt = time.GetUtcNow();
         var timeZone = TimeZoneInfo.FindSystemTimeZoneById(options.Value.TimeZone);
         var running = new List<Task> { MarkInterruptedAsync(startedAt, stoppingToken) };
-        foreach (var job in jobs)
+        if (options.Value.Scheduled)
         {
-            var schedule = schedules.Get(OptionsName(schema, job.Name));
-            if (schedule.DailyAt is { } dailyAt)
+            foreach (var job in jobs)
             {
-                running.Add(ScheduleAsync(job.Name, now => DailySchedule.NextRun(now, dailyAt, timeZone), stoppingToken));
+                var schedule = schedules.Get(OptionsName(schema, job.Name));
+                if (schedule.DailyAt is { } dailyAt)
+                {
+                    running.Add(ScheduleAsync(job.Name, now => DailySchedule.NextRun(now, dailyAt, timeZone), stoppingToken));
+                }
+                else if (schedule.Every is { } every)
+                {
+                    running.Add(ScheduleAsync(job.Name, now => now + every, stoppingToken));
+                }
             }
-            else if (schedule.Every is { } every)
-            {
-                running.Add(ScheduleAsync(job.Name, now => now + every, stoppingToken));
-            }
+        }
+        else
+        {
+            LogSchedulesOff(logger, schema);
         }
 
         try
@@ -255,6 +262,9 @@ public sealed partial class JobRunner(
         _active.Remove(job);
         _lock.Release();
     }
+
+    [LoggerMessage(Level = LogLevel.Information, Message = "Schedules of {Schema} jobs are off; jobs run only when started from the UI")]
+    private static partial void LogSchedulesOff(ILogger logger, string schema);
 
     [LoggerMessage(Level = LogLevel.Information, Message = "Job {Schema}/{Job} run {RunId} succeeded")]
     private static partial void LogSucceeded(ILogger logger, string schema, string job, int runId);

@@ -1,5 +1,9 @@
 [Logs]
 Path = "logs"
 
+# Jobs run only from the UI, so a copy of the production data does not scrape on its own.
+[Jobs]
+Scheduled = false
+
 [Modules.Housing.RawCaptures]
 Path = "data/raw/housing"
