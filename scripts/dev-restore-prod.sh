@@ -23,10 +23,64 @@ db=bastion-db-1
 
 # On the server (README, "Running on a server"). The copy of the raw captures sits next to the
 # dumps, readable for the admin's group like them (server-setup.sh).
-server_host=/opt/bastion/src/Host/Bastion.Host
+server_checkout=/opt/bastion
+server_host=$server_checkout/src/Host/Bastion.Host
 server_app=bastion-app-1
 server_root=/app
 server_copy=/var/backups/bastion/raw
+
+# Runs on the server with sudo: <app container> <checkout> <copy folder> (<module> <container path>)...
+# Stops unless the app runs the image of the checked-out commit, so the paths read from the
+# checkout are the ones the app uses. A module without a folder yet gets an empty copy.
+server_snapshot=$(cat <<'REMOTE'
+set -euo pipefail
+app="$1" checkout="$2" copy="$3"
+shift 3
+
+stop() {
+  echo "$*" >&2
+  exit 1
+}
+
+# The host folder behind a container path: the longest mount that contains it.
+host_path() {
+  local path="$1" mounts dest src best="" best_src=""
+  mounts="$(sudo docker inspect --format '{{range .Mounts}}{{.Destination}}{{"\t"}}{{.Source}}{{"\n"}}{{end}}' "$app")"
+  while IFS=$'\t' read -r dest src; do
+    if [[ -n "$dest" && ("$path" == "$dest" || "$path" == "$dest"/*) && ${#dest} -gt ${#best} ]]; then
+      best="$dest" best_src="$src"
+    fi
+  done <<<"$mounts"
+  [[ -n "$best" ]] || stop "$path is not on a volume of $app."
+  printf '%s\n' "$best_src${path#"$best"}"
+}
+
+[[ "$(sudo docker inspect --format '{{.State.Running}}' "$app")" == true ]] || stop "$app is not running."
+image="$(sudo docker inspect --format '{{.Config.Image}}' "$app")"
+commit="$(sudo git -C "$checkout" rev-parse HEAD)"
+[[ "${image##*:}" == "$commit" ]] || stop "$app runs $image, but $checkout is at $commit; restart Bastion first."
+
+declare -A sources
+while (($#)); do
+  sources["$1"]="$(host_path "$2")"
+  shift 2
+done
+
+sudo systemctl start bastion-backup
+sudo mkdir -p "$copy"
+for module in "${!sources[@]}"; do
+  source="${sources[$module]}"
+  sudo mkdir -p "$copy/$module"
+  if sudo test -d "$source"; then
+    sudo rsync --recursive --times --delete "$source/" "$copy/$module/"
+  else
+    sudo find "$copy/$module" -mindepth 1 -delete
+  fi
+done
+sudo chgrp -R --reference="$(dirname "$copy")" "$copy"
+sudo chmod -R g+rX,o= "$copy"
+REMOTE
+)
 
 fail() {
   echo "$*" >&2
@@ -48,7 +102,8 @@ read_paths() {
   local output module path
   output="$(python3 "$repo/scripts/raw-capture-paths.py" "${@:2}")"
   while IFS=$'\t' read -r module path; do
-    [[ -n "$module" ]] && paths["$module"]="$path"
+    [[ -n "$module" ]] || continue
+    paths["$module"]="$path"
   done <<<"$output"
 }
 
@@ -113,16 +168,12 @@ done
 cleanup
 
 # 1. Snapshot on the server: a dump, then the raw captures (files newer than the dump only add
-#    files that no row points to). A module that has not stored any capture yet gets an empty folder.
-snapshot="sudo systemctl start bastion-backup && sudo mkdir -p $server_copy"
-for module in "${!server_raw[@]}"; do
-  path="${server_raw[$module]}"
-  snapshot+=" && sudo rm -rf $server_copy/$module && if sudo docker exec $server_app test -d $path;
-    then sudo docker cp $server_app:$path $server_copy/$module; else sudo mkdir $server_copy/$module; fi"
-done
-snapshot+=" && sudo chgrp -R --reference=/var/backups/bastion $server_copy && sudo chmod -R g+rX,o= $server_copy"
+#    files that no row points to). Each module's folder is mirrored with rsync from the app's volume
+#    on the host, so a later run copies only new files.
+args=("$server_app" "$server_checkout" "$server_copy")
+for module in "${!server_raw[@]}"; do args+=("$module" "${server_raw[$module]}"); done
 before="$(newest_dump)"
-ssh -t "$server" "$snapshot"
+ssh -t "$server" "bash -c $(printf '%q' "$server_snapshot") snapshot $(printf '%q ' "${args[@]}")"
 
 # 2. Download.
 "$repo/scripts/backup-pull.sh" "$server"
@@ -145,8 +196,9 @@ docker exec -i "$db" pg_restore --username postgres --dbname bastion_restore \
   --exit-on-error --single-transaction <"$dump"
 docker compose --project-directory "$repo" run --rm --env DB_NAME=bastion_restore migrate
 
-# 4. Swap. Ctrl+C is ignored from here on, so the swap is not left half done.
-trap '' INT
+# 4. Swap. Ctrl+C, a closed terminal and kill are ignored from here on, so the swap is not left
+#    half done.
+trap '' INT HUP TERM
 sql <<'SQL'
 BEGIN;
 ALTER DATABASE bastion RENAME TO bastion_previous;
@@ -154,7 +206,9 @@ ALTER DATABASE bastion_restore RENAME TO bastion;
 COMMIT;
 SQL
 if ! swap_raw; then
-  sql <<'SQL'
+  sql <<'SQL' || fail "Could not move the raw captures in place, nor rename the databases back: \
+'bastion' is the production copy, 'bastion_previous' your old database, the raw captures are \
+your old ones. Stop what is connected, then rename bastion to bastion_restore and bastion_previous to bastion."
 BEGIN;
 ALTER DATABASE bastion RENAME TO bastion_restore;
 ALTER DATABASE bastion_previous RENAME TO bastion;

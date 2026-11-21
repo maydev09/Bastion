@@ -94,7 +94,7 @@ public class HousingJobsTests
     {
         var clock = new FakeTimeProvider(new DateTimeOffset(2026, 1, 15, 12, 0, 0, TimeSpan.Zero));
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<TimeProvider>(clock)))
-            .WithWebHostBuilder(b => b.UseSetting("Jobs:Scheduled", "false"));
+            .WithWebHostBuilder(b => b.UseSetting(TestApp.ScheduledKey, "false"));
         using var client = factory.CreateClient();
 
         // Past 04:00 in Warsaw, when retention runs on its schedule.
