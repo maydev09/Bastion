@@ -578,9 +578,70 @@ public class HousingImportTests
     }
 
     [Test]
+    public async Task A_short_outage_is_retried_and_the_run_goes_on()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)), QuickRetry);
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small, Large]];
+        _source.Details["1"] = new OfferDetails(Floor: 1);
+        _source.Details["2"] = new OfferDetails(Floor: 2);
+        await RunImport(client);
+        _source.DetailTimeouts = 2;
+
+        var run = await JobRuns.Run(client, FetchDetails);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(run.Status, Is.EqualTo(JobRunStatus.Succeeded), run.ErrorCode);
+            Assert.That(run.Summary!.Counts["fetched"], Is.EqualTo(2));
+            Assert.That(run.Summary.Counts["retried"], Is.EqualTo(2));
+        });
+    }
+
+    [Test]
+    public async Task A_retry_that_would_pass_the_time_limit_ends_the_run()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)),
+            QuickRetry, ("Modules:Housing:Details:MaxMinutes", "1"));
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small]];
+        _source.Details["1"] = new OfferDetails(Floor: 1);
+        await RunImport(client);
+        _source.DetailTimeouts = 1;
+
+        var run = await JobRuns.Run(client, FetchDetails);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(run.Status, Is.EqualTo(JobRunStatus.Failed));
+            Assert.That(_source.DetailRequests, Has.Count.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public async Task A_rate_limited_portal_is_not_retried()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)), QuickRetry);
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small]];
+        _source.Details["1"] = new OfferDetails(Floor: 1);
+        await RunImport(client);
+        _source.DetailsRateLimited = true;
+
+        var run = await JobRuns.Run(client, FetchDetails);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((run.Status, run.ErrorCode), Is.EqualTo((JobRunStatus.Failed, (string?)ScrapingException.RateLimited)));
+            Assert.That(_source.DetailRequests, Has.Count.EqualTo(1));
+        });
+    }
+
+    [Test]
     public async Task An_unreachable_portal_fails_the_run_and_blames_no_offer()
     {
-        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)),
+            QuickRetry, ("Modules:Housing:Details:Retries", "1"));
         using var client = factory.CreateClient();
         _source.Pages = [[Small, Large]];
         _source.Details["1"] = new OfferDetails(Floor: 1);
@@ -707,11 +768,19 @@ public class HousingImportTests
         services.Replace(ServiceDescriptor.Singleton(_places));
     }
 
-    private WebApplicationFactory<Program> App(Action<IServiceCollection> services) =>
-        TestApp.WithAllModules(b => b
-            .UseSetting($"ConnectionStrings:{DatabaseStatusEndpoint.ConnectionStringName}", DatabaseSetup.AppConnectionString)
-            .UseSetting("Modules:Housing:RawCaptures:Path", _rawPath)
-            .ConfigureTestServices(services));
+    private WebApplicationFactory<Program> App(Action<IServiceCollection> services, params (string Key, string Value)[] settings) =>
+        TestApp.WithAllModules(b =>
+        {
+            b.UseSetting($"ConnectionStrings:{DatabaseStatusEndpoint.ConnectionStringName}", DatabaseSetup.AppConnectionString)
+                .UseSetting("Modules:Housing:RawCaptures:Path", _rawPath)
+                .ConfigureTestServices(services);
+            foreach (var (key, value) in settings)
+            {
+                b.UseSetting(key, value);
+            }
+        });
+
+    private static readonly (string, string) QuickRetry = ("Modules:Housing:Details:FirstRetrySeconds", "1");
 
     private static async Task Sql(string sql)
     {
@@ -807,10 +876,27 @@ public class HousingImportTests
         // The portal out of reach, e.g. no VPN.
         public bool DetailsUnavailable { get; set; }
 
+        // The next detail requests that time out, before the portal answers again.
+        public int DetailTimeouts { get; set; }
+
+        // HTTP 429 on every detail request.
+        public bool DetailsRateLimited { get; set; }
+
         public Task<FetchResult> FetchDetailPageAsync(Uri url, CancellationToken cancellationToken)
         {
             var externalId = Pages.SelectMany(p => p).FirstOrDefault(o => o.Url == url)?.ExternalId ?? url.ToString();
             DetailRequests.Add(externalId);
+            if (DetailTimeouts > 0)
+            {
+                DetailTimeouts--;
+                return Task.FromResult(FetchResult.Failed(new Failure(ScrapingException.NetworkError, "Timed out.", FailureKind.Unavailable)));
+            }
+
+            if (DetailsRateLimited)
+            {
+                return Task.FromResult(FetchResult.Failed(new Failure(ScrapingException.RateLimited, "HTTP 429.", FailureKind.RateLimited)));
+            }
+
             if (DetailsUnavailable)
             {
                 return Task.FromResult(FetchResult.Failed(new Failure(ScrapingException.VpnRequired, "No VPN.", FailureKind.Unavailable)));

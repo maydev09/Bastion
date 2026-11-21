@@ -30,7 +30,7 @@ public static class OfferEndpoints
                 statusCode: failure.Kind switch
                 {
                     FailureKind.NotFound => StatusCodes.Status404NotFound,
-                    FailureKind.Unavailable => StatusCodes.Status503ServiceUnavailable,
+                    FailureKind.Unavailable or FailureKind.RateLimited => StatusCodes.Status503ServiceUnavailable,
                     _ => StatusCodes.Status502BadGateway,
                 },
                 title: "Import failed",

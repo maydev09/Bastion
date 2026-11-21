@@ -31,9 +31,12 @@ public sealed class OtoDomSource(ScrapingClient client, IOptions<OtoDomOptions> 
         catch (ScrapingException e)
         {
             // Only an HTTP error or a refused URL is about the page itself; the rest is about reaching the portal at all.
-            var failureKind = e.Code is ScrapingException.HttpError or ScrapingException.DisallowedByRobots
-                ? FailureKind.Failed
-                : FailureKind.Unavailable;
+            var failureKind = e.Code switch
+            {
+                ScrapingException.HttpError or ScrapingException.DisallowedByRobots => FailureKind.Failed,
+                ScrapingException.RateLimited => FailureKind.RateLimited,
+                _ => FailureKind.Unavailable,
+            };
             return FetchResult.Failed(new Failure(e.Code, e.Message, failureKind));
         }
     }
