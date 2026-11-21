@@ -51,10 +51,12 @@ public static class OfferEndpoints
             ListOffersHandler handler,
             CancellationToken cancellationToken,
             [Range(1, int.MaxValue)] int page = 1,
-            [Range(1, PageRequest.MaxPageSize)] int pageSize = PageRequest.DefaultPageSize) =>
-            TypedResults.Ok(await handler.Handle(new PageRequest(page, pageSize), cancellationToken)))
+            [Range(1, PageRequest.MaxPageSize)] int pageSize = PageRequest.DefaultPageSize,
+            OfferSort sort = OfferSort.FirstSeen,
+            SortDirection direction = SortDirection.Descending) =>
+            TypedResults.Ok(await handler.Handle(new PageRequest(page, pageSize), sort, direction, cancellationToken)))
         .WithName("ListHousingOffers")
-        .WithSummary("Returns stored offers, newest first.");
+        .WithSummary("Returns stored offers, by default newest first; offers without the sorted value come last.");
 
         app.MapGet("/offers/{id:int}", async Task<Results<Ok<OfferListItem>, NotFound>> (
             int id, ListOffersHandler handler, CancellationToken cancellationToken) =>

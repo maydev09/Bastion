@@ -88,17 +88,18 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         """;
 
     // The page is cut first and only its offers are joined with their places.
-    private const string ListSql = $"""
-        SELECT {OfferColumns}
+    // The ORDER BY list from BuildOrderBy picks the page and orders its rows.
+    private static string BuildListSql(string orderBy) => $$"""
+        SELECT {{OfferColumns}}
         FROM (
             SELECT *
-            FROM housing.offer
+            FROM housing.offer o
             WHERE removed_at IS NULL
-            ORDER BY external_created_at DESC NULLS LAST, created_at DESC, id DESC
+            ORDER BY {{orderBy}}
             LIMIT @PageSize OFFSET @Offset
         ) o
         LEFT JOIN housing.place p ON p.id = o.place_id
-        ORDER BY o.external_created_at DESC NULLS LAST, o.created_at DESC, o.id DESC;
+        ORDER BY {{orderBy}};
 
         SELECT count(*)::int FROM housing.offer WHERE removed_at IS NULL;
         """;
@@ -374,11 +375,13 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         return new MissedCounts(removed.Count, removed.Count(r => r));
     }
 
-    public async Task<PagedResult<OfferListItem>> ListAsync(PageRequest page, CancellationToken cancellationToken)
+    public async Task<PagedResult<OfferListItem>> ListAsync(
+        PageRequest page, OfferSort sort, SortDirection direction, CancellationToken cancellationToken)
     {
+        var sql = BuildListSql(BuildOrderBy(sort, direction));
         await using var connection = await db.OpenConnectionAsync(cancellationToken);
         await using var results = await connection.QueryMultipleAsync(new CommandDefinition(
-            ListSql, new { page.PageSize, page.Offset }, cancellationToken: cancellationToken));
+            sql, new { page.PageSize, page.Offset }, cancellationToken: cancellationToken));
 
         var items = (await results.ReadAsync<OfferListItem>()).ToList();
         var total = await results.ReadSingleAsync<int>();
@@ -400,6 +403,22 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             .Select(c => new OfferChange(c.Id, c.ChangedAt, ReadFieldChanges(c.Changes)))
             .ToList();
         return (await WithNearbyAsync(connection, [offer with { Features = features, Changes = changes }], cancellationToken))[0];
+    }
+
+    // The newest offer first breaks ties, so a page always has the same offers.
+    private static string BuildOrderBy(OfferSort sort, SortDirection direction)
+    {
+        var column = sort switch
+        {
+            OfferSort.FirstSeen => "o.external_created_at",
+            OfferSort.Price => "o.price",
+            OfferSort.PricePerM2 => "o.price / NULLIF(o.area_m2, 0)",
+            OfferSort.AreaM2 => "o.area_m2",
+            OfferSort.Rooms => "o.rooms",
+            _ => throw new ArgumentOutOfRangeException(nameof(sort), sort, null),
+        };
+        var order = direction == SortDirection.Ascending ? "ASC" : "DESC";
+        return $"{column} {order} NULLS LAST, o.external_created_at DESC NULLS LAST, o.created_at DESC, o.id DESC";
     }
 
     private static List<FieldChange> ReadFieldChanges(string changes)

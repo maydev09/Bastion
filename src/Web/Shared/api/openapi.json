@@ -145,7 +145,7 @@
         "tags": [
           "Housing"
         ],
-        "summary": "Returns stored offers, newest first.",
+        "summary": "Returns stored offers, by default newest first; offers without the sorted value come last.",
         "operationId": "ListHousingOffers",
         "parameters": [
           {
@@ -168,6 +168,22 @@
               "type": "integer",
               "format": "int32",
               "default": 50
+            }
+          },
+          {
+            "name": "sort",
+            "in": "query",
+            "schema": {
+              "default": "FirstSeen",
+              "$ref": "#/components/schemas/OfferSort"
+            }
+          },
+          {
+            "name": "direction",
+            "in": "query",
+            "schema": {
+              "default": "Descending",
+              "$ref": "#/components/schemas/SortDirection"
             }
           }
         ],
@@ -679,6 +695,13 @@
             ],
             "format": "double"
           },
+          "pricePerM2": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
           "rooms": {
             "type": [
               "null",
@@ -936,6 +959,15 @@
           }
         }
       },
+      "OfferSort": {
+        "enum": [
+          "FirstSeen",
+          "Price",
+          "PricePerM2",
+          "AreaM2",
+          "Rooms"
+        ]
+      },
       "PagedResultOfOfferListItem": {
         "required": [
           "items",
@@ -1102,6 +1134,12 @@
             ]
           }
         }
+      },
+      "SortDirection": {
+        "enum": [
+          "Ascending",
+          "Descending"
+        ]
       },
       "Source": {
         "enum": [
