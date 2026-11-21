@@ -1,0 +1,6 @@
+# The container (Dockerfile) keeps its data in the /data volume.
+[Logs]
+Path = "/data/logs"
+
+[Modules.Housing.RawCaptures]
+Path = "/data/raw/housing"

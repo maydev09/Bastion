@@ -85,7 +85,8 @@ and run the migrations exactly as Compose does (same images, read from `compose.
 `src/Host/Bastion.Host/data/raw/housing/<day>/<id>.zst` (git-ignored; open with `zstd -dc <id>.zst`).
 The folder is `[Modules.Housing.RawCaptures] Path` in the configuration.
 
-**Configuration**: `src/Host/Bastion.Host/bastion.toml` (not `appsettings.json`); local overrides
+**Configuration**: `src/Host/Bastion.Host/bastion.toml` (not `appsettings.json`); per environment
+`bastion.Development.toml` (local runs) and `bastion.Production.toml` (the container); local overrides
 in the git-ignored `bastion.local.toml`; environment variables win, e.g. `Modules__JobOffers__Enabled=false`.
 
 **Windows** is not documented or tested. Bastion can run there too, but the scripts (bash,

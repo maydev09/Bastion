@@ -1,5 +1,5 @@
 [Logs]
-Path = "/data/logs"
+Path = "logs"
 
 [Serilog.MinimumLevel]
 Default = "Information"
@@ -29,7 +29,7 @@ Retries = 4              # when the portal is out of reach (timeout, network, VP
 FirstRetrySeconds = 30
 
 [Modules.Housing.RawCaptures]
-Path = "/data/raw/housing"
+Path = "data/raw/housing"
 RetentionDays = 30
 AnonymizationMask = "***"
 
