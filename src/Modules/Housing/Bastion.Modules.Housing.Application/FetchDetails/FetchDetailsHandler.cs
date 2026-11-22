@@ -12,10 +12,10 @@ public sealed class FetchDetailsHandler(
     TimeProvider time,
     IOptions<DetailsOptions> options)
 {
+    // A removed offer (HTTP 410) is no failure: the offer is marked removed and leaves the queue.
     // A single bad page is that offer's failure.
     // Many in a row mean the portal refuses us (403, CAPTCHA): the run stops and those offers are not blamed.
-    // A page that is gone (HTTP 404, 410 of an offer removed since the last scan) is no sign of a refusal, so removed
-    // offers at the head of the queue cannot stop every run; only far more of them in a row mean the whole portal
+    // A missing page (HTTP 404) is no sign of a refusal; only far more of them in a row mean the whole portal
     // answers so (changed URLs, a block page) and stop the run.
     // A portal out of reach (no VPN, network, timeout) is retried after FirstRetrySeconds, then twice as long each time;
     // when the retries run out it stops the run and blames no offer.
@@ -23,7 +23,7 @@ public sealed class FetchDetailsHandler(
     public const int MaxFetchFailuresInRow = 10;
 
     // Below BatchSize: the streak is blamed before each batch.
-    public const int MaxGonePagesInRow = 50;
+    public const int MaxMissingPagesInRow = 50;
 
     // The longest a retried request may take (the HTTP timeout plus the pause between requests), so a retry ends before the deadline.
     private static readonly TimeSpan RequestAllowance = TimeSpan.FromMinutes(1);
@@ -39,10 +39,10 @@ public sealed class FetchDetailsHandler(
 
         var startedAt = time.GetUtcNow();
         var deadline = startedAt.AddMinutes(options.Value.MaxMinutes);
-        int fetched = 0, failed = 0, retried = 0;
+        int fetched = 0, failed = 0, removed = 0, retried = 0;
 
         // Failed fetches since the last success; blamed on their offers only when the streak ends without stopping the run.
-        var streak = new List<(PendingDetails Offer, DateTimeOffset At, string Error, bool IsGone)>();
+        var streak = new List<(PendingDetails Offer, DateTimeOffset At, string Error, bool IsMissing)>();
         while (time.GetUtcNow() < deadline)
         {
             // Before the next batch, or these offers would come back in it.
@@ -82,10 +82,17 @@ public sealed class FetchDetailsHandler(
                     return new DetailsOutcome(null, unavailable with { Detail = $"{unavailable.Detail} (after {retries} retries)" });
                 }
 
+                if (fetch.Failure is { Kind: FailureKind.Removed })
+                {
+                    await repository.MarkRemovedAsync(offer, cancellationToken);
+                    removed++;
+                    continue;
+                }
+
                 if (fetch.Failure is { } fetchFailure)
                 {
-                    streak.Add((offer, time.GetUtcNow(), fetchFailure.Detail, fetchFailure.Kind == FailureKind.Gone));
-                    if (streak.Count(f => !f.IsGone) >= MaxFetchFailuresInRow || streak.Count(f => f.IsGone) >= MaxGonePagesInRow)
+                    streak.Add((offer, time.GetUtcNow(), fetchFailure.Detail, fetchFailure.Kind == FailureKind.Missing));
+                    if (streak.Count(f => !f.IsMissing) >= MaxFetchFailuresInRow || streak.Count(f => f.IsMissing) >= MaxMissingPagesInRow)
                     {
                         return new DetailsOutcome(null, fetchFailure);
                     }
@@ -111,10 +118,10 @@ public sealed class FetchDetailsHandler(
         }
 
         failed += await BlameAsync(streak, cancellationToken);
-        return new DetailsOutcome(new DetailsResult(source, fetched, failed, retried), null);
+        return new DetailsOutcome(new DetailsResult(source, fetched, failed, removed, retried), null);
     }
 
-    private async Task<int> BlameAsync(List<(PendingDetails Offer, DateTimeOffset At, string Error, bool IsGone)> streak, CancellationToken cancellationToken)
+    private async Task<int> BlameAsync(List<(PendingDetails Offer, DateTimeOffset At, string Error, bool IsMissing)> streak, CancellationToken cancellationToken)
     {
         foreach (var (offer, at, error, _) in streak)
         {

@@ -13,8 +13,8 @@ public class OtoDomSourceTests
 {
     private static readonly Uri OfferPage = new("https://www.otodom.pl/pl/oferta/flat-ID1");
 
-    [TestCase(HttpStatusCode.Gone, FailureKind.Gone)]
-    [TestCase(HttpStatusCode.NotFound, FailureKind.Gone)]
+    [TestCase(HttpStatusCode.Gone, FailureKind.Removed)]
+    [TestCase(HttpStatusCode.NotFound, FailureKind.Missing)]
     [TestCase(HttpStatusCode.Forbidden, FailureKind.Failed)]
     public async Task A_detail_page_error_tells_a_removed_offer_from_a_refusal(HttpStatusCode status, FailureKind expected)
     {

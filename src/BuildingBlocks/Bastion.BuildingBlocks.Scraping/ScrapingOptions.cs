@@ -17,10 +17,10 @@ public sealed class ScrapingOptions
         VpnInterfacePrefixes.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
     [Range(0, 3600)]
-    public double MinDelaySeconds { get; set; } = 3;
+    public double MinDelaySeconds { get; set; } = 2;
 
     [Range(0, 3600)]
-    public double MaxDelaySeconds { get; set; } = 6;
+    public double MaxDelaySeconds { get; set; } = 5;
 
     [Range(1, 600)]
     public double TimeoutSeconds { get; set; } = 30;

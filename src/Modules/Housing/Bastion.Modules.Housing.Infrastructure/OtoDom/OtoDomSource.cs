@@ -33,7 +33,8 @@ public sealed class OtoDomSource(ScrapingClient client, IOptions<OtoDomOptions> 
             // Only an HTTP error or a refused URL is about the page itself; the rest is about reaching the portal at all.
             var failureKind = e.Code switch
             {
-                ScrapingException.HttpError when e.StatusCode is 404 or 410 => FailureKind.Gone,
+                ScrapingException.HttpError when e.StatusCode is 410 => FailureKind.Removed,
+                ScrapingException.HttpError when e.StatusCode is 404 => FailureKind.Missing,
                 ScrapingException.HttpError or ScrapingException.DisallowedByRobots => FailureKind.Failed,
                 ScrapingException.RateLimited => FailureKind.RateLimited,
                 _ => FailureKind.Unavailable,

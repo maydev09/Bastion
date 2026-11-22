@@ -8,7 +8,7 @@ public sealed class DetailsOptions
 
     // A run works through the queue until it is empty or this time is up; the rest waits for the next run.
     [Range(1, 1_440)]
-    public int MaxMinutes { get; set; } = 50;
+    public int MaxMinutes { get; set; } = 55;
 
     // After this many failed attempts an offer waits until its content changes.
     [Range(1, 10)]

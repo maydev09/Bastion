@@ -42,3 +42,14 @@ the other fields of these objects (ids, types) stay.
 
 Reported by others: `403` for requests from data centers (e.g. GitHub Actions runners).
 Not seen on our runs through the VPN.
+
+## Removed offers
+
+The page of a removed offer answers `410 Gone` (seen 2026-11-22): no redirect, a page saying the
+ad is no longer available (the property may have a new owner or tenant) and similar offers below.
+Offers listed in the nightly scan answered so the same day. The listing never showed an offer
+again after its page answered `410` (checked 2026-11-22), so `410` is final.
+
+A `404` was seen once (2026-11-21), for an offer that stayed in the listing: three attempts within
+a few hours answered `404`, and the next day the page answered `200` with the active offer. So a
+`404` can be temporary (perhaps while the ad is edited or moderated) and is not a removal.
