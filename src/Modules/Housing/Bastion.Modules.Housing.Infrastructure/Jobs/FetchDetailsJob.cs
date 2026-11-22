@@ -11,7 +11,7 @@ public sealed class FetchDetailsJob(OfferSources sources, FetchDetailsHandler ha
 
     public async Task<JobSummary> Run(JobContext context, CancellationToken cancellationToken)
     {
-        int fetched = 0, failed = 0, retried = 0;
+        int fetched = 0, failed = 0, removed = 0, retried = 0;
         foreach (var source in sources.All)
         {
             var outcome = await handler.Handle(source, cancellationToken);
@@ -22,6 +22,7 @@ public sealed class FetchDetailsJob(OfferSources sources, FetchDetailsHandler ha
 
             fetched += outcome.Result!.FetchedCount;
             failed += outcome.Result.FailedCount;
+            removed += outcome.Result.RemovedCount;
             retried += outcome.Result.RetriedCount;
         }
 
@@ -29,6 +30,7 @@ public sealed class FetchDetailsJob(OfferSources sources, FetchDetailsHandler ha
         {
             ["fetched"] = fetched,
             ["failed"] = failed,
+            ["removed"] = removed,
             ["retried"] = retried,
         });
     }

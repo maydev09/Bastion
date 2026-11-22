@@ -199,6 +199,11 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             last_error = excluded.last_error
         """;
 
+    // As MarkMissedSql: removed_at is when the offer was last seen.
+    private const string MarkRemovedSql = """
+        UPDATE housing.offer SET removed_at = last_seen_at WHERE id = @OfferId AND removed_at IS NULL
+        """;
+
     // The fields whose changes are logged, read before and after a save (locked, so another job cannot change them in between).
     // Not logged: the portal's dates (a bump), the URL, the location (not part of the content) and the place (our match).
     // Features count only after the first detail page: before it they are listing tags, a part of the full set.
@@ -524,6 +529,9 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
 
     public Task MarkDetailsFailedAsync(PendingDetails offer, DateTimeOffset at, string lastError, CancellationToken cancellationToken) =>
         ExecuteAsync(DetailsFailedSql, new { offer.OfferId, offer.ContentHash, At = at, LastError = lastError }, cancellationToken);
+
+    public Task MarkRemovedAsync(PendingDetails offer, CancellationToken cancellationToken) =>
+        ExecuteAsync(MarkRemovedSql, new { offer.OfferId }, cancellationToken);
 
     private async Task ExecuteAsync(string sql, object parameters, CancellationToken cancellationToken)
     {

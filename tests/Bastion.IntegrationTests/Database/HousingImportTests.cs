@@ -743,21 +743,50 @@ public class HousingImportTests
     }
 
     [Test]
-    public async Task Removed_offers_at_the_head_of_the_queue_do_not_stop_the_run()
+    public async Task A_detail_page_saying_the_offer_is_removed_removes_it_without_stopping_the_run()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
         using var client = factory.CreateClient();
-        // Newer than Large, so first in the queue; without detail pages they answer 404 as removed offers do.
-        var removed = Enumerable.Range(1, FetchDetailsHandler.MaxFetchFailuresInRow + 2)
+        // Newer than Large, so first in the queue; more than any limit of failures in a row.
+        var removed = Enumerable.Range(1, FetchDetailsHandler.MaxMissingPagesInRow + 2)
             .Select(i => Small with { ExternalId = $"removed-{i}", Url = new Uri($"https://www.otodom.pl/pl/oferta/removed-ID{i}") })
             .ToList();
         _source.Pages = [[.. removed, Large]];
+        _source.Details["2"] = new OfferDetails(Floor: 2);
+        _source.RemovedOffers.UnionWith(removed.Select(o => o.ExternalId));
+        await RunImport(client);
+
+        var run = await JobRuns.Run(client, FetchDetails);
+        _source.DetailRequests.Clear();
+        await RunDetails(client);
+        var list = await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(run.Status, Is.EqualTo(JobRunStatus.Succeeded), run.ErrorCode);
+            Assert.That(run.Summary!.Counts["removed"], Is.EqualTo(removed.Count));
+            Assert.That(run.Summary.Counts["fetched"], Is.EqualTo(1));
+            Assert.That(list!.TotalCount, Is.EqualTo(1));
+            Assert.That(_source.DetailRequests, Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task Missing_pages_at_the_head_of_the_queue_do_not_stop_the_run()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        using var client = factory.CreateClient();
+        // Newer than Large, so first in the queue; without detail pages they answer 404.
+        var missing = Enumerable.Range(1, FetchDetailsHandler.MaxFetchFailuresInRow + 2)
+            .Select(i => Small with { ExternalId = $"missing-{i}", Url = new Uri($"https://www.otodom.pl/pl/oferta/missing-ID{i}") })
+            .ToList();
+        _source.Pages = [[.. missing, Large]];
         _source.Details["2"] = new OfferDetails(Floor: 2);
         await RunImport(client);
 
         var fetched = await RunDetails(client);
 
-        Assert.That(fetched, Is.EqualTo(new Fetched(1, removed.Count)));
+        Assert.That(fetched, Is.EqualTo(new Fetched(1, missing.Count)));
     }
 
     [Test]
@@ -766,7 +795,7 @@ public class HousingImportTests
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
         using var client = factory.CreateClient();
         // No detail pages: every fetch answers 404, as after the portal changed its URLs.
-        _source.Pages = [Enumerable.Range(1, FetchDetailsHandler.MaxGonePagesInRow + 2)
+        _source.Pages = [Enumerable.Range(1, FetchDetailsHandler.MaxMissingPagesInRow + 2)
             .Select(i => Small with { ExternalId = $"{i}", Url = new Uri($"https://www.otodom.pl/pl/oferta/flat-ID{i}") })
             .ToList()];
         await RunImport(client);
@@ -1047,6 +1076,9 @@ public class HousingImportTests
         // HTTP 403 on every detail request, as when the portal blocks us.
         public bool DetailsRefused { get; set; }
 
+        // External ids whose detail page answers HTTP 410: the portal removed the offer.
+        public HashSet<string> RemovedOffers { get; } = [];
+
         public Task<FetchResult> FetchDetailPageAsync(Uri url, CancellationToken cancellationToken)
         {
             var externalId = Pages.SelectMany(p => p).FirstOrDefault(o => o.Url == url)?.ExternalId ?? url.ToString();
@@ -1072,9 +1104,14 @@ public class HousingImportTests
                 return Task.FromResult(FetchResult.Failed(new Failure(ScrapingException.HttpError, $"{url} returned HTTP 403.", FailureKind.Failed)));
             }
 
+            if (RemovedOffers.Contains(externalId))
+            {
+                return Task.FromResult(FetchResult.Failed(new Failure(ScrapingException.HttpError, $"{url} returned HTTP 410.", FailureKind.Removed)));
+            }
+
             if (!Details.TryGetValue(externalId, out var details))
             {
-                return Task.FromResult(FetchResult.Failed(new Failure(ScrapingException.HttpError, $"{url} returned HTTP 404.", FailureKind.Gone)));
+                return Task.FromResult(FetchResult.Failed(new Failure(ScrapingException.HttpError, $"{url} returned HTTP 404.", FailureKind.Missing)));
             }
 
             return Task.FromResult(new FetchResult(new RawPage(

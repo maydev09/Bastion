@@ -30,6 +30,9 @@ public interface IOfferRepository
 
     Task MarkDetailsFailedAsync(PendingDetails offer, DateTimeOffset at, string lastError, CancellationToken cancellationToken);
 
+    // The portal says the offer is removed: marked as after missed scans, and listed again once the listing shows it.
+    Task MarkRemovedAsync(PendingDetails offer, CancellationToken cancellationToken);
+
     Task<IReadOnlyList<OfferLocation>> ListLocationsAsync(CancellationToken cancellationToken);
 
     // Returns how many offers changed their place.
