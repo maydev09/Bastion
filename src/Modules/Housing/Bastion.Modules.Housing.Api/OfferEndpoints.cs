@@ -3,6 +3,7 @@ using Bastion.Modules.Housing.Application.Abstractions;
 using Bastion.Modules.Housing.Application.ImportOffers;
 using Bastion.Modules.Housing.Application.ListOffers;
 using Bastion.Modules.Housing.Application.ListPlaces;
+using Bastion.Modules.Housing.Application.Places;
 using Bastion.Modules.Housing.Application.ReparseOffers;
 using Bastion.Modules.Housing.Domain;
 using Bastion.Platform.Abstractions;
@@ -11,6 +12,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.Options;
 
 namespace Bastion.Modules.Housing.Api;
 
@@ -84,6 +86,15 @@ public static class OfferEndpoints
             TypedResults.Ok(FeatureCategories.All.Select(f => new FeatureListItem(f, FeatureCategories.Of(f))).ToList()))
         .WithName("ListHousingFeatures")
         .WithSummary("Returns every amenity with its category, in display order: the same groups for every portal.");
+
+        app.MapGet("/place-sizes", (IOptions<PlaceSizeOptions> sizes) =>
+            TypedResults.Ok(Enum.GetValues<PlaceSize>().Select(size =>
+            {
+                var range = sizes.Value.RangeOf(size);
+                return new PlaceSizeListItem(size, range.Kind, range.Min, range.Max);
+            }).ToList()))
+        .WithName("ListHousingPlaceSizes")
+        .WithSummary("Returns every place size with the populations it covers under the configured thresholds.");
 
         app.MapGet("/places", async (ListPlacesHandler handler, CancellationToken cancellationToken, [Required] string search) =>
             TypedResults.Ok(await handler.Search(search, cancellationToken)))

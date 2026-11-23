@@ -66,6 +66,14 @@
   gap: 2px var(--space-3);
 }
 
+/* The populations of a place size, on a line of its own under the name: the panel is too narrow for both. */
+.population {
+  display: block;
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+}
+
 .range {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);

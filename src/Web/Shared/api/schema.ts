@@ -158,6 +158,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/housing/place-sizes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns every place size with the populations it covers under the configured thresholds. */
+        get: operations["ListHousingPlaceSizes"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/housing/places": {
         parameters: {
             query?: never;
@@ -419,6 +436,9 @@ export interface components {
             placeSizes: {
                 [key: string]: number;
             };
+            placeRoles: {
+                [key: string]: number;
+            };
             furnished: {
                 [key: string]: number;
             };
@@ -433,6 +453,7 @@ export interface components {
             priceCut: number;
             addedSince: number[];
             price?: null | components["schemas"]["Histogram"];
+            pricePerM2?: null | components["schemas"]["Histogram"];
             areaM2?: null | components["schemas"]["Histogram"];
         };
         OfferListItem: {
@@ -544,6 +565,14 @@ export interface components {
         PlaceRole: "VoivodeshipCapital" | "CountySeat" | "MunicipalitySeat" | null;
         /** @enum {unknown} */
         PlaceSize: "SmallVillage" | "MediumVillage" | "LargeVillage" | "VeryLargeVillage" | "VerySmallTown" | "SmallTown" | "MediumTown" | "LargerTown" | "LargeCity" | "VeryLargeCity" | "Metropolis" | null;
+        PlaceSizeListItem: {
+            size: components["schemas"]["PlaceSize"];
+            kind: components["schemas"]["PlaceKind"];
+            /** Format: int32 */
+            minPopulation: number;
+            /** Format: int32 */
+            maxPopulation: null | number;
+        };
         /** @enum {unknown} */
         PlaceSource: "Wikidata" | null;
         ProblemDetails: {
@@ -708,10 +737,13 @@ export interface operations {
                 place?: number[];
                 withoutPlace?: boolean;
                 size?: components["schemas"]["PlaceSize"][];
+                role?: components["schemas"]["PlaceRole"][];
                 feature?: components["schemas"]["Feature"][];
                 featureMatch?: components["schemas"]["FeatureMatch"];
                 priceMin?: number;
                 priceMax?: number;
+                pricePerM2Min?: number;
+                pricePerM2Max?: number;
                 areaMin?: number;
                 areaMax?: number;
                 rooms?: number[];
@@ -750,10 +782,13 @@ export interface operations {
                 place?: number[];
                 withoutPlace?: boolean;
                 size?: components["schemas"]["PlaceSize"][];
+                role?: components["schemas"]["PlaceRole"][];
                 feature?: components["schemas"]["Feature"][];
                 featureMatch?: components["schemas"]["FeatureMatch"];
                 priceMin?: number;
                 priceMax?: number;
+                pricePerM2Min?: number;
+                pricePerM2Max?: number;
                 areaMin?: number;
                 areaMax?: number;
                 rooms?: number[];
@@ -789,10 +824,13 @@ export interface operations {
                 place?: number[];
                 withoutPlace?: boolean;
                 size?: components["schemas"]["PlaceSize"][];
+                role?: components["schemas"]["PlaceRole"][];
                 feature?: components["schemas"]["Feature"][];
                 featureMatch?: components["schemas"]["FeatureMatch"];
                 priceMin?: number;
                 priceMax?: number;
+                pricePerM2Min?: number;
+                pricePerM2Max?: number;
                 areaMin?: number;
                 areaMax?: number;
                 rooms?: number[];
@@ -836,6 +874,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FeatureListItem"][];
+                };
+            };
+        };
+    };
+    ListHousingPlaceSizes: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaceSizeListItem"][];
                 };
             };
         };

@@ -2,6 +2,7 @@ import type { components } from "@shared/api/schema";
 
 type Voivodeship = NonNullable<components["schemas"]["Voivodeship"]>;
 type PlaceSize = NonNullable<components["schemas"]["PlaceSize"]>;
+type PlaceRole = NonNullable<components["schemas"]["PlaceRole"]>;
 type Feature = components["schemas"]["Feature"];
 type OfferSort = components["schemas"]["OfferSort"];
 type Answer = NonNullable<components["schemas"]["Answer"]>;
@@ -40,6 +41,8 @@ export const villageSizes: PlaceSize[] = [
   "MediumVillage",
   "SmallVillage",
 ];
+// The highest seat first, as on the offer card.
+export const placeRoles: PlaceRole[] = ["VoivodeshipCapital", "CountySeat", "MunicipalitySeat"];
 export const answers: Answer[] = ["Yes", "No", "NotStated"];
 export const sorts: OfferSort[] = ["FirstSeen", "Price", "Rent", "PricePerM2", "AreaM2", "Rooms"];
 // The room counts picked one by one; from this one on the pick means "or more" (roomsMin).
@@ -55,11 +58,15 @@ export type OfferFilter = {
   // Offers whose location matched no place; joined with OR with the places and voivodeships.
   withoutPlace: boolean;
   size: PlaceSize[];
+  // Places whose highest seat is any of them.
+  role: PlaceRole[];
   feature: Feature[];
   // Offers with all the picked amenities, or with any of them.
   featureMatch: FeatureMatch;
   priceMin: number | null;
   priceMax: number | null;
+  pricePerM2Min: number | null;
+  pricePerM2Max: number | null;
   areaMin: number | null;
   areaMax: number | null;
   // Offers with any of the room counts, or with at least roomsMin.
@@ -88,10 +95,13 @@ export const noFilter: OfferFilter = {
   place: [],
   withoutPlace: false,
   size: [],
+  role: [],
   feature: [],
   featureMatch: "All",
   priceMin: null,
   priceMax: null,
+  pricePerM2Min: null,
+  pricePerM2Max: null,
   areaMin: null,
   areaMax: null,
   rooms: [],
@@ -103,7 +113,15 @@ export const noFilter: OfferFilter = {
   excludeOffer: null,
 };
 
-const numberKeys = ["priceMin", "priceMax", "areaMin", "areaMax", "roomsMin"] as const;
+const numberKeys = [
+  "priceMin",
+  "priceMax",
+  "pricePerM2Min",
+  "pricePerM2Max",
+  "areaMin",
+  "areaMax",
+  "roomsMin",
+] as const;
 
 // Unknown or broken values in a link are ignored, so an old link still opens a list.
 export function readView(params: URLSearchParams): OfferView {
@@ -118,6 +136,7 @@ export function readView(params: URLSearchParams): OfferView {
       .filter((id) => Number.isInteger(id) && id > 0),
     withoutPlace: params.get("withoutPlace") === "true",
     size: [...townSizes, ...villageSizes].filter((s) => params.getAll("size").includes(s)),
+    role: placeRoles.filter((r) => params.getAll("role").includes(r)),
     rooms: roomCounts.filter((r) => params.getAll("rooms").includes(String(r))),
     // The amenities come from the API; one it does not know makes the list fail, so only names pass here.
     feature: params.getAll("feature").filter((f): f is Feature => /^[A-Za-z]+$/.test(f)),
@@ -151,6 +170,7 @@ export function writeView(view: OfferView): URLSearchParams {
     params.set("withoutPlace", "true");
   }
   filter.size.forEach((s) => params.append("size", s));
+  filter.role.forEach((r) => params.append("role", r));
   filter.rooms.forEach((r) => params.append("rooms", String(r)));
   filter.feature.forEach((f) => params.append("feature", f));
   if (filter.featureMatch !== "All") {
@@ -208,10 +228,13 @@ export function toFilterQuery(filter: OfferFilter) {
     place: list(filter.place),
     withoutPlace: filter.withoutPlace || undefined,
     size: list(filter.size),
+    role: list(filter.role),
     feature: list(filter.feature),
     featureMatch: filter.featureMatch === "All" ? undefined : filter.featureMatch,
     priceMin: filter.priceMin ?? undefined,
     priceMax: filter.priceMax ?? undefined,
+    pricePerM2Min: filter.pricePerM2Min ?? undefined,
+    pricePerM2Max: filter.pricePerM2Max ?? undefined,
     areaMin: filter.areaMin ?? undefined,
     areaMax: filter.areaMax ?? undefined,
     rooms: list(filter.rooms),
@@ -231,6 +254,7 @@ export function countFilters(filter: OfferFilter): number {
     filter.place.length +
     (filter.withoutPlace ? 1 : 0) +
     filter.size.length +
+    filter.role.length +
     filter.rooms.length +
     filter.feature.length +
     numberKeys.filter((key) => filter[key] != null).length +

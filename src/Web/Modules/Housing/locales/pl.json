@@ -115,7 +115,12 @@
     "histogram": "{{what}}: ile ofert od {{from}} do {{to}}",
     "bar": "{{from}}–{{to}}: {{count, number}}",
     "barFrom": "od {{from}}: {{count, number}}",
-    "withoutPlace": "Bez przypisanej miejscowości"
+    "withoutPlace": "Bez przypisanej miejscowości",
+    "role": "Funkcja miejscowości",
+    "pricePerM2": "Cena za m²",
+    "populationBelow": "poniżej {{to}}",
+    "populationRange": "{{from}}–{{to}}",
+    "populationFrom": "od {{from}}"
   },
   "detail": {
     "back": "Wszystkie oferty",
@@ -309,7 +314,9 @@
     "km": "{{value}} km",
     "m": "{{value}} m",
     "pln": "zł",
-    "m2": "m²"
+    "m2": "m²",
+    "perM2": "{{value}}/m²",
+    "plnPerM2": "zł/m²"
   },
   "errors": {
     "parseFailed": "OtoDom zmienił wygląd strony, nie udało się odczytać ofert.",
@@ -395,7 +402,7 @@
     "sections": "Oferta musi pasować do wszystkich sekcji, w których coś ustawisz: np. do lokalizacji i do ceny, i do liczby pokoi.",
     "choices": "W jednej sekcji wystarczy jedna z zaznaczonych opcji: Gdańsk lub Gdynia, 2 lub 3 pokoje, metropolia lub duże miasto. W Lokalizacji dotyczy to miejscowości, województw i ofert bez przypisanej miejscowości.",
     "features": "Udogodnienia muszą być wszystkie naraz; przełącznikiem „dowolne” wystarczy jedno z nich.",
-    "ranges": "Cena i metraż to zakres od–do; kliknięcie słupka na wykresie ustawia jego zakres, a drugie kliknięcie innego słupka go rozszerza.",
+    "ranges": "Cena, cena za m² i metraż to zakres od–do; kliknięcie słupka na wykresie ustawia jego zakres, a drugie kliknięcie innego słupka go rozszerza.",
     "history": "W Historii zmian „Zmiany oferty” i „Cena obniżona” muszą być spełnione naraz.",
     "counts": "Liczba przy opcji mówi, ile ofert pokaże lista po jej zaznaczeniu, przy pozostałych filtrach bez zmian."
   }

@@ -315,6 +315,57 @@ public class HousingImportTests
     }
 
     [Test]
+    public async Task List_is_filtered_by_the_seat_of_the_place_and_by_the_price_per_m2_as_shown()
+    {
+        await using var factory = App(WithFakes);
+        using var client = factory.CreateClient();
+        await JobRuns.Run(client, ImportPlaces);
+        _source.Pages = [[Small with { LocationKey = WarszawaKey }, Medium, Large with { LocationKey = GoscicinoKey }]];
+        await RunImport(client);
+
+        var capitals = await ListedTitles(client, "?role=VoivodeshipCapital");
+        var countyOrMunicipalitySeats = await ListedTitles(client, "?role=CountySeat&role=MunicipalitySeat");
+        // Shown as 56.55, 60 and 73.33 zł/m²; the bounds are inclusive and compare with the shown value.
+        var perM2 = await ListedTitles(client, "?pricePerM2Min=56.55&pricePerM2Max=73.33");
+        var cheapPerM2 = await ListedTitles(client, "?pricePerM2Max=60");
+        var capitalAbove70 = await Facets(client, "?role=VoivodeshipCapital&pricePerM2Min=70");
+        var upTo60 = await Facets(client, "?pricePerM2Max=60");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(capitals, Is.EqualTo(new[] { "Small flat" }));
+            Assert.That(countyOrMunicipalitySeats, Is.Empty);
+            Assert.That(perM2, Is.EquivalentTo(new[] { "Small flat", "Medium flat", "Large flat" }));
+            Assert.That(cheapPerM2, Is.EquivalentTo(new[] { "Medium flat", "Large flat" }));
+            // Seats join with OR, so they are counted without the picked one, under the other filters.
+            Assert.That(capitalAbove70.PlaceRoles, Is.EquivalentTo(new Dictionary<PlaceRole, int> { [PlaceRole.VoivodeshipCapital] = 1 }));
+            Assert.That(upTo60.PlaceRoles, Is.Empty);
+            // The histogram of the price per m² ignores its own bounds.
+            Assert.That(capitalAbove70.PricePerM2!.Counts.Sum(), Is.EqualTo(1));
+            Assert.That(upTo60.PricePerM2!.Counts.Sum(), Is.EqualTo(3));
+        });
+    }
+
+    [Test]
+    public async Task Place_sizes_show_the_configured_thresholds()
+    {
+        await using var factory = App(WithFakes, ("Modules:Housing:PlaceSizes:Town:Metropolis", "2000000"));
+        using var client = factory.CreateClient();
+
+        var sizes = (await client.GetFromJsonAsync<PlaceSizeListItem[]>("/api/housing/place-sizes", Json))!;
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(sizes.Select(s => s.Size), Is.EquivalentTo(Enum.GetValues<PlaceSize>()));
+            Assert.That(sizes.Single(s => s.Size == PlaceSize.Metropolis),
+                Is.EqualTo(new PlaceSizeListItem(PlaceSize.Metropolis, PlaceKind.Town, 2_000_000, null)));
+            Assert.That(sizes.Single(s => s.Size == PlaceSize.VeryLargeCity).MaxPopulation, Is.EqualTo(2_000_000));
+            Assert.That(sizes.Single(s => s.Size == PlaceSize.SmallVillage),
+                Is.EqualTo(new PlaceSizeListItem(PlaceSize.SmallVillage, PlaceKind.Village, 0, 200)));
+        });
+    }
+
+    [Test]
     public async Task Facets_count_what_each_choice_would_show_with_the_other_filters()
     {
         await using var factory = App(WithFakes);

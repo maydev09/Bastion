@@ -116,7 +116,7 @@ describe("OfferList", () => {
     const requests = stubApi({ "/api/housing/offers": longList });
 
     renderList(
-      "/housing/offers?page=3&pageSize=25&sort=AreaM2&direction=Ascending&size=SmallTown&priceMax=3000&feature=Balcony&priceCut=true",
+      "/housing/offers?page=3&pageSize=25&sort=AreaM2&direction=Ascending&size=SmallTown&role=MunicipalitySeat&priceMax=3000&pricePerM2Max=55.5&feature=Balcony&priceCut=true",
     );
 
     await screen.findByRole("link", { name: "Flat" });
@@ -126,11 +126,55 @@ describe("OfferList", () => {
       sort: "AreaM2",
       direction: "Ascending",
       size: "SmallTown",
+      role: "MunicipalitySeat",
       priceMax: "3000",
+      pricePerM2Max: "55.5",
       feature: "Balcony",
       priceCut: "true",
     });
     expect(screen.getByRole("checkbox", { name: t("place.size.SmallTown") })).toBeChecked();
+    expect(screen.getByRole("checkbox", { name: t("place.role.MunicipalitySeat") })).toBeChecked();
+    expect(
+      screen.getByRole("textbox", { name: t("filters.to", { what: t("filters.pricePerM2") }) }),
+    ).toHaveValue("55,5");
+  });
+
+  it("shows the populations of each place size under the configured thresholds", async () => {
+    stubApi({
+      "/api/housing/offers": longList,
+      "/api/housing/place-sizes": {
+        status: 200,
+        body: [
+          { size: "SmallVillage", kind: "Village", minPopulation: 0, maxPopulation: 300 },
+          { size: "SmallTown", kind: "Town", minPopulation: 5000, maxPopulation: 20000 },
+          { size: "Metropolis", kind: "Town", minPopulation: 250000, maxPopulation: null },
+        ],
+      },
+    });
+    const number = new Intl.NumberFormat("pl").format;
+    renderList("/housing/offers");
+
+    await userEvent.click(await screen.findByRole("button", { name: t("filters.size") }));
+
+    const size = (name: string, population: string) => `${t(name)} ${population}`;
+    expect(
+      await screen.findByRole("checkbox", {
+        name: size("place.size.SmallVillage", t("filters.populationBelow", { to: number(300) })),
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("checkbox", {
+        name: size(
+          "place.size.SmallTown",
+          t("filters.populationRange", { from: number(5000), to: number(20000) }),
+        ),
+      }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("checkbox", {
+        name: size("place.size.Metropolis", t("filters.populationFrom", { from: number(250000) })),
+      }),
+    ).toBeInTheDocument();
   });
 
   it("narrows the list by a ticked filter, from the first page", async () => {

@@ -111,7 +111,12 @@
     "histogram": "{{what}}: how many offers from {{from}} to {{to}}",
     "bar": "{{from}}–{{to}}: {{count, number}}",
     "barFrom": "from {{from}}: {{count, number}}",
-    "withoutPlace": "Without a matched place"
+    "withoutPlace": "Without a matched place",
+    "role": "Administrative role",
+    "pricePerM2": "Price per m²",
+    "populationBelow": "under {{to}}",
+    "populationRange": "{{from}}–{{to}}",
+    "populationFrom": "{{from}} and more"
   },
   "detail": {
     "back": "All offers",
@@ -303,7 +308,9 @@
     "km": "{{value}} km",
     "m": "{{value}} m",
     "pln": "PLN",
-    "m2": "m²"
+    "m2": "m²",
+    "perM2": "{{value}}/m²",
+    "plnPerM2": "PLN"
   },
   "errors": {
     "parseFailed": "OtoDom changed its page layout; the offers could not be read.",
@@ -377,7 +384,7 @@
     "sections": "An offer must match every section where you set something: e.g. the location, and the price, and the room count.",
     "choices": "Within one section any of the ticked choices is enough: Gdańsk or Gdynia, 2 or 3 rooms, metropolis or large city. In Location this covers places, voivodeships and offers without a matched place.",
     "features": "Amenities must all be there; with the “any” switch one of them is enough.",
-    "ranges": "Price and area are a from–to range; a click on a bar of the chart sets its range, a click on another bar widens it.",
+    "ranges": "Price, price per m² and area are a from–to range; a click on a bar of the chart sets its range, a click on another bar widens it.",
     "history": "In Change history, “Offer changes” and “Price cut” must both hold.",
     "counts": "The number next to a choice says how many offers the list shows once it is ticked, with the other filters as they are."
   }

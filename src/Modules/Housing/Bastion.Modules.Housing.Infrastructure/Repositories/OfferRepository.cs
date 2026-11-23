@@ -123,6 +123,11 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
                 ON p.kind = s.kind AND p.population >= s.min AND (s.max IS NULL OR p.population < s.max))
         """;
 
+    private const string PlaceRoleCondition = "o.place_id IN (SELECT id FROM housing.place WHERE role = ANY(@Roles))";
+
+    // The price per m² as the list shows it; an offer without an area has none.
+    private const string PricePerM2 = "o.price / NULLIF(o.area_m2, 0)";
+
     private const string AllFeaturesCondition = """
         (SELECT count(*) FROM housing.offer_feature f WHERE f.offer_id = o.id AND f.feature = ANY(@Features)) = @FeatureCount
         """;
@@ -463,11 +468,14 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
     {
         var withoutLocation = BuildWhere(filter with { Voivodeships = [], PlaceIds = [], WithoutPlace = false }, placeSizes);
         var withoutSize = BuildWhere(filter, []);
+        var withoutRole = BuildWhere(filter with { PlaceRoles = [] }, placeSizes);
         var withoutFurnished = BuildWhere(filter with { Furnished = null }, placeSizes);
         var forFeatures = BuildWhere(filter.FeatureMatch == FeatureMatch.Any ? filter with { Features = [] } : filter, placeSizes);
         var withoutChanged = BuildWhere(filter with { Changed = null }, placeSizes);
         var withPriceCut = BuildWhere(filter with { PriceCut = true }, placeSizes);
         var withoutPrice = BuildWhere(filter with { PriceMin = null, PriceMax = null }, placeSizes) + " AND o.price_currency = @PriceCurrency";
+        var withoutPricePerM2 = BuildWhere(filter with { PricePerM2Min = null, PricePerM2Max = null }, placeSizes)
+            + " AND o.price_currency = @PriceCurrency";
         var withoutArea = BuildWhere(filter with { AreaMin = null, AreaMax = null }, placeSizes);
         var withoutAddedSince = BuildWhere(filter with { AddedSince = null }, placeSizes);
         var sql = $$"""
@@ -486,6 +494,12 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
                 ON p.kind = s.kind AND p.population >= s.min AND (s.max IS NULL OR p.population < s.max)
             WHERE {{withoutSize}}
             GROUP BY s.size;
+
+            SELECT p.role, count(*)::int
+            FROM housing.offer o
+            JOIN housing.place p ON p.id = o.place_id
+            WHERE {{withoutRole}} AND p.role IS NOT NULL
+            GROUP BY p.role;
 
             SELECT o.furnished, count(*)::int
             FROM housing.offer o
@@ -506,6 +520,8 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             SELECT count(*)::int FROM housing.offer o WHERE {{withPriceCut}};
 
             {{BuildHistogramSql("o.price", withoutPrice)}}
+
+            {{BuildHistogramSql(PricePerM2, withoutPricePerM2)}}
 
             {{BuildHistogramSql("o.area_m2", withoutArea)}}
 
@@ -530,6 +546,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         var voivodeships = (await results.ReadAsync<(int Value, int Count)>()).ToDictionary(r => (Voivodeship)r.Value, r => r.Count);
         var withoutPlace = await results.ReadSingleAsync<int>();
         var sizes = (await results.ReadAsync<(int Value, int Count)>()).ToDictionary(r => (PlaceSize)r.Value, r => r.Count);
+        var roles = (await results.ReadAsync<(int Value, int Count)>()).ToDictionary(r => (PlaceRole)r.Value, r => r.Count);
         var furnished = (await results.ReadAsync<(int Value, int Count)>()).ToDictionary(r => (Answer)r.Value, r => r.Count);
         var features = (await results.ReadAsync<(int Value, int Count)>()).ToDictionary(r => (Feature)r.Value, r => r.Count);
         var changed = (await results.ReadAsync<(bool Changed, int Count)>()).ToDictionary(r => r.Changed, r => r.Count);
@@ -538,12 +555,14 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             Voivodeships = voivodeships,
             WithoutPlace = withoutPlace,
             PlaceSizes = sizes,
+            PlaceRoles = roles,
             Furnished = furnished,
             Features = features,
             Changed = changed.GetValueOrDefault(true),
             Unchanged = changed.GetValueOrDefault(false),
             PriceCut = await results.ReadSingleAsync<int>(),
             Price = ReadHistogram(await results.ReadAsync<HistogramRow>()),
+            PricePerM2 = ReadHistogram(await results.ReadAsync<HistogramRow>()),
             AreaM2 = ReadHistogram(await results.ReadAsync<HistogramRow>()),
             AddedSince = await ReadCountsAsync(results, countAddedSince.Count),
         };
@@ -629,7 +648,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         var sql = $$"""
             SELECT count(*)::int AS count,
                 {{BuildSpreadSql("o.price", "o.price_currency = @PriceCurrency", "price")}},
-                {{BuildSpreadSql("o.price / NULLIF(o.area_m2, 0)", "o.price_currency = @PriceCurrency", "price_per_m2")}},
+                {{BuildSpreadSql(PricePerM2, "o.price_currency = @PriceCurrency", "price_per_m2")}},
                 {{BuildSpreadSql("o.rent", "o.rent_currency = @PriceCurrency", "rent")}},
                 {{BuildSpreadSql("o.area_m2", "TRUE", "area")}},
                 {{BuildSpreadSql("extract(epoch FROM @Now - coalesce(o.external_created_at, o.created_at)) / 86400", "TRUE", "days_listed")}}
@@ -699,9 +718,12 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             SizeKinds = placeSizes.Select(s => (int)s.Kind).ToArray(),
             SizeMins = placeSizes.Select(s => s.Min).ToArray(),
             SizeMaxes = placeSizes.Select(s => s.Max).ToArray(),
+            Roles = filter.PlaceRoles.Select(r => (int)r).ToArray(),
             PriceCurrency = (int)OfferFilter.PriceCurrency,
             filter.PriceMin,
             filter.PriceMax,
+            filter.PricePerM2Min,
+            filter.PricePerM2Max,
             filter.AreaMin,
             filter.AreaMax,
             Rooms = filter.Rooms.ToArray(),
@@ -737,7 +759,12 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             conditions.Add(PlaceSizeCondition);
         }
 
-        if (filter.PriceMin is not null || filter.PriceMax is not null)
+        if (filter.PlaceRoles.Count > 0)
+        {
+            conditions.Add(PlaceRoleCondition);
+        }
+
+        if (filter.PriceMin is not null || filter.PriceMax is not null || filter.PricePerM2Min is not null || filter.PricePerM2Max is not null)
         {
             conditions.Add("o.price_currency = @PriceCurrency");
         }
@@ -750,6 +777,16 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         if (filter.PriceMax is not null)
         {
             conditions.Add("o.price <= @PriceMax");
+        }
+
+        if (filter.PricePerM2Min is not null)
+        {
+            conditions.Add($"round({PricePerM2}, 2) >= @PricePerM2Min");
+        }
+
+        if (filter.PricePerM2Max is not null)
+        {
+            conditions.Add($"round({PricePerM2}, 2) <= @PricePerM2Max");
         }
 
         if (filter.AreaMin is not null)
@@ -832,7 +869,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         {
             OfferSort.FirstSeen => "o.external_created_at",
             OfferSort.Price => "o.price",
-            OfferSort.PricePerM2 => "o.price / NULLIF(o.area_m2, 0)",
+            OfferSort.PricePerM2 => PricePerM2,
             OfferSort.AreaM2 => "o.area_m2",
             OfferSort.Rooms => "o.rooms",
             OfferSort.Rent => "o.rent",

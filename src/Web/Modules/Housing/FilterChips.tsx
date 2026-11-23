@@ -53,12 +53,26 @@ export function FilterChips({ filter, onChange }: Props) {
       label: t(`place.size.${size}`),
       remove: { size: filter.size.filter((s) => s !== size) },
     })),
+    ...filter.role.map((role) => ({
+      key: `role-${role}`,
+      label: t(`place.role.${role}`),
+      remove: { role: filter.role.filter((r) => r !== role) },
+    })),
   ];
   if (filter.priceMin != null || filter.priceMax != null) {
     chips.push({
       key: "price",
       label: range(t("filters.price"), filter.priceMin, filter.priceMax, money),
       remove: { priceMin: null, priceMax: null },
+    });
+  }
+  if (filter.pricePerM2Min != null || filter.pricePerM2Max != null) {
+    chips.push({
+      key: "pricePerM2",
+      label: range(t("filters.pricePerM2"), filter.pricePerM2Min, filter.pricePerM2Max, (value) =>
+        t("units.perM2", { value: format.money(value, "PLN") }),
+      ),
+      remove: { pricePerM2Min: null, pricePerM2Max: null },
     });
   }
   if (filter.areaMin != null || filter.areaMax != null) {
