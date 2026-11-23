@@ -5,14 +5,15 @@ using Microsoft.Extensions.Options;
 
 namespace Bastion.Modules.Housing.Application.ListOffers;
 
-// The size of a place is computed here, so changed thresholds apply at once.
+// The size of a place is computed here, so changed thresholds apply at once; the size filter uses the same thresholds.
 // The price per m² is computed here too; the list query sorts by the same expression.
 public sealed class ListOffersHandler(IOfferRepository repository, IOptions<PlaceSizeOptions> sizes)
 {
     public async Task<PagedResult<OfferListItem>> Handle(
-        PageRequest page, OfferSort sort, SortDirection direction, CancellationToken cancellationToken)
+        OfferFilter filter, PageRequest page, OfferSort sort, SortDirection direction, CancellationToken cancellationToken)
     {
-        var offers = await repository.ListAsync(page, sort, direction, cancellationToken);
+        var placeSizes = filter.PlaceSizes.Distinct().Select(sizes.Value.RangeOf).ToList();
+        var offers = await repository.ListAsync(filter, placeSizes, page, sort, direction, cancellationToken);
         return offers with { Items = offers.Items.Select(AddDerivedValues).ToList() };
     }
 

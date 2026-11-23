@@ -34,20 +34,13 @@
   font-weight: 550;
 }
 
+/* The offer list fills the window: the filters and the table scroll inside, the paging stays at the bottom. */
 .list {
   display: grid;
+  grid-template-rows: minmax(0, 1fr);
   gap: var(--space-3);
-}
-
-.toolbar {
-  display: flex;
-  align-items: baseline;
-  gap: var(--space-3);
-}
-
-.count {
-  color: var(--color-muted);
-  font-variant-numeric: tabular-nums;
+  height: 100%;
+  min-height: 480px;
 }
 
 /* Offer titles read as text in a long column; the accent shows on hover. */
@@ -61,6 +54,9 @@
 }
 
 .empty {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
   padding: var(--space-6);
   border: 1px dashed var(--color-border-strong);
   border-radius: var(--radius);
@@ -70,4 +66,74 @@
 
 .muted {
   color: var(--color-muted);
+}
+
+.badge {
+  min-width: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-size: 0.8125rem;
+  line-height: 22px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The filter panel sits left of the table and stays in view while the table scrolls. */
+.body {
+  display: grid;
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: var(--space-4);
+  min-height: 0;
+
+  &[data-filters="closed"] {
+    grid-template-columns: auto minmax(0, 1fr);
+  }
+}
+
+.filters {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+/* Only as tall as its button and count, at the top of the column. */
+.filtersStrip {
+  display: flex;
+  align-self: start;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+}
+
+.offers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+  min-height: 0;
+}
+
+/* Narrow: the filters stand above the table and the window scrolls. */
+@media (width < 960px) {
+  .list {
+    height: auto;
+  }
+
+  .body {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .filters {
+    overflow-y: visible;
+  }
+
+  .filtersStrip {
+    flex-direction: row;
+    align-self: start;
+  }
 }

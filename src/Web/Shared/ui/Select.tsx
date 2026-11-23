@@ -24,7 +24,7 @@ export function Select<Value>({ value, items, onChange, label }: Props<Value>) {
       <BaseSelect.Trigger className={styles.trigger} aria-label={label}>
         <BaseSelect.Value />
         <BaseSelect.Icon className={styles.icon}>
-          <Icon name="chevronDown" size={14} />
+          <Icon name="chevronDown" size={16} />
         </BaseSelect.Icon>
       </BaseSelect.Trigger>
       <BaseSelect.Portal>
@@ -38,7 +38,7 @@ export function Select<Value>({ value, items, onChange, label }: Props<Value>) {
                   className={styles.item}
                 >
                   <BaseSelect.ItemIndicator className={styles.indicator}>
-                    <Icon name="check" size={14} />
+                    <Icon name="check" size={16} />
                   </BaseSelect.ItemIndicator>
                   <BaseSelect.ItemText>{item.label}</BaseSelect.ItemText>
                 </BaseSelect.Item>

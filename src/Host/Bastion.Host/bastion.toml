@@ -58,7 +58,8 @@ BigCityMinPopulation = 100000   # a town this big is a big city
 BigCityCount = 3                # big cities around a place: at most this many...
 BigCityMaxKm = 50               # ...at most this far
 
-# ImportPlaces has no schedule: it runs from the button in the UI, e.g. after a new census.
+# ImportPlaces and LinkPlaces have no schedule: they run from the buttons in the UI, e.g. after a new census
+# (ImportPlaces), then LinkPlaces so stored offers get the new places.
 
 [Modules.Housing.Jobs.ImportOffers]
 Every = "00:10:00"

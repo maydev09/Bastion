@@ -1,16 +1,24 @@
 import { screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import i18n from "i18next";
+import { Route, Routes } from "react-router";
 import { describe, expect, it } from "vitest";
 import { renderWithProviders, stubApi } from "@shared/test/render";
-import { HousingPage } from "./HousingPage";
+import { OfferList } from "./OfferList";
+
+// Inside its route, as in the app: links to an offer are relative to the list.
+const renderList = (path: string) =>
+  renderWithProviders(
+    <Routes>
+      <Route path="/housing/offers" element={<OfferList />} />
+    </Routes>,
+    path,
+  );
 
 const t = i18n.getFixedT("pl", "housing");
 const common = i18n.getFixedT("pl", "common");
 
 const emptyList = { status: 200, body: { items: [], page: 1, pageSize: 50, totalCount: 0 } };
-
-const openTools = () => userEvent.click(screen.getByRole("button", { name: t("tools.title") }));
 
 // One offer on the page of a list with 260 offers: six pages of 50.
 const longList = {
@@ -37,7 +45,7 @@ const lastQuery = (requests: URL[]) =>
     requests.filter((r) => r.pathname === "/api/housing/offers").at(-1)!.searchParams,
   );
 
-describe("HousingPage", () => {
+describe("OfferList", () => {
   it("lists stored offers with a link to their details", async () => {
     stubApi({
       "/api/housing/offers": {
@@ -65,18 +73,18 @@ describe("HousingPage", () => {
       },
     });
 
-    renderWithProviders(<HousingPage />);
+    renderList("/housing/offers");
 
     expect(await screen.findByRole("link", { name: "Small flat" })).toHaveAttribute(
       "href",
-      "/offers/1",
+      "/housing/offers/1",
     );
     expect(screen.getByRole("button", { name: common("table.next") })).toBeDisabled();
   });
 
   it("sorts by a column header: cheapest first, then dearest", async () => {
     const requests = stubApi({ "/api/housing/offers": longList });
-    renderWithProviders(<HousingPage />);
+    renderList("/housing/offers");
 
     await userEvent.click(await screen.findByRole("button", { name: t("list.price") }));
     expect(lastQuery(requests)).toMatchObject({ sort: "Price", direction: "Ascending", page: "1" });
@@ -91,7 +99,7 @@ describe("HousingPage", () => {
 
   it("jumps to a typed page and to the last page", async () => {
     const requests = stubApi({ "/api/housing/offers": longList });
-    renderWithProviders(<HousingPage />);
+    renderList("/housing/offers");
 
     const pageNumber = await screen.findByRole("textbox", { name: common("table.page") });
     await userEvent.clear(pageNumber);
@@ -106,7 +114,9 @@ describe("HousingPage", () => {
   it("opens the view a copied link describes", async () => {
     const requests = stubApi({ "/api/housing/offers": longList });
 
-    renderWithProviders(<HousingPage />, "/?page=3&pageSize=25&sort=AreaM2&direction=Ascending");
+    renderList(
+      "/housing/offers?page=3&pageSize=25&sort=AreaM2&direction=Ascending&size=SmallTown&priceMax=3000&feature=Balcony&priceCut=true",
+    );
 
     await screen.findByRole("link", { name: "Flat" });
     expect(lastQuery(requests)).toEqual({
@@ -114,7 +124,54 @@ describe("HousingPage", () => {
       pageSize: "25",
       sort: "AreaM2",
       direction: "Ascending",
+      size: "SmallTown",
+      priceMax: "3000",
+      feature: "Balcony",
+      priceCut: "true",
     });
+    expect(screen.getByRole("checkbox", { name: t("place.size.SmallTown") })).toBeChecked();
+  });
+
+  it("narrows the list by a ticked filter, from the first page", async () => {
+    const requests = stubApi({ "/api/housing/offers": longList });
+    renderList("/housing/offers?page=3");
+
+    await userEvent.click(
+      await screen.findByRole("checkbox", { name: t("place.size.Metropolis") }),
+    );
+    expect(lastQuery(requests)).toMatchObject({ size: "Metropolis", page: "1" });
+
+    await userEvent.click(screen.getByRole("button", { name: t("filters.clear") }));
+    expect(lastQuery(requests)).not.toHaveProperty("size");
+  });
+
+  it("picks a whole category of amenities with one click", async () => {
+    const requests = stubApi({
+      "/api/housing/offers": longList,
+      "/api/housing/features": {
+        status: 200,
+        body: [
+          { feature: "Balcony", category: "Outdoor" },
+          { feature: "Stove", category: "Appliances" },
+          { feature: "Fridge", category: "Appliances" },
+        ],
+      },
+    });
+    renderList("/housing/offers");
+    const category = await screen.findByRole("checkbox", {
+      name: t("featureCategory.Appliances"),
+    });
+
+    await userEvent.click(category);
+    const picked = () =>
+      requests
+        .filter((r) => r.pathname === "/api/housing/offers")
+        .at(-1)!
+        .searchParams.getAll("feature");
+    expect(picked()).toEqual(["Stove", "Fridge"]);
+
+    await userEvent.click(category);
+    expect(picked()).toEqual([]);
   });
 
   it("shows the place of an offer: town or village and how big", async () => {
@@ -151,7 +208,7 @@ describe("HousingPage", () => {
       },
     });
 
-    renderWithProviders(<HousingPage />);
+    renderList("/housing/offers");
 
     const row = (await screen.findByRole("link", { name: "Flat in Pruszków" })).closest("tr")!;
     expect(row).toHaveTextContent(
@@ -162,114 +219,11 @@ describe("HousingPage", () => {
     expect(row).toHaveTextContent(t("place.nearestCity", { city: "Bydgoszcz", km: "89" }));
   });
 
-  it("shows what the place import saved", async () => {
-    stubApi({
-      "/api/housing/offers": emptyList,
-      "/api/housing/jobs/ImportPlaces/runs/latest": {
-        status: 200,
-        body: {
-          run: {
-            id: 1,
-            job: "ImportPlaces",
-            trigger: "Manual",
-            status: "Succeeded",
-            queuedAt: "2026-11-20T10:00:00+00:00",
-            startedAt: "2026-11-20T10:00:00+00:00",
-            finishedAt: "2026-11-20T10:01:30+00:00",
-            errorCode: null,
-            summary: {
-              counts: {
-                places: 65000,
-                added: 65000,
-                updated: 0,
-                linkedOffers: 25757,
-                unlinkedOffers: 8,
-              },
-            },
-          },
-          serverTime: "2026-11-20T10:02:00+00:00",
-        },
-      },
-    });
-
-    renderWithProviders(<HousingPage />);
-
-    await openTools();
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      t("places.result", { places: 65000, added: 65000, updated: 0, linked: 25757, unlinked: 8 }),
-    );
-  });
-
   it("tells the user when nothing is stored yet", async () => {
     stubApi({ "/api/housing/offers": emptyList });
 
-    renderWithProviders(<HousingPage />);
+    renderList("/housing/offers");
 
     expect(await screen.findByText(t("list.empty"))).toBeInTheDocument();
-  });
-
-  it("shows what the import saved", async () => {
-    stubApi({
-      "/api/housing/offers": emptyList,
-      "/api/housing/import/OtoDom": {
-        status: 200,
-        body: {
-          source: "OtoDom",
-          addedCount: 70,
-          updatedCount: 1,
-          unchangedCount: 1,
-          skippedCount: 0,
-        },
-      },
-    });
-    renderWithProviders(<HousingPage />);
-
-    await openTools();
-    await userEvent.click(screen.getByRole("button", { name: t("import.run") }));
-
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      t("import.result", { source: "OtoDom", added: 70, updated: 1, unchanged: 1 }),
-    );
-  });
-
-  it.each([
-    { status: 503, code: "scraping.vpnRequired", ns: "common", key: "errors.scraping.vpnRequired" },
-    { status: 502, code: "housing.parseFailed", ns: "housing", key: "errors.parseFailed" },
-  ] as const)("shows the translated import error for $code", async ({ status, code, ns, key }) => {
-    stubApi({
-      "/api/housing/offers": emptyList,
-      "/api/housing/import/OtoDom": { status, body: { title: "Import failed", code } },
-    });
-    renderWithProviders(<HousingPage />);
-
-    await openTools();
-    await userEvent.click(screen.getByRole("button", { name: t("import.run") }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      i18n.getResource("pl", ns, key) as string,
-    );
-  });
-
-  it("shows what parsing the stored pages saved", async () => {
-    stubApi({
-      "/api/housing/offers": emptyList,
-      "/api/housing/reparse": {
-        status: 200,
-        body: {
-          captureCount: 3,
-          failedCount: 1,
-          addedCount: 2,
-          updatedCount: 0,
-          unchangedCount: 70,
-          skippedCount: 0,
-        },
-      },
-    });
-    renderWithProviders(<HousingPage />);
-
-    await openTools();
-    await userEvent.click(screen.getByRole("button", { name: t("reparse.run") }));
-
-    expect(await screen.findByRole("status")).toHaveTextContent(t("reparse.failed", { count: 1 }));
   });
 });

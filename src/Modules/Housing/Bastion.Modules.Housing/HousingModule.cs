@@ -7,7 +7,9 @@ using Bastion.Modules.Housing.Application.Abstractions;
 using Bastion.Modules.Housing.Application.FetchDetails;
 using Bastion.Modules.Housing.Application.ImportOffers;
 using Bastion.Modules.Housing.Application.ImportPlaces;
+using Bastion.Modules.Housing.Application.LinkPlaces;
 using Bastion.Modules.Housing.Application.ListOffers;
+using Bastion.Modules.Housing.Application.ListPlaces;
 using Bastion.Modules.Housing.Application.Places;
 using Bastion.Modules.Housing.Application.RawCaptures;
 using Bastion.Modules.Housing.Application.ReparseOffers;
@@ -85,14 +87,17 @@ public sealed class HousingModule : IModule
         services.AddTransient<FetchDetailsHandler>();
         services.AddTransient<ReparseOffersHandler>();
         services.AddTransient<ImportPlacesHandler>();
+        services.AddTransient<LinkPlacesHandler>();
         services.AddTransient<ListOffersHandler>();
+        services.AddTransient<ListPlacesHandler>();
 
         services.AddJobs(Schema, moduleSection)
             .Add<ImportOffersJob>(ImportOffersJob.Name)
             .Add<ScanOffersJob>(ScanOffersJob.Name)
             .Add<FetchDetailsJob>(FetchDetailsJob.Name)
             .Add<RawCaptureRetentionJob>(RawCaptureRetentionJob.Name)
-            .Add<ImportPlacesJob>(ImportPlacesJob.Name);
+            .Add<ImportPlacesJob>(ImportPlacesJob.Name)
+            .Add<LinkPlacesJob>(LinkPlacesJob.Name);
     }
 
     public void MapEndpoints(IEndpointRouteBuilder moduleGroup)

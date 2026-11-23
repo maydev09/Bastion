@@ -1,38 +1,25 @@
+/* Fills the space under the top bar; below 1000px it becomes a plain page that scrolls as a whole. */
 .page {
-  display: grid;
+  display: flex;
+  flex-direction: column;
   gap: var(--space-4);
-}
+  height: 100%;
 
-.back {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  justify-self: start;
-  color: var(--color-muted);
-
-  &:hover {
-    color: var(--color-text);
-    text-decoration: none;
+  @media (width < 1000px) {
+    height: auto;
   }
 }
 
-.header {
+.bar {
   display: flex;
+  flex: none;
   flex-wrap: wrap;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--space-3) var(--space-6);
-}
+  align-items: center;
+  gap: var(--space-3) var(--space-4);
 
-.heading {
-  display: grid;
-  gap: var(--space-1);
-  min-width: 0;
-  max-width: 90ch;
-}
-
-.subtitle {
-  color: var(--color-text-secondary);
+  & .summary {
+    flex: 1;
+  }
 }
 
 .portal {
@@ -40,7 +27,7 @@
   align-items: center;
   gap: var(--space-2);
   height: var(--control-height);
-  padding: 0 var(--space-3);
+  padding: 0 var(--space-4);
   border-radius: var(--radius);
   background: var(--color-accent);
   color: var(--color-on-accent);
@@ -87,25 +74,65 @@
 
 .layout {
   display: grid;
+  flex: 1;
   grid-template-columns: minmax(0, 1fr) minmax(320px, 400px);
-  align-items: start;
   gap: var(--space-4);
+  min-height: 0;
 
   @media (width < 1000px) {
     grid-template-columns: minmax(0, 1fr);
   }
 }
 
-.column {
-  display: grid;
+/* The change history on top, the description filling the rest and scrolling on its own. */
+.main {
+  display: flex;
+  flex-direction: column;
   gap: var(--space-4);
   min-width: 0;
+  min-height: 0;
+}
+
+.facts {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  min-width: 0;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+
+  @media (width < 1000px) {
+    overflow-y: visible;
+  }
+}
+
+/* A long history scrolls inside, so the description below keeps its room. */
+.changesScroll {
+  max-height: 30vh;
+  overflow-y: auto;
 }
 
 .description {
   max-width: 80ch;
-  white-space: pre-line;
   line-height: 1.6;
+
+  & p,
+  & ul {
+    margin: 0 0 var(--space-3);
+  }
+
+  & p:empty {
+    display: none;
+  }
+
+  & ul {
+    padding-left: var(--space-6);
+  }
+
+  & li + li {
+    margin-top: var(--space-1);
+  }
 }
 
 .notice {
@@ -202,4 +229,10 @@
 .error {
   color: var(--color-error);
   font-weight: 600;
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
 }

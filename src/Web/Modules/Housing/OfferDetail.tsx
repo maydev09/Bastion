@@ -1,8 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
 import { useTranslation } from "react-i18next";
-import { Link, useLocation, useParams } from "react-router";
+import { useLocation, useNavigate, useParams } from "react-router";
 import { api } from "@shared/api/client";
 import { Icon } from "@shared/ui/Icon";
+import { LinkButton } from "@shared/ui/LinkButton";
+import { PageTitle } from "@shared/ui/PageTitle";
 import { Panel } from "@shared/ui/Panel";
 import { PropertyList } from "@shared/ui/PropertyList";
 import { useErrorMessage } from "@shared/useErrorMessage";
@@ -10,6 +12,7 @@ import styles from "./OfferDetail.module.css";
 import { OfferChanges } from "./OfferChanges";
 import { OfferDescription } from "./OfferDescription";
 import { OfferDetails } from "./OfferDetails";
+import { OfferFeatures } from "./OfferFeatures";
 import { OfferPlace } from "./OfferPlace";
 import { offersQueryKey } from "./queryKeys";
 import { useFormat } from "./useFormat";
@@ -19,6 +22,7 @@ export function OfferDetail() {
   const errorMessage = useErrorMessage();
   const id = Number(useParams().id);
   const location = useLocation();
+  const navigate = useNavigate();
   const offer = useQuery({
     queryKey: [...offersQueryKey, "detail", id],
     queryFn: async () => {
@@ -37,17 +41,23 @@ export function OfferDetail() {
 
   const format = useFormat();
 
-  // Back to the list view (page, sort order) the user came from.
+  // Back to the list view (page, sort order) the user came from. Coming from the list, it is the browser's
+  // back step, so the list is scrolled as it was; the link still works when opened in a new tab.
   const from: unknown = (location.state as { from?: unknown } | null)?.from;
   const back = (
-    <Link
-      to={{ pathname: "../..", search: typeof from === "string" ? from : "" }}
+    <LinkButton
+      to={{ pathname: "..", search: typeof from === "string" ? from : "" }}
       relative="path"
-      className={styles.back}
+      onClick={(event) => {
+        if (typeof from === "string") {
+          event.preventDefault();
+          void navigate(-1);
+        }
+      }}
     >
-      <Icon name="previous" size={14} />
+      <Icon name="previous" size={18} />
       {t("detail.back")}
-    </Link>
+    </LinkButton>
   );
 
   if (offer.isPending) {
@@ -55,15 +65,18 @@ export function OfferDetail() {
   }
   if (offer.isError) {
     return (
-      <p className={styles.error} role="alert">
-        {errorMessage(offer.error.message)}
-      </p>
+      <>
+        <PageTitle before={back}>{t("detail.title")}</PageTitle>
+        <p className={styles.error} role="alert">
+          {errorMessage(offer.error.message)}
+        </p>
+      </>
     );
   }
   if (!offer.data) {
     return (
       <>
-        {back}
+        <PageTitle before={back}>{t("detail.title")}</PageTitle>
         <p>{t("detail.notFound")}</p>
       </>
     );
@@ -73,7 +86,9 @@ export function OfferDetail() {
   const money = (value: number | null | undefined, currency: string | null | undefined) =>
     value != null && currency ? format.money(value, currency) : "—";
   const summary = [
+    // What is paid each month first: the price and the fees next to it.
     { label: t("field.price"), value: money(o.price, o.priceCurrency) },
+    { label: t("field.rent"), value: money(o.rent, o.rentCurrency) },
     {
       label: t("field.pricePerM2"),
       value:
@@ -81,7 +96,6 @@ export function OfferDetail() {
           ? format.wholeMoney(o.pricePerM2, o.priceCurrency)
           : "—",
     },
-    { label: t("field.rent"), value: money(o.rent, o.rentCurrency) },
     { label: t("field.deposit"), value: money(o.deposit, o.depositCurrency) },
     { label: t("field.areaM2"), value: o.areaM2 != null ? format.area(o.areaM2) : "—" },
     { label: t("field.rooms"), value: o.rooms ?? "—" },
@@ -92,36 +106,37 @@ export function OfferDetail() {
       : o.placeName;
   const date = (iso: string | null | undefined) => iso && format.date(iso);
 
+  // The page fills the space under the top bar: the key numbers stay in view, and the two columns
+  // below them (description on the left, the facts on the right) scroll each on its own.
   return (
     <article className={styles.page}>
-      {back}
-      <header className={styles.header}>
-        <div className={styles.heading}>
-          <h1>{o.title}</h1>
-          {place && <p className={styles.subtitle}>{place}</p>}
-        </div>
+      <PageTitle before={back} aside={place}>
+        {o.title}
+      </PageTitle>
+
+      <div className={styles.bar}>
+        <dl className={styles.summary}>
+          {summary.map((item) => (
+            <div key={item.label}>
+              <dt>{item.label}</dt>
+              <dd>{item.value}</dd>
+            </div>
+          ))}
+        </dl>
         <a className={styles.portal} href={o.url} target="_blank" rel="noreferrer">
           {t("detail.portal", { source: o.source })}
-          <Icon name="external" size={14} />
+          <Icon name="external" size={16} />
         </a>
-      </header>
-
-      <dl className={styles.summary}>
-        {summary.map((item) => (
-          <div key={item.label}>
-            <dt>{item.label}</dt>
-            <dd>{item.value}</dd>
-          </div>
-        ))}
-      </dl>
+      </div>
 
       <div className={styles.layout}>
-        <div className={styles.column}>
+        <div className={styles.main}>
           <OfferChanges offer={o} />
           <OfferDescription offer={o} />
         </div>
-        <aside className={styles.column}>
+        <aside className={styles.facts}>
           <OfferDetails offer={o} />
+          <OfferFeatures offer={o} />
           <OfferPlace offer={o} />
           <Panel title={t("detail.listing")} flush>
             <PropertyList

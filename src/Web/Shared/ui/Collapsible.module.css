@@ -44,3 +44,7 @@
   padding: var(--space-3);
   border-top: 1px solid var(--color-border);
 }
+
+.flush {
+  padding: 0;
+}

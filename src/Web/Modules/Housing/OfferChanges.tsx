@@ -1,6 +1,6 @@
 import { useTranslation } from "react-i18next";
 import type { components } from "@shared/api/schema";
-import { Panel } from "@shared/ui/Panel";
+import { Collapsible } from "@shared/ui/Collapsible";
 import type pl from "./locales/pl.json";
 import styles from "./OfferDetail.module.css";
 import { useFormat } from "./useFormat";
@@ -51,6 +51,8 @@ export function OfferChanges({ offer: o }: { offer: Schemas["OfferListItem"] }) 
         return t(`detail.heating.${value as NonNullable<Schemas["Heating"]>}`);
       case "condition":
         return t(`detail.condition.${value as NonNullable<Schemas["Condition"]>}`);
+      case "furnished":
+        return t(`answer.${value as NonNullable<Schemas["Answer"]>}`);
       default:
         return String(value);
     }
@@ -108,37 +110,47 @@ export function OfferChanges({ offer: o }: { offer: Schemas["OfferListItem"] }) 
   }
 
   return (
-    <Panel title={t("changes.title")} flush>
+    // Open at first; it can be closed to give the description more room.
+    <Collapsible
+      title={t("changes.title")}
+      hint={changes.length > 0 ? t("changes.count", { count: changes.length }) : undefined}
+      defaultOpen
+      flush
+    >
       {changes.length === 0 ? (
         <p className={styles.notice}>{t("changes.none")}</p>
       ) : (
-        <table className={styles.changes}>
-          <thead>
-            <tr>
-              <th>{t("changes.column.date")}</th>
-              <th>{t("changes.column.field")}</th>
-              <th>{t("changes.column.before")}</th>
-              <th>{t("changes.column.after")}</th>
-              <th className={styles.number}>{t("changes.column.difference")}</th>
-            </tr>
-          </thead>
-          {changes.map((change) => (
-            <tbody key={change.id}>
-              {change.changes.map((c, index) => (
-                <tr key={c.field}>
-                  {index === 0 && (
-                    <td rowSpan={change.changes.length} className={styles.changedAt}>
-                      <time dateTime={change.changedAt}>{format.shortDate(change.changedAt)}</time>
-                    </td>
-                  )}
-                  <td>{t(`field.${c.field as ChangedField}`)}</td>
-                  {renderValues(c)}
-                </tr>
-              ))}
-            </tbody>
-          ))}
-        </table>
+        <div className={styles.changesScroll}>
+          <table className={styles.changes}>
+            <thead>
+              <tr>
+                <th>{t("changes.column.date")}</th>
+                <th>{t("changes.column.field")}</th>
+                <th>{t("changes.column.before")}</th>
+                <th>{t("changes.column.after")}</th>
+                <th className={styles.number}>{t("changes.column.difference")}</th>
+              </tr>
+            </thead>
+            {changes.map((change) => (
+              <tbody key={change.id}>
+                {change.changes.map((c, index) => (
+                  <tr key={c.field}>
+                    {index === 0 && (
+                      <td rowSpan={change.changes.length} className={styles.changedAt}>
+                        <time dateTime={change.changedAt}>
+                          {format.shortDate(change.changedAt)}
+                        </time>
+                      </td>
+                    )}
+                    <td>{t(`field.${c.field as ChangedField}`)}</td>
+                    {renderValues(c)}
+                  </tr>
+                ))}
+              </tbody>
+            ))}
+          </table>
+        </div>
       )}
-    </Panel>
+    </Collapsible>
   );
 }

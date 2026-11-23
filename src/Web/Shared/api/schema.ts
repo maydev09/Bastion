@@ -97,8 +97,59 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Returns stored offers, by default newest first; offers without the sorted value come last. */
+        /** Returns stored offers that match all given filters, by default newest first; offers without the sorted value come last. Prices are in PLN; place and voivodeship together match offers in any of them. */
         get: operations["ListHousingOffers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/housing/features": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns every amenity with its category, in display order: the same groups for every portal. */
+        get: operations["ListHousingFeatures"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/housing/places": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns up to 20 places with listed offers whose name or a word of it starts with the search, most offers first. */
+        get: operations["SearchHousingPlaces"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/housing/places/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns one place with the number of its listed offers, also a place without offers. */
+        get: operations["GetHousingPlace"];
         put?: never;
         post?: never;
         delete?: never;
@@ -223,6 +274,8 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /** @enum {unknown} */
+        Answer: "Yes" | "No" | "NotStated" | null;
+        /** @enum {unknown} */
         BuildingType: "Block" | "Tenement" | "Apartment" | "House" | "Loft" | null;
         /** @enum {unknown} */
         Condition: "ReadyToUse" | "ToRenovate" | "ToFinish" | null;
@@ -235,7 +288,13 @@ export interface components {
             migrations: components["schemas"]["SchemaMigration"][];
         };
         /** @enum {unknown} */
-        Feature: "Balcony" | "Terrace" | "Garden" | "Lift" | "Basement" | "Parking" | "AirConditioning" | "Furnished" | "Dishwasher" | "WashingMachine";
+        Feature: "Balcony" | "Terrace" | "Garden" | "Lift" | "Basement" | "Parking" | "AirConditioning" | "Dishwasher" | "WashingMachine" | "Fridge" | "Stove" | "Oven" | "SeparateKitchen" | "UsableRoom" | "TwoStorey" | "Internet" | "CableTelevision" | "Entryphone" | "Monitoring" | "ClosedArea" | "AntiBurglaryDoor" | "NonSmokersOnly";
+        /** @enum {unknown} */
+        FeatureCategory: "Outdoor" | "Building" | "Appliances" | "Comfort" | "Media" | "Security" | "Rules";
+        FeatureListItem: {
+            feature: components["schemas"]["Feature"];
+            category: components["schemas"]["FeatureCategory"];
+        };
         FieldChange: {
             field: string;
             before: unknown;
@@ -357,6 +416,7 @@ export interface components {
             /** Format: int32 */
             locationRadiusM?: null | number;
             description?: null | string;
+            furnished?: null | components["schemas"]["Answer"];
             features?: components["schemas"]["Feature"][];
             /** Format: date-time */
             detailsFetchedAt?: null | string;
@@ -388,6 +448,17 @@ export interface components {
         };
         /** @enum {unknown} */
         PlaceKind: "Town" | "Village" | null;
+        PlaceListItem: {
+            /** Format: int32 */
+            id: number;
+            name: string;
+            voivodeship: components["schemas"]["Voivodeship"];
+            county: null | string;
+            municipality: null | string;
+            kind: null | components["schemas"]["PlaceKind"];
+            /** Format: int32 */
+            offerCount: number;
+        };
         /** @enum {unknown} */
         PlaceRole: "VoivodeshipCapital" | "CountySeat" | "MunicipalitySeat" | null;
         /** @enum {unknown} */
@@ -542,6 +613,19 @@ export interface operations {
     ListHousingOffers: {
         parameters: {
             query?: {
+                voivodeship?: components["schemas"]["Voivodeship"][];
+                place?: number[];
+                size?: components["schemas"]["PlaceSize"][];
+                feature?: components["schemas"]["Feature"][];
+                priceMin?: number;
+                priceMax?: number;
+                areaMin?: number;
+                areaMax?: number;
+                roomsMin?: number;
+                roomsMax?: number;
+                furnished?: components["schemas"]["Answer"];
+                changed?: boolean;
+                priceCut?: boolean;
                 page?: number;
                 pageSize?: number;
                 sort?: components["schemas"]["OfferSort"];
@@ -561,6 +645,77 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PagedResultOfOfferListItem"];
                 };
+            };
+        };
+    };
+    ListHousingFeatures: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureListItem"][];
+                };
+            };
+        };
+    };
+    SearchHousingPlaces: {
+        parameters: {
+            query: {
+                search: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaceListItem"][];
+                };
+            };
+        };
+    };
+    GetHousingPlace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaceListItem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

@@ -21,6 +21,25 @@ public class PlaceClassificationTests
     public void A_place_of_unknown_kind_has_no_size() =>
         Assert.That(Sizes.Of(null, 4_429), Is.Null);
 
+    // The size filter must find exactly the places the list shows with that size.
+    [Test]
+    public void The_population_range_of_a_size_holds_the_places_of_that_size()
+    {
+        Assert.Multiple(() =>
+        {
+            foreach (var size in Enum.GetValues<PlaceSize>())
+            {
+                var range = Sizes.RangeOf(size);
+                Assert.That(Sizes.Of(range.Kind, range.Min), Is.EqualTo(size), $"{size} at its smallest population");
+                if (range.Max is { } max)
+                {
+                    Assert.That(Sizes.Of(range.Kind, max - 1), Is.EqualTo(size), $"{size} below its upper bound");
+                    Assert.That(Sizes.Of(range.Kind, max), Is.Not.EqualTo(size), $"{size} at its upper bound");
+                }
+            }
+        });
+    }
+
     [Test]
     public void A_village_gets_every_tier_of_nearby_places()
     {

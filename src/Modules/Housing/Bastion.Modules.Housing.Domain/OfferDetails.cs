@@ -17,4 +17,5 @@ public sealed record OfferDetails(
     decimal? Longitude = null,
     int? LocationRadiusM = null,
     string? Description = null,
-    IReadOnlyList<Feature>? Features = null);
+    IReadOnlyList<Feature>? Features = null,
+    Answer? Furnished = null);

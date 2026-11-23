@@ -4,11 +4,10 @@ using Microsoft.Extensions.Options;
 
 namespace Bastion.Modules.Housing.Application.ImportPlaces;
 
+// Only the dictionary of places; stored offers get the new places from LinkPlaces.
 public sealed class ImportPlacesHandler(
     IPlaceSource source,
     IPlaceRepository places,
-    IOfferRepository offers,
-    OfferSources sources,
     IOptions<PlaceOptions> options,
     IOptions<PlaceSizeOptions> sizes)
 {
@@ -27,21 +26,6 @@ public sealed class ImportPlacesHandler(
         var nearby = NearbyPlaces.Of(stored, options.Value, sizes.Value.Town.Metropolis);
         await places.ReplaceNearbyAsync(nearby, cancellationToken);
 
-        // Stored offers get their places again: new places, and better matches after a fix in the matcher.
-        var resolver = new PlaceResolver(sources, places);
-        var locations = await offers.ListLocationsAsync(cancellationToken);
-        var links = new List<PlaceLink>();
-        foreach (var location in locations)
-        {
-            var placeId = await resolver.PlaceIdOfAsync(location.Source, location.LocationKey, cancellationToken);
-            links.Add(new PlaceLink(location.Source, location.LocationKey, placeId));
-        }
-
-        await offers.SetPlacesAsync(links, cancellationToken);
-
-        var linked = locations.Zip(links).Where(p => p.Second.PlaceId is not null).Sum(p => p.First.OfferCount);
-        var result = new ImportPlacesResult(
-            fetched.Places.Count, saved.Added, saved.Updated, linked, locations.Sum(l => l.OfferCount) - linked);
-        return new ImportPlacesOutcome(result, null);
+        return new ImportPlacesOutcome(new ImportPlacesResult(fetched.Places.Count, saved.Added, saved.Updated), null);
     }
 }

@@ -7,11 +7,14 @@ import {
   type RowData,
   type SortingState,
 } from "@tanstack/react-table";
-import { useEffect, useMemo, useRef, type MouseEvent, type ReactNode } from "react";
+import { useLayoutEffect, useMemo, useRef, type MouseEvent, type ReactNode } from "react";
 import styles from "./DataTable.module.css";
 import { Icon } from "./Icon";
 
 const features = tableFeatures({ rowSortingFeature });
+
+// How far each view (scrollKey) was scrolled, for as long as the app is open.
+const scrollPositions = new Map<string, number>();
 
 export type DataTableColumn<Row> = {
   id: string;
@@ -37,6 +40,13 @@ type Props<Row extends RowData> = {
   onRowClick?: (row: Row) => void;
   // The rows shown are stale while the next ones load.
   busy?: boolean;
+  // The table takes the height its flex container gives it and scrolls inside, e.g. to keep the paging
+  // below it at the bottom of the page; otherwise it grows up to most of the window.
+  fill?: boolean;
+  // Names the view (e.g. the history entry of the page); coming back to it restores how far it was scrolled.
+  scrollKey?: string;
+  // The row to mark, e.g. the one the user opened last.
+  markedRowId?: string;
 };
 
 export function DataTable<Row extends RowData>({
@@ -47,6 +57,9 @@ export function DataTable<Row extends RowData>({
   onSortChange,
   onRowClick,
   busy = false,
+  fill = false,
+  scrollKey,
+  markedRowId,
 }: Props<Row>) {
   const tableColumns = useMemo(
     () =>
@@ -64,12 +77,21 @@ export function DataTable<Row extends RowData>({
   const byId = new Map(columns.map((c) => [c.id, c]));
   const frame = useRef<HTMLDivElement>(null);
 
-  // New rows (another page or order) start at the top.
-  useEffect(() => {
-    if (frame.current) {
-      frame.current.scrollTop = 0;
+  // New rows (another page or order) start at the top, unless this view was scrolled before:
+  // then the user comes back to where they were (e.g. with the browser's back button).
+  // The position is saved when the view is left, i.e. on new rows, another key or leaving the page.
+  useLayoutEffect(() => {
+    const element = frame.current;
+    if (!element) {
+      return;
     }
-  }, [rows]);
+    element.scrollTop = (scrollKey && scrollPositions.get(scrollKey)) || 0;
+    return () => {
+      if (scrollKey) {
+        scrollPositions.set(scrollKey, element.scrollTop);
+      }
+    };
+  }, [rows, scrollKey]);
   const sorting: SortingState = [{ id: sort.column, desc: sort.descending }];
 
   const table = useTable({
@@ -99,7 +121,7 @@ export function DataTable<Row extends RowData>({
   };
 
   return (
-    <div ref={frame} className={styles.frame}>
+    <div ref={frame} className={fill ? `${styles.frame} ${styles.fill}` : styles.frame}>
       <table className={styles.table} aria-busy={busy} data-busy={busy}>
         <thead>
           {table.getHeaderGroups().map((group) => (
@@ -137,7 +159,7 @@ export function DataTable<Row extends RowData>({
                                 ? "sortDescending"
                                 : "sortable"
                           }
-                          size={14}
+                          size={16}
                         />
                       </button>
                     ) : (
@@ -154,6 +176,7 @@ export function DataTable<Row extends RowData>({
             <tr
               key={row.id}
               data-clickable={onRowClick !== undefined}
+              data-marked={row.id === markedRowId || undefined}
               onClick={(event) => handleRowClick(event, row.original)}
             >
               {row.getAllCells().map((cell) => (

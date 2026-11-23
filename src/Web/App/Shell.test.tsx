@@ -19,12 +19,12 @@ describe("Shell", () => {
     renderWithProviders(<Shell />);
 
     const nav = screen.getByRole("navigation");
-    await within(nav).findByRole("link", { name: i18n.t("title", { ns: "housing" }) });
+    await within(nav).findByText(i18n.t("title", { ns: "housing" }));
 
     const targets = within(nav)
       .getAllByRole("link")
       .map((link) => link.getAttribute("href"));
-    expect(targets).toEqual(["/", "/housing"]);
+    expect(targets).toEqual(["/", "/housing/offers", "/housing/collection"]);
   });
 
   it("does not open the page of a disabled module", async () => {
@@ -33,13 +33,20 @@ describe("Shell", () => {
     expect(await screen.findByText(i18n.t("status.notFound"))).toBeInTheDocument();
   });
 
-  it("hides and shows the menu and remembers the choice", async () => {
+  it("collapses the menu to icons after going to a page; the menu button expands it again", async () => {
     renderWithProviders(<Shell />);
     const toggle = screen.getByRole("button", { name: i18n.t("nav.toggle") });
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
 
-    await userEvent.click(toggle);
+    const nav = screen.getByRole("navigation");
+    const collection = i18n.t("nav.collection", { ns: "housing" });
+    await userEvent.click(await within(nav).findByRole("link", { name: collection }));
     expect(toggle).toHaveAttribute("aria-expanded", "false");
-    expect(localStorage.getItem("sidebarOpen")).toBe("false");
+    // The icons still lead to the pages and keep their names.
+    expect(within(nav).getByRole("link", { name: collection })).toHaveAttribute(
+      "href",
+      "/housing/collection",
+    );
 
     await userEvent.click(toggle);
     expect(toggle).toHaveAttribute("aria-expanded", "true");

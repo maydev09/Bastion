@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Bastion.Modules.Housing.Application.Abstractions;
 using Bastion.Modules.Housing.Application.ListOffers;
+using Bastion.Modules.Housing.Application.Places;
 using Bastion.Modules.Housing.Domain;
 using Bastion.Platform.Abstractions;
 using Dapper;
@@ -88,20 +89,47 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         """;
 
     // The page is cut first and only its offers are joined with their places.
-    // The ORDER BY list from BuildOrderBy picks the page and orders its rows.
-    private static string BuildListSql(string orderBy) => $$"""
+    // The WHERE conditions from BuildWhere pick the offers; the ORDER BY list from BuildOrderBy picks the page and orders its rows.
+    private static string BuildListSql(string where, string orderBy) => $$"""
         SELECT {{OfferColumns}}
         FROM (
             SELECT *
             FROM housing.offer o
-            WHERE removed_at IS NULL
+            WHERE {{where}}
             ORDER BY {{orderBy}}
             LIMIT @PageSize OFFSET @Offset
         ) o
         LEFT JOIN housing.place p ON p.id = o.place_id
         ORDER BY {{orderBy}};
 
-        SELECT count(*)::int FROM housing.offer WHERE removed_at IS NULL;
+        SELECT count(*)::int FROM housing.offer o WHERE {{where}};
+        """;
+
+    // A place filter picks places first: a few hundred of them have offers, so the offers are found by their place_id.
+    private const string LocationCondition = """
+        o.place_id IN (SELECT id FROM housing.place WHERE voivodeship = ANY(@Voivodeships) OR id = ANY(@PlaceIds))
+        """;
+
+    private const string PlaceSizeCondition = """
+        o.place_id IN (
+            SELECT p.id
+            FROM housing.place p
+            JOIN unnest(@SizeKinds, @SizeMins, @SizeMaxes) AS s (kind, min, max)
+                ON p.kind = s.kind AND p.population >= s.min AND (s.max IS NULL OR p.population < s.max))
+        """;
+
+    private const string FeaturesCondition = """
+        (SELECT count(*) FROM housing.offer_feature f WHERE f.offer_id = o.id AND f.feature = ANY(@Features)) = @FeatureCount
+        """;
+
+    private const string ChangedCondition = "EXISTS (SELECT 1 FROM housing.offer_change c WHERE c.offer_id = o.id)";
+
+    // housing.offer_change keeps a price change as [old, new]; a price removed (new is null) is no cut.
+    private const string PriceCutCondition = """
+        EXISTS (
+            SELECT 1
+            FROM housing.offer_change c
+            WHERE c.offer_id = o.id AND (c.changes -> 'price' ->> 1)::numeric < (c.changes -> 'price' ->> 0)::numeric)
         """;
 
     // A removed offer is still shown, e.g. from an old link.
@@ -109,7 +137,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         SELECT {OfferColumns},
             o.rent, o.rent_currency, o.deposit, o.deposit_currency, o.available_from, o.floor, o.building_floors,
             o.build_year, o.building_type, o.heating, o.condition, o.latitude, o.longitude, o.location_radius_m,
-            o.description, f.fetched_at AS details_fetched_at
+            o.description, o.furnished, f.fetched_at AS details_fetched_at
         FROM housing.offer o
         LEFT JOIN housing.place p ON p.id = o.place_id
         LEFT JOIN housing.offer_detail_fetch f ON f.offer_id = o.id
@@ -163,7 +191,8 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             latitude = COALESCE(@Latitude, latitude),
             longitude = COALESCE(@Longitude, longitude),
             location_radius_m = COALESCE(@LocationRadiusM, location_radius_m),
-            description = COALESCE(@Description, description)
+            description = COALESCE(@Description, description),
+            furnished = COALESCE(@Furnished, furnished)
         WHERE source_id = @SourceId AND external_id = @ExternalId
         RETURNING id
         """;
@@ -212,7 +241,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         SELECT o.id, o.title, o.property_type, o.transaction, o.price, o.price_currency, o.area_m2, o.rooms,
             o.rent, o.rent_currency, o.deposit, o.deposit_currency, o.available_from::text AS available_from, o.floor, o.building_floors,
             o.build_year, o.building_type, o.heating, o.condition, o.latitude, o.longitude, o.location_radius_m,
-            o.description,
+            o.description, o.furnished,
             CASE WHEN f.fetched_at IS NOT NULL
                 THEN ARRAY(SELECT feature FROM housing.offer_feature WHERE offer_id = o.id ORDER BY feature)
             END AS features
@@ -381,16 +410,112 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
     }
 
     public async Task<PagedResult<OfferListItem>> ListAsync(
-        PageRequest page, OfferSort sort, SortDirection direction, CancellationToken cancellationToken)
+        OfferFilter filter,
+        IReadOnlyList<PopulationRange> placeSizes,
+        PageRequest page,
+        OfferSort sort,
+        SortDirection direction,
+        CancellationToken cancellationToken)
     {
-        var sql = BuildListSql(BuildOrderBy(sort, direction));
+        var sql = BuildListSql(BuildWhere(filter, placeSizes), BuildOrderBy(sort, direction));
+        var features = filter.Features.Distinct().Select(f => (int)f).ToArray();
         await using var connection = await db.OpenConnectionAsync(cancellationToken);
-        await using var results = await connection.QueryMultipleAsync(new CommandDefinition(
-            sql, new { page.PageSize, page.Offset }, cancellationToken: cancellationToken));
+        await using var results = await connection.QueryMultipleAsync(new CommandDefinition(sql, new
+        {
+            page.PageSize,
+            page.Offset,
+            Voivodeships = filter.Voivodeships.Select(v => (int)v).ToArray(),
+            PlaceIds = filter.PlaceIds.ToArray(),
+            SizeKinds = placeSizes.Select(s => (int)s.Kind).ToArray(),
+            SizeMins = placeSizes.Select(s => s.Min).ToArray(),
+            SizeMaxes = placeSizes.Select(s => s.Max).ToArray(),
+            PriceCurrency = (int)OfferFilter.PriceCurrency,
+            filter.PriceMin,
+            filter.PriceMax,
+            filter.AreaMin,
+            filter.AreaMax,
+            filter.RoomsMin,
+            filter.RoomsMax,
+            Features = features,
+            FeatureCount = features.Length,
+            Furnished = (int?)filter.Furnished,
+        }, cancellationToken: cancellationToken));
 
         var items = (await results.ReadAsync<OfferListItem>()).ToList();
         var total = await results.ReadSingleAsync<int>();
         return new PagedResult<OfferListItem>(await WithNearbyAsync(connection, items, cancellationToken), page.Page, page.PageSize, total);
+    }
+
+    // Only the filters in use become conditions, so the plain list stays a plain query.
+    private static string BuildWhere(OfferFilter filter, IReadOnlyList<PopulationRange> placeSizes)
+    {
+        var conditions = new List<string> { "o.removed_at IS NULL" };
+        if (filter.Voivodeships.Count > 0 || filter.PlaceIds.Count > 0)
+        {
+            conditions.Add(LocationCondition);
+        }
+
+        if (placeSizes.Count > 0)
+        {
+            conditions.Add(PlaceSizeCondition);
+        }
+
+        if (filter.PriceMin is not null || filter.PriceMax is not null)
+        {
+            conditions.Add("o.price_currency = @PriceCurrency");
+        }
+
+        if (filter.PriceMin is not null)
+        {
+            conditions.Add("o.price >= @PriceMin");
+        }
+
+        if (filter.PriceMax is not null)
+        {
+            conditions.Add("o.price <= @PriceMax");
+        }
+
+        if (filter.AreaMin is not null)
+        {
+            conditions.Add("o.area_m2 >= @AreaMin");
+        }
+
+        if (filter.AreaMax is not null)
+        {
+            conditions.Add("o.area_m2 <= @AreaMax");
+        }
+
+        if (filter.RoomsMin is not null)
+        {
+            conditions.Add("o.rooms >= @RoomsMin");
+        }
+
+        if (filter.RoomsMax is not null)
+        {
+            conditions.Add("o.rooms <= @RoomsMax");
+        }
+
+        if (filter.Furnished is not null)
+        {
+            conditions.Add("o.furnished = @Furnished");
+        }
+
+        if (filter.Features.Count > 0)
+        {
+            conditions.Add(FeaturesCondition);
+        }
+
+        if (filter.Changed is { } changed)
+        {
+            conditions.Add(changed ? ChangedCondition : $"NOT {ChangedCondition}");
+        }
+
+        if (filter.PriceCut)
+        {
+            conditions.Add(PriceCutCondition);
+        }
+
+        return string.Join(" AND ", conditions.Select(c => c.Trim()));
     }
 
     public async Task<OfferListItem?> GetAsync(int id, CancellationToken cancellationToken)
@@ -450,6 +575,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         "building_type" => value.Deserialize<BuildingType?>(),
         "heating" => value.Deserialize<Heating?>(),
         "condition" => value.Deserialize<Condition?>(),
+        "furnished" => value.Deserialize<Answer?>(),
         "features" => value.Deserialize<Feature[]>(),
         _ => value.ValueKind == JsonValueKind.Null ? null : value.Clone(),
     };
@@ -500,6 +626,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             details.Longitude,
             details.LocationRadiusM,
             details.Description,
+            Furnished = (int?)details.Furnished,
         }, transaction, cancellationToken: cancellationToken));
         if (offerId is null)
         {

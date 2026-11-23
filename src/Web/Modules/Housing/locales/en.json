@@ -1,5 +1,13 @@
 {
   "title": "Housing",
+  "nav": {
+    "offers": "Offers",
+    "collection": "Data collection"
+  },
+  "collection": {
+    "title": "Data collection",
+    "hint": "Import from OtoDom, parsing stored pages again and the dictionary of places. Everything also runs on its own on a schedule; here you start it by hand."
+  },
   "import": {
     "description": "Fetches the newest page of OtoDom listings, saves new offers and updates changed ones.",
     "run": "Import from OtoDom",
@@ -15,21 +23,24 @@
     "failed": "Failed pages: {{count}}."
   },
   "places": {
-    "description": "Downloads the dictionary of places from Wikidata (town or village, population) and links offers to their places. Takes a minute or two.",
+    "description": "Downloads the dictionary of places from Wikidata: town or village, population, the nearest bigger cities. Offers stay as they are. Takes a minute or two.",
     "run": "Download places",
     "running": "Downloading places…",
-    "result": "Places: {{places}} ({{added}} new, {{updated}} changed). Offers with a place: {{linked}}, without: {{unlinked}}."
+    "result": "Places: {{places}} ({{added}} new, {{updated}} changed)."
   },
-  "tools": {
-    "title": "Data collection",
-    "hint": "OtoDom import, parsing again, places. Also runs on its own on a schedule."
+  "link": {
+    "description": "Links stored offers to places from the dictionary. Run it after downloading places or after a fix in matching; new offers get their place at once when imported.",
+    "run": "Link offers to places",
+    "running": "Linking…",
+    "result": "Offers with a place: {{linked}}, without: {{unlinked}}."
   },
   "list": {
     "title": "Offers",
     "count_one": "{{count, number}} offer",
     "count_other": "{{count, number}} offers",
     "loading": "Loading offers…",
-    "empty": "No offers are stored yet. Run the import in the “Data collection” section above.",
+    "empty": "No offers are stored yet.",
+    "goToCollection": "Collect offers",
     "offer": "Offer",
     "place": "Place",
     "price": "Price",
@@ -38,6 +49,48 @@
     "rooms": "Rooms",
     "firstSeen": "Added",
     "pageEmpty": "There are no more offers on this page. Go to the last page."
+  },
+  "filters": {
+    "title": "Filters",
+    "clear": "Clear",
+    "hide": "Hide filters",
+    "show": "Show filters",
+    "inUse_one": "{{count}} filter in use",
+    "inUse_other": "{{count}} filters in use",
+    "location": "Location",
+    "place": "Place",
+    "placePlaceholder": "Type a name…",
+    "placeStart": "Type the start of a place name.",
+    "placeNone": "No place with offers has this name.",
+    "searching": "Searching…",
+    "inCounty": "{{county}} county",
+    "voivodeship": "Voivodeship",
+    "voivodeshipPlaceholder": "Choose…",
+    "voivodeshipNone": "No such voivodeship.",
+    "locationHint": "Offers in any of the chosen places and voivodeships.",
+    "remove": "Remove {{name}}",
+    "size": "Size of place",
+    "towns": "Towns",
+    "villages": "Villages",
+    "price": "Monthly price (PLN)",
+    "area": "Area (m²)",
+    "rooms": "Rooms",
+    "from": "{{what}}: from",
+    "to": "{{what}}: to",
+    "min": "from",
+    "max": "to",
+    "features": "Amenities",
+    "featuresHint": "Offers that have all the ticked ones.",
+    "history": "Change history",
+    "priceCut": "Price cut",
+    "priceCutHint": "Changes recorded since Bastion started tracking the offer; a cut is a lower price.",
+    "noMatch": "No offer matches the chosen filters.",
+    "any": "Any",
+    "furnishedHint": "Leaves out offers whose advertiser did not say.",
+    "changed": "Offer changes",
+    "changedAny": "All offers",
+    "changedYes": "Changed",
+    "changedNo": "Unchanged"
   },
   "detail": {
     "back": "All offers",
@@ -89,9 +142,21 @@
       "Basement": "basement",
       "Parking": "parking",
       "AirConditioning": "air conditioning",
-      "Furnished": "furnished",
       "Dishwasher": "dishwasher",
-      "WashingMachine": "washing machine"
+      "WashingMachine": "washing machine",
+      "Fridge": "fridge",
+      "Stove": "stove",
+      "Oven": "oven",
+      "SeparateKitchen": "separate kitchen",
+      "UsableRoom": "utility room",
+      "TwoStorey": "two storeys",
+      "Internet": "internet",
+      "CableTelevision": "cable TV",
+      "Entryphone": "entryphone",
+      "Monitoring": "CCTV",
+      "ClosedArea": "gated area",
+      "AntiBurglaryDoor": "anti-burglary door",
+      "NonSmokersOnly": "non-smokers only"
     },
     "description": "Description",
     "noDescription": "The advertiser added no description.",
@@ -109,7 +174,9 @@
     "updatedOnPortal": "Changed on the portal",
     "firstFetched": "First fetched",
     "detailsFetched": "Details fetched",
-    "point": "Point on the map"
+    "point": "Point on the map",
+    "noFeatures": "The listing names no amenities.",
+    "title": "Offer"
   },
   "changes": {
     "title": "Change history",
@@ -123,7 +190,9 @@
       "before": "Before",
       "after": "After",
       "difference": "Difference"
-    }
+    },
+    "count_one": "{{count}} change",
+    "count_other": "{{count}} changes"
   },
   "field": {
     "title": "Title",
@@ -149,7 +218,8 @@
     "locationRadiusM": "Location accuracy",
     "description": "Description",
     "features": "Features",
-    "pricePerM2": "Price per m²"
+    "pricePerM2": "Price per m²",
+    "furnished": "Furnished"
   },
   "place": {
     "name": "{{name}}, {{voivodeship}}",
@@ -206,5 +276,19 @@
     "parseFailed": "OtoDom changed its page layout; the offers could not be read.",
     "placesUnavailable": "Wikidata did not respond. Try again in a few minutes.",
     "placesIncomplete": "Wikidata returned incomplete data, so nothing was saved. Try again in a few minutes."
+  },
+  "answer": {
+    "Yes": "yes",
+    "No": "no",
+    "NotStated": "not stated"
+  },
+  "featureCategory": {
+    "Outdoor": "Outdoors",
+    "Building": "Building",
+    "Appliances": "Appliances",
+    "Comfort": "Comfort",
+    "Media": "Media",
+    "Security": "Security",
+    "Rules": "Rules"
   }
 }

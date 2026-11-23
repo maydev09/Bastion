@@ -1,13 +1,55 @@
 .layout {
-  --sidebar-width: 220px;
+  --sidebar-width: 248px;
+  --topbar-height: 56px;
 
   display: grid;
   grid-template-columns: var(--sidebar-width) 1fr;
   min-height: 100vh;
   transition: grid-template-columns 0.2s ease;
 
+  /* Closed, the menu is a narrow strip of icons. */
   &[data-sidebar="closed"] {
-    grid-template-columns: 0 1fr;
+    grid-template-columns: var(--topbar-height) 1fr;
+
+    & .label {
+      position: absolute;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+    }
+
+    & .nav a,
+    & .nav .disabled,
+    & .groupTitle {
+      justify-content: center;
+    }
+
+    /* A module with pages is a framed block: the module's icon as an accent header, its pages below,
+       each filling the block's width. */
+    & .group {
+      overflow: hidden;
+      border: 1px solid var(--color-border-strong);
+      border-radius: var(--radius);
+      background: var(--color-surface-sunken);
+    }
+
+    /* Solid accent, so it never looks like the active page (accent-soft). */
+    & .groupTitle {
+      background: var(--color-accent);
+      color: var(--color-on-accent);
+    }
+
+    & .groupPages {
+      gap: 0;
+      margin-left: 0;
+      padding-left: 0;
+      border-left: 0;
+
+      & a {
+        border-radius: 0;
+      }
+    }
   }
 }
 
@@ -24,8 +66,9 @@
 .brand {
   display: flex;
   align-items: center;
-  height: 48px;
-  padding: 0 var(--space-4);
+  gap: var(--space-2);
+  height: var(--topbar-height);
+  padding: 0 var(--space-2);
   border-bottom: 1px solid var(--color-border);
   font-size: var(--font-size-lg);
   font-weight: 700;
@@ -39,7 +82,10 @@
   padding: var(--space-3) var(--space-2);
 
   & a {
-    padding: 6px var(--space-3);
+    display: flex;
+    align-items: center;
+    gap: var(--space-3);
+    padding: 10px 11px;
     border-radius: var(--radius);
     color: var(--color-text-secondary);
     text-decoration: none;
@@ -52,9 +98,13 @@
 
   & .disabled {
     display: flex;
-    justify-content: space-between;
-    gap: var(--space-2);
-    padding: 6px var(--space-3);
+    align-items: center;
+    gap: var(--space-3);
+    padding: 10px 11px;
+
+    & small {
+      margin-left: auto;
+    }
     color: var(--color-muted);
     opacity: 0.7;
     cursor: not-allowed;
@@ -67,23 +117,60 @@
   }
 }
 
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: var(--space-2);
+}
+
+.groupTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 10px 11px;
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+/* Expanded, the pages hang under the module's name. */
+.groupPages {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: 20px;
+  padding-left: var(--space-2);
+  border-left: 1px solid var(--color-border);
+}
+
+/* The window never scrolls: the top bar stays, and the page below it scrolls (or fills it, see .main). */
 .page {
   display: flex;
   flex-direction: column;
+  height: 100dvh;
   min-width: 0;
 }
 
+/* Grows when a page title needs more lines (e.g. a long offer title). */
 .topbar {
-  position: sticky;
-  top: 0;
   z-index: 10;
   display: flex;
+  flex: none;
   align-items: center;
   justify-content: space-between;
-  height: 48px;
-  padding: 0 var(--space-4);
+  gap: var(--space-4);
+  min-height: var(--topbar-height);
+  padding: var(--space-2) var(--space-4);
   background: var(--color-surface);
   border-bottom: 1px solid var(--color-border);
+}
+
+/* Filled by the page's PageTitle. */
+.title {
+  min-width: 0;
+  padding-left: var(--space-2);
 }
 
 .actions {
@@ -92,8 +179,12 @@
   gap: var(--space-2);
 }
 
+/* Pages use the whole width; a page of text limits its own line length.
+   A page that fills the space below the top bar (e.g. a list with its paging at the bottom) takes height: 100%. */
 .main {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
   width: 100%;
-  max-width: 1600px;
   padding: var(--space-6);
 }

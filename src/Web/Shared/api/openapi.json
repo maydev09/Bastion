@@ -145,9 +145,120 @@
         "tags": [
           "Housing"
         ],
-        "summary": "Returns stored offers, by default newest first; offers without the sorted value come last.",
+        "summary": "Returns stored offers that match all given filters, by default newest first; offers without the sorted value come last. Prices are in PLN; place and voivodeship together match offers in any of them.",
         "operationId": "ListHousingOffers",
         "parameters": [
+          {
+            "name": "voivodeship",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Voivodeship"
+              }
+            }
+          },
+          {
+            "name": "place",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "int32"
+              }
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/PlaceSize"
+              }
+            }
+          },
+          {
+            "name": "feature",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Feature"
+              }
+            }
+          },
+          {
+            "name": "priceMin",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "priceMax",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "areaMin",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "areaMax",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "roomsMin",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "roomsMax",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "furnished",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Answer"
+            }
+          },
+          {
+            "name": "changed",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "priceCut",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
+            }
+          },
           {
             "name": "page",
             "in": "query",
@@ -197,6 +308,99 @@
                 }
               }
             }
+          }
+        }
+      }
+    },
+    "/api/housing/features": {
+      "get": {
+        "tags": [
+          "Housing"
+        ],
+        "summary": "Returns every amenity with its category, in display order: the same groups for every portal.",
+        "operationId": "ListHousingFeatures",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/FeatureListItem"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/housing/places": {
+      "get": {
+        "tags": [
+          "Housing"
+        ],
+        "summary": "Returns up to 20 places with listed offers whose name or a word of it starts with the search, most offers first.",
+        "operationId": "SearchHousingPlaces",
+        "parameters": [
+          {
+            "name": "search",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PlaceListItem"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/housing/places/{id}": {
+      "get": {
+        "tags": [
+          "Housing"
+        ],
+        "summary": "Returns one place with the number of its listed offers, also a place without offers.",
+        "operationId": "GetHousingPlace",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PlaceListItem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found"
           }
         }
       }
@@ -319,6 +523,14 @@
   },
   "components": {
     "schemas": {
+      "Answer": {
+        "enum": [
+          "Yes",
+          "No",
+          "NotStated",
+          null
+        ]
+      },
       "BuildingType": {
         "enum": [
           "Block",
@@ -378,10 +590,48 @@
           "Basement",
           "Parking",
           "AirConditioning",
-          "Furnished",
           "Dishwasher",
-          "WashingMachine"
+          "WashingMachine",
+          "Fridge",
+          "Stove",
+          "Oven",
+          "SeparateKitchen",
+          "UsableRoom",
+          "TwoStorey",
+          "Internet",
+          "CableTelevision",
+          "Entryphone",
+          "Monitoring",
+          "ClosedArea",
+          "AntiBurglaryDoor",
+          "NonSmokersOnly"
         ]
+      },
+      "FeatureCategory": {
+        "enum": [
+          "Outdoor",
+          "Building",
+          "Appliances",
+          "Comfort",
+          "Media",
+          "Security",
+          "Rules"
+        ]
+      },
+      "FeatureListItem": {
+        "required": [
+          "feature",
+          "category"
+        ],
+        "type": "object",
+        "properties": {
+          "feature": {
+            "$ref": "#/components/schemas/Feature"
+          },
+          "category": {
+            "$ref": "#/components/schemas/FeatureCategory"
+          }
+        }
       },
       "FieldChange": {
         "required": [
@@ -850,6 +1100,16 @@
               "string"
             ]
           },
+          "furnished": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Answer"
+              }
+            ]
+          },
           "features": {
             "type": "array",
             "items": {
@@ -1003,6 +1263,56 @@
           "Village",
           null
         ]
+      },
+      "PlaceListItem": {
+        "required": [
+          "id",
+          "name",
+          "voivodeship",
+          "county",
+          "municipality",
+          "kind",
+          "offerCount"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "voivodeship": {
+            "$ref": "#/components/schemas/Voivodeship"
+          },
+          "county": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "municipality": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "kind": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PlaceKind"
+              }
+            ]
+          },
+          "offerCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
       },
       "PlaceRole": {
         "enum": [

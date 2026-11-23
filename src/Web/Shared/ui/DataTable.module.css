@@ -6,6 +6,12 @@
   background: var(--color-surface);
 }
 
+.fill {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+}
+
 .table {
   width: 100%;
   border-collapse: separate;
@@ -39,6 +45,8 @@
     font-size: var(--font-size-sm);
     font-weight: 600;
     white-space: nowrap;
+    /* Sortable headers are buttons with their own padding; all header texts sit on one line. */
+    vertical-align: middle;
   }
 
   & tbody tr:last-child td {
@@ -47,6 +55,15 @@
 
   & tbody tr:hover td {
     background: var(--color-surface-hover);
+  }
+
+  /* A marked row (e.g. the offer opened last) keeps a tint and an accent bar on its left edge. */
+  & tbody tr[data-marked] td {
+    background: var(--color-accent-soft);
+  }
+
+  & tbody tr[data-marked] td:first-child {
+    box-shadow: inset 3px 0 0 var(--color-accent);
   }
 
   & tbody tr[data-clickable="true"] {
@@ -58,8 +75,8 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  margin: 0 calc(-1 * var(--space-1));
-  padding: 2px var(--space-1);
+  margin: 0 calc(-1 * var(--space-2));
+  padding: var(--space-1) var(--space-2);
   border: none;
   border-radius: var(--radius-sm);
   background: none;

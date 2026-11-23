@@ -110,7 +110,7 @@ describe("OfferDetail", () => {
     expect(await screen.findByText(t("detail.notFound"))).toBeInTheDocument();
   });
 
-  it("shows the details, with the description as plain text", async () => {
+  it("shows the details, with the description's formatting but never its code or links", async () => {
     const offer = {
       id: 1,
       source: "OtoDom",
@@ -132,21 +132,38 @@ describe("OfferDetail", () => {
           buildingType: "Block",
           heating: "Gas",
           features: ["Balcony", "Lift"],
+          furnished: "No",
           latitude: 54.41982,
           longitude: 18.60517,
           locationRadiusM: 0,
-          description: "<p>Quiet flat.</p><script>alert(1)</script><p>Pets welcome.</p>",
+          description:
+            '<p>Quiet flat.</p><script>alert(1)</script><p><b>Pets</b> welcome.</p><ul><li>Lift</li></ul><a href="https://example.com">Call us</a>',
           detailsFetchedAt: "2026-11-20T10:00:00+00:00",
         },
+      },
+      "/api/housing/features": {
+        status: 200,
+        body: [
+          { feature: "Balcony", category: "Outdoor" },
+          { feature: "Lift", category: "Building" },
+          { feature: "Garden", category: "Outdoor" },
+        ],
       },
     });
 
     renderDetail();
 
+    // Amenities are grouped by category, and furnished is an attribute with a "no".
     expect(await screen.findByText(t("detail.feature.Balcony"))).toBeInTheDocument();
+    expect(screen.getByText(t("featureCategory.Building"))).toBeInTheDocument();
     expect(screen.getByText(t("detail.feature.Lift"))).toBeInTheDocument();
+    expect(screen.queryByText(t("detail.feature.Garden"))).not.toBeInTheDocument();
+    expect(screen.getByText(t("answer.No"))).toBeInTheDocument();
     expect(screen.getByText(t("detail.floorOf", { floor: "2", floors: 5 }))).toBeInTheDocument();
-    expect(screen.getByText(/Quiet flat\.\s+Pets welcome\./)).toBeInTheDocument();
+    expect(screen.getByText("Quiet flat.")).toBeInTheDocument();
+    expect(screen.getByText("Pets").tagName).toBe("STRONG");
+    expect(screen.getByRole("listitem")).toHaveTextContent("Lift");
+    expect(screen.getByText("Call us")).not.toHaveAttribute("href");
     expect(screen.getByRole("link", { name: new RegExp(t("detail.map")) })).toHaveAttribute(
       "href",
       expect.stringContaining("mlat=54.41982"),
@@ -174,7 +191,7 @@ describe("OfferDetail", () => {
 
     renderDetail();
 
-    expect(await screen.findByText(t("detail.notFetched"))).toBeInTheDocument();
+    expect((await screen.findAllByText(t("detail.notFetched"))).length).toBeGreaterThan(0);
     expect(screen.getByText(t("changes.none"))).toBeInTheDocument();
   });
 
@@ -215,7 +232,8 @@ describe("OfferDetail", () => {
 
     renderDetail();
 
-    const history = await screen.findByRole("region", { name: t("changes.title") });
+    // The history is open at first: its table is on the card.
+    const history = await screen.findByRole("table");
     const days = within(history)
       .getAllByRole("time")
       .map((time) => time.getAttribute("dateTime"));

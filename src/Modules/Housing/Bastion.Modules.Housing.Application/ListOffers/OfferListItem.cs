@@ -66,6 +66,8 @@ public sealed record OfferListItem
 
     public string? Description { get; init; }
 
+    public Answer? Furnished { get; init; }
+
     public IReadOnlyList<Feature> Features { get; init; } = [];
 
     // When the detail page was last fetched; null while it never was.

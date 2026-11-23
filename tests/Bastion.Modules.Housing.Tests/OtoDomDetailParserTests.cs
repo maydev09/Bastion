@@ -44,8 +44,9 @@ public class OtoDomDetailParserTests
             Assert.That(details.Description, Is.EqualTo("<p>Flat with a view.</p>"));
             Assert.That(details.Features, Is.EquivalentTo(new[]
             {
-                Feature.Lift, Feature.Balcony, Feature.Parking, Feature.Furnished, Feature.AirConditioning,
+                Feature.Lift, Feature.Balcony, Feature.Parking, Feature.AirConditioning, Feature.Stove, Feature.Monitoring,
             }));
+            Assert.That(details.Furnished, Is.EqualTo(Answer.Yes));
         });
     }
 
@@ -69,7 +70,25 @@ public class OtoDomDetailParserTests
             Assert.That((details.BuildingType, details.Heating, details.Rent, details.Latitude, details.Description),
                 Is.EqualTo(((BuildingType?)null, (Heating?)null, (Money?)null, (decimal?)null, (string?)null)));
             Assert.That(details.Features, Is.Null);
+            Assert.That(details.Furnished, Is.Null);
         });
+    }
+
+    // OtoDom has no furnished field: only "furniture" among the ticked equipment.
+    [TestCase("\"equipment_types::fridge\",\"equipment_types::furniture\"", Answer.Yes)]
+    [TestCase("\"equipment_types::fridge\",\"equipment_types::stove\"", Answer.No)]
+    [TestCase("", Answer.NotStated)]
+    public void Reads_furnished_from_the_ticked_equipment(string equipment, Answer expected)
+    {
+        var html = """
+            <script id="__NEXT_DATA__" type="application/json">
+            {"props":{"pageProps":{"ad":{"id":1,"additionalInformation":[
+              {"label":"extras_types","values":["extras_types::balcony"]},
+              {"label":"equipment_types","values":[EQUIPMENT]}]}}}}
+            </script>
+            """.Replace("EQUIPMENT", equipment, StringComparison.Ordinal);
+
+        Assert.That(OtoDomDetailParser.Parse(html).Details.Furnished, Is.EqualTo(expected));
     }
 
     [Test]

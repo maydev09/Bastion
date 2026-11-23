@@ -1,89 +1,17 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
-import { api } from "@shared/api/client";
-import { Button } from "@shared/ui/Button";
-import { useErrorMessage } from "@shared/useErrorMessage";
-import { offersQueryKey, placesRunQueryKey } from "./queryKeys";
-import styles from "./Housing.module.css";
-
-const job = "ImportPlaces";
+import { JobCard } from "./JobCard";
 
 export function ImportPlaces() {
   const { t } = useTranslation("housing");
-  const errorMessage = useErrorMessage();
-  const queryClient = useQueryClient();
-
-  // The import runs in the background for a minute or two; the latest run is read until it ends.
-  const latest = useQuery({
-    queryKey: placesRunQueryKey,
-    queryFn: async () => {
-      const { data, error } = await api.GET("/api/housing/jobs/{job}/runs/latest", {
-        params: { path: { job } },
-      });
-      if (error) {
-        throw new Error((error as { code?: string }).code ?? "");
-      }
-      return data.run;
-    },
-    refetchInterval: (query) => (query.state.data && !query.state.data.finishedAt ? 2000 : false),
-  });
-
-  const start = useMutation({
-    mutationFn: async () => {
-      const { data, error } = await api.POST("/api/housing/jobs/{job}/runs", {
-        params: { path: { job } },
-      });
-      if (error) {
-        throw new Error((error as { code?: string }).code ?? "");
-      }
-      return data;
-    },
-    onSuccess: (run) => queryClient.setQueryData(placesRunQueryKey, run),
-  });
-
-  const run = latest.data;
-  const running = start.isPending || (run != null && run.finishedAt == null);
-  const succeeded = run?.status === "Succeeded" ? run.summary?.counts : undefined;
-
-  // The offers are read again only when a run seen running here finishes, not for an old run on page load.
-  const watched = useRef<number | null>(null);
-  useEffect(() => {
-    if (run && !run.finishedAt) {
-      watched.current = run.id;
-    } else if (run && run.id === watched.current) {
-      watched.current = null;
-      void queryClient.invalidateQueries({ queryKey: offersQueryKey });
-    }
-  }, [run, queryClient]);
-
   return (
-    <section className={styles.card}>
-      <p>{t("places.description")}</p>
-      <Button onClick={() => start.mutate()} disabled={running}>
-        {running ? t("places.running") : t("places.run")}
-      </Button>
-      {!running && succeeded && (
-        <p className={styles.result} role="status">
-          {t("places.result", {
-            places: succeeded.places,
-            added: succeeded.added,
-            updated: succeeded.updated,
-            linked: succeeded.linkedOffers,
-            unlinked: succeeded.unlinkedOffers,
-          })}
-        </p>
-      )}
-      {!running && run?.status === "Failed" && (
-        <p className={styles.error} role="alert">
-          {errorMessage(run.errorCode)}
-        </p>
-      )}
-      {start.error && (
-        <p className={styles.error} role="alert">
-          {errorMessage(start.error.message)}
-        </p>
-      )}
-    </section>
+    <JobCard
+      job="ImportPlaces"
+      description={t("places.description")}
+      run={t("places.run")}
+      running={t("places.running")}
+      result={(counts) =>
+        t("places.result", { places: counts.places, added: counts.added, updated: counts.updated })
+      }
+    />
   );
 }

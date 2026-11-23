@@ -59,8 +59,9 @@ Spend effort only on what solves a real problem the maintainer has today
   Modules build screens from the components in `src/Web/Shared/ui/` and never import Base UI or
   TanStack Table themselves; colors and spacing are only the tokens in `src/Web/App/global.css`
   (Noctalia palette, each color a `light-dark()` pair; the theme follows the system unless the
-  user picks one in the top bar). A list keeps its view (page, page size, sort order, later filters) in the URL
-  query, so a copied link opens the same view; sorting and paging happen in the backend.
+  user picks one in the top bar). A list keeps its view (page, page size, sort order, filters) in the URL
+  query, so a copied link opens the same view; the URL keys are the API's query parameters, and sorting,
+  paging and filtering happen in the backend.
 - Audit and logs: log only through `ILogger<T>` (Serilog is configured in the Host only);
   run events via `JobContext`. Every fetched page is stored
   as a raw capture before parsing, through the module's `RawCaptureService`; each portal is an
@@ -211,7 +212,14 @@ Update the matching file in the same change that makes it outdated:
   - when a field is useful for filtering (e.g. location, rooms, area, extra costs), propose
     storing it in a normalized form instead of leaving it only in the raw capture;
   - an unknown value in a key field skips the offer; in an optional field it leaves the field
-    empty. The raw capture is kept, so re-parsing fills it once the parser knows the value.
+    empty. The raw capture is kept, so re-parsing fills it once the parser knows the value;
+  - data comes in three tiers. Main attributes (they can rule an offer out, e.g. price, area,
+    furnished) are typed columns, shown and filtered one by one. Amenities are `Feature` values
+    (listed or not, no "no"), grouped by the domain's `FeatureCategory` for every portal.
+    Everything else stays in the raw capture until a feature needs it;
+  - a yes/no attribute is the `Answer` enum (yes, no, not stated), never a `bool`; a null column
+    means not known yet (e.g. details not fetched). What a portal does not give at all is a fact
+    about the portal (`docs/portals/<portal>.md`), not a value stored with each offer.
 - Never hardcode user-specific preferences (search criteria, cities, price ranges,
   filters) in code or configuration files. They are data, managed by the user through the UI.
   Code and configuration only hold technical settings (e.g. delays, timeouts, URLs).

@@ -1,5 +1,13 @@
 {
   "title": "Nieruchomości",
+  "nav": {
+    "offers": "Oferty",
+    "collection": "Pobieranie danych"
+  },
+  "collection": {
+    "title": "Pobieranie danych",
+    "hint": "Import z OtoDom, ponowne przetwarzanie zapisanych stron i słownik miejscowości. Wszystko działa też samo według harmonogramu; tu uruchamiasz to ręcznie."
+  },
   "import": {
     "description": "Pobiera najnowszą stronę ogłoszeń z OtoDom, zapisuje nowe oferty i aktualizuje zmienione.",
     "run": "Importuj z OtoDom",
@@ -15,14 +23,16 @@
     "failed": "Nieudane strony: {{count}}."
   },
   "places": {
-    "description": "Pobiera z Wikidata słownik miejscowości (miasto czy wieś, liczba mieszkańców) i przypisuje oferty do miejscowości. Trwa minutę lub dwie.",
+    "description": "Pobiera z Wikidata słownik miejscowości: miasto czy wieś, liczba mieszkańców, najbliższe większe miasta. Oferty zostają bez zmian. Trwa minutę lub dwie.",
     "run": "Pobierz miejscowości",
     "running": "Pobieram miejscowości…",
-    "result": "Miejscowości: {{places}} (nowe {{added}}, zmienione {{updated}}). Oferty z miejscowością: {{linked}}, bez: {{unlinked}}."
+    "result": "Miejscowości: {{places}} (nowe {{added}}, zmienione {{updated}})."
   },
-  "tools": {
-    "title": "Pobieranie danych",
-    "hint": "Import z OtoDom, ponowne przetwarzanie, miejscowości. Działa też samo według harmonogramu."
+  "link": {
+    "description": "Przypisuje zapisane oferty do miejscowości ze słownika. Uruchom po pobraniu miejscowości albo po poprawce dopasowania; nowe oferty dostają miejscowość od razu przy imporcie.",
+    "run": "Przypisz oferty do miejscowości",
+    "running": "Przypisuję…",
+    "result": "Oferty z miejscowością: {{linked}}, bez: {{unlinked}}."
   },
   "list": {
     "title": "Oferty",
@@ -31,7 +41,8 @@
     "count_many": "{{count, number}} ofert",
     "count_other": "{{count, number}} oferty",
     "loading": "Wczytywanie ofert…",
-    "empty": "Nie ma jeszcze zapisanych ofert. Uruchom import w sekcji „Pobieranie danych” powyżej.",
+    "empty": "Nie ma jeszcze zapisanych ofert.",
+    "goToCollection": "Pobierz oferty",
     "offer": "Oferta",
     "place": "Miejscowość",
     "price": "Cena",
@@ -40,6 +51,50 @@
     "rooms": "Pokoje",
     "firstSeen": "Dodano",
     "pageEmpty": "Na tej stronie nie ma już ofert. Przejdź do ostatniej strony."
+  },
+  "filters": {
+    "title": "Filtry",
+    "clear": "Wyczyść",
+    "hide": "Ukryj filtry",
+    "show": "Pokaż filtry",
+    "inUse_one": "{{count}} filtr w użyciu",
+    "inUse_few": "{{count}} filtry w użyciu",
+    "inUse_many": "{{count}} filtrów w użyciu",
+    "inUse_other": "{{count}} filtra w użyciu",
+    "location": "Lokalizacja",
+    "place": "Miejscowość",
+    "placePlaceholder": "Wpisz nazwę…",
+    "placeStart": "Wpisz początek nazwy miejscowości.",
+    "placeNone": "Brak miejscowości z ofertami o takiej nazwie.",
+    "searching": "Szukam…",
+    "inCounty": "pow. {{county}}",
+    "voivodeship": "Województwo",
+    "voivodeshipPlaceholder": "Wybierz…",
+    "voivodeshipNone": "Nie ma takiego województwa.",
+    "locationHint": "Oferty z dowolnej z wybranych miejscowości i województw.",
+    "remove": "Usuń: {{name}}",
+    "size": "Wielkość miejscowości",
+    "towns": "Miasta",
+    "villages": "Wsie",
+    "price": "Cena miesięcznie (zł)",
+    "area": "Powierzchnia (m²)",
+    "rooms": "Pokoje",
+    "from": "{{what}}: od",
+    "to": "{{what}}: do",
+    "min": "od",
+    "max": "do",
+    "features": "Udogodnienia",
+    "featuresHint": "Oferty, które mają wszystkie zaznaczone.",
+    "history": "Historia zmian",
+    "priceCut": "Cena obniżona",
+    "priceCutHint": "Zmiany zapisane, odkąd Bastion śledzi ofertę; obniżka to spadek ceny.",
+    "noMatch": "Żadna oferta nie pasuje do wybranych filtrów.",
+    "any": "Wszystkie",
+    "furnishedHint": "Bez ofert, w których ogłoszeniodawca tego nie podał.",
+    "changed": "Zmiany oferty",
+    "changedAny": "Wszystkie oferty",
+    "changedYes": "Zmienione",
+    "changedNo": "Bez zmian"
   },
   "detail": {
     "back": "Wszystkie oferty",
@@ -91,9 +146,21 @@
       "Basement": "piwnica",
       "Parking": "parking",
       "AirConditioning": "klimatyzacja",
-      "Furnished": "umeblowane",
       "Dishwasher": "zmywarka",
-      "WashingMachine": "pralka"
+      "WashingMachine": "pralka",
+      "Fridge": "lodówka",
+      "Stove": "kuchenka",
+      "Oven": "piekarnik",
+      "SeparateKitchen": "oddzielna kuchnia",
+      "UsableRoom": "pomieszczenie użytkowe",
+      "TwoStorey": "dwupoziomowe",
+      "Internet": "internet",
+      "CableTelevision": "telewizja kablowa",
+      "Entryphone": "domofon",
+      "Monitoring": "monitoring",
+      "ClosedArea": "teren zamknięty",
+      "AntiBurglaryDoor": "drzwi antywłamaniowe",
+      "NonSmokersOnly": "tylko dla niepalących"
     },
     "description": "Opis",
     "noDescription": "Ogłoszeniodawca nie dodał opisu.",
@@ -111,7 +178,9 @@
     "updatedOnPortal": "Zmieniono na portalu",
     "firstFetched": "Pierwszy raz pobrano",
     "detailsFetched": "Szczegóły pobrano",
-    "point": "Punkt na mapie"
+    "point": "Punkt na mapie",
+    "noFeatures": "Ogłoszenie nie wymienia udogodnień.",
+    "title": "Oferta"
   },
   "changes": {
     "title": "Historia zmian",
@@ -125,7 +194,11 @@
       "before": "Było",
       "after": "Jest",
       "difference": "Różnica"
-    }
+    },
+    "count_one": "{{count}} zmiana",
+    "count_few": "{{count}} zmiany",
+    "count_many": "{{count}} zmian",
+    "count_other": "{{count}} zmiany"
   },
   "field": {
     "title": "Tytuł",
@@ -151,7 +224,8 @@
     "locationRadiusM": "Dokładność lokalizacji",
     "description": "Opis",
     "features": "Udogodnienia",
-    "pricePerM2": "Cena za m²"
+    "pricePerM2": "Cena za m²",
+    "furnished": "Umeblowane"
   },
   "place": {
     "name": "{{name}}, {{voivodeship}}",
@@ -208,5 +282,19 @@
     "parseFailed": "OtoDom zmienił wygląd strony, nie udało się odczytać ofert.",
     "placesUnavailable": "Wikidata nie odpowiedziała. Spróbuj ponownie za kilka minut.",
     "placesIncomplete": "Wikidata zwróciła niepełne dane, więc niczego nie zapisano. Spróbuj ponownie za kilka minut."
+  },
+  "answer": {
+    "Yes": "tak",
+    "No": "nie",
+    "NotStated": "nie podano"
+  },
+  "featureCategory": {
+    "Outdoor": "Na zewnątrz",
+    "Building": "Budynek",
+    "Appliances": "AGD",
+    "Comfort": "Komfort",
+    "Media": "Media",
+    "Security": "Bezpieczeństwo",
+    "Rules": "Zasady"
   }
 }

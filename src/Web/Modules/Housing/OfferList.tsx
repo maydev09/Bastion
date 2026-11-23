@@ -1,37 +1,34 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
 import { api } from "@shared/api/client";
 import type { components } from "@shared/api/schema";
+import { Button } from "@shared/ui/Button";
 import { DataTable, type DataTableColumn, type DataTableSort } from "@shared/ui/DataTable";
+import { IconButton } from "@shared/ui/IconButton";
+import { PageTitle } from "@shared/ui/PageTitle";
 import { Pagination } from "@shared/ui/Pagination";
 import { useErrorMessage } from "@shared/useErrorMessage";
 import styles from "./Housing.module.css";
+import { OfferFilters } from "./OfferFilters";
+import {
+  countFilters,
+  noFilter,
+  pageSizes,
+  readView,
+  sorts,
+  toQuery,
+  writeView,
+  type OfferView,
+} from "./offerView";
 import { PlaceCell } from "./PlaceCell";
 import { useFormat } from "./useFormat";
 import { offersQueryKey } from "./queryKeys";
 
 type Offer = components["schemas"]["OfferListItem"];
-type OfferSort = components["schemas"]["OfferSort"];
 
-const sorts: OfferSort[] = ["FirstSeen", "Price", "PricePerM2", "AreaM2", "Rooms"];
-const pageSizes = [25, 50, 100];
-const defaultPageSize = 50;
 const noOffers: Offer[] = [];
-
-// The page, page size and sort order live in the URL, so a copied link opens the same view.
-function readView(params: URLSearchParams) {
-  const page = Number.parseInt(params.get("page") ?? "", 10);
-  const pageSize = Number.parseInt(params.get("pageSize") ?? "", 10);
-  const sort = sorts.find((s) => s === params.get("sort")) ?? "FirstSeen";
-  return {
-    page: page >= 1 ? page : 1,
-    pageSize: pageSizes.includes(pageSize) ? pageSize : defaultPageSize,
-    sort,
-    direction: params.get("direction") === "Ascending" ? "Ascending" : "Descending",
-  } as const;
-}
 
 export function OfferList() {
   const { t } = useTranslation("housing");
@@ -40,13 +37,17 @@ export function OfferList() {
   const navigate = useNavigate();
   const location = useLocation();
   const [params, setParams] = useSearchParams();
+  const [showFilters, setShowFilters] = useState(true);
+  // The offer the user opened last stays marked when they come back to the list.
+  const [openedOffer] = useState(readOpenedOffer);
   const view = readView(params);
+  const filterCount = countFilters(view.filter);
 
   const offers = useQuery({
     queryKey: [...offersQueryKey, view],
     queryFn: async () => {
       const { data, error } = await api.GET("/api/housing/offers", {
-        params: { query: view },
+        params: { query: toQuery(view) },
       });
       if (error) {
         throw new Error((error as { code?: string }).code ?? "");
@@ -56,24 +57,7 @@ export function OfferList() {
     placeholderData: keepPreviousData,
   });
 
-  const changeView = (changes: Partial<typeof view>) => {
-    const next = { ...view, ...changes };
-    // Default values stay out of the URL, so the plain list has a plain link.
-    const query: Record<string, string> = {};
-    if (next.page > 1) {
-      query.page = String(next.page);
-    }
-    if (next.pageSize !== defaultPageSize) {
-      query.pageSize = String(next.pageSize);
-    }
-    if (next.sort !== "FirstSeen") {
-      query.sort = next.sort;
-    }
-    if (next.direction !== "Descending") {
-      query.direction = next.direction;
-    }
-    setParams(query);
-  };
+  const changeView = (changes: Partial<OfferView>) => setParams(writeView({ ...view, ...changes }));
 
   const columns = useMemo(
     (): DataTableColumn<Offer>[] => [
@@ -136,64 +120,115 @@ export function OfferList() {
     [t, format],
   );
 
-  if (offers.isPending) {
-    return <p className={styles.muted}>{t("list.loading")}</p>;
-  }
-  if (offers.isError) {
-    return (
-      <p className={styles.error} role="alert">
-        {errorMessage(offers.error.message)}
-      </p>
-    );
-  }
-
-  const { items, totalCount } = offers.data;
   const sort: DataTableSort = { column: view.sort, descending: view.direction === "Descending" };
+
+  const renderOffers = () => {
+    if (offers.isPending) {
+      return <p className={styles.muted}>{t("list.loading")}</p>;
+    }
+    if (offers.isError) {
+      return (
+        <p className={styles.error} role="alert">
+          {errorMessage(offers.error.message)}
+        </p>
+      );
+    }
+
+    const { items, totalCount } = offers.data;
+    if (totalCount === 0) {
+      return filterCount > 0 ? (
+        <div className={styles.empty}>
+          <p>{t("filters.noMatch")}</p>
+          <Button onClick={() => changeView({ page: 1, filter: noFilter })}>
+            {t("filters.clear")}
+          </Button>
+        </div>
+      ) : (
+        <div className={styles.empty}>
+          <p>{t("list.empty")}</p>
+          <Link to="../collection" relative="path">
+            {t("list.goToCollection")}
+          </Link>
+        </div>
+      );
+    }
+
+    return (
+      <>
+        <DataTable
+          columns={columns}
+          rows={items.length > 0 ? items : noOffers}
+          getRowId={(offer) => String(offer.id)}
+          sort={sort}
+          onSortChange={(next) =>
+            changeView({
+              page: 1,
+              sort: sorts.find((s) => s === next.column) ?? "FirstSeen",
+              direction: next.descending ? "Descending" : "Ascending",
+            })
+          }
+          onRowClick={(offer) => {
+            rememberOpenedOffer(offer.id);
+            void navigate(String(offer.id), { relative: "path", state: { from: location.search } });
+          }}
+          busy={offers.isPlaceholderData}
+          fill
+          // Each view of the list is its own history entry, so back restores how far it was scrolled.
+          scrollKey={location.key}
+          markedRowId={openedOffer ?? undefined}
+        />
+        {items.length === 0 && <p className={styles.empty}>{t("list.pageEmpty")}</p>}
+        <Pagination
+          page={view.page}
+          pageSize={view.pageSize}
+          totalCount={totalCount}
+          pageSizes={pageSizes}
+          onPageChange={(page) => changeView({ page })}
+          // The first offer of the current page stays on the new page.
+          onPageSizeChange={(pageSize) =>
+            changeView({
+              pageSize,
+              page: Math.floor(((view.page - 1) * view.pageSize) / pageSize) + 1,
+            })
+          }
+        />
+      </>
+    );
+  };
 
   return (
     <section className={styles.list}>
-      <div className={styles.toolbar}>
-        <h2>{t("list.title")}</h2>
-        <span className={styles.count}>{t("list.count", { count: totalCount })}</span>
+      <PageTitle aside={offers.data && t("list.count", { count: offers.data.totalCount })}>
+        {t("list.title")}
+      </PageTitle>
+      <div className={styles.body} data-filters={showFilters ? "open" : "closed"}>
+        {showFilters ? (
+          <div className={styles.filters}>
+            {/* A changed filter starts from the first page. */}
+            <OfferFilters
+              filter={view.filter}
+              onChange={(filter) => changeView({ page: 1, filter })}
+              onHide={() => setShowFilters(false)}
+            />
+          </div>
+        ) : (
+          // Hidden, the filters leave a strip with their button and how many are in use.
+          <div className={styles.filtersStrip}>
+            <IconButton
+              icon="filter"
+              label={t("filters.show")}
+              aria-expanded={false}
+              onClick={() => setShowFilters(true)}
+            />
+            {filterCount > 0 && (
+              <span className={styles.badge} title={t("filters.inUse", { count: filterCount })}>
+                {filterCount}
+              </span>
+            )}
+          </div>
+        )}
+        <div className={styles.offers}>{renderOffers()}</div>
       </div>
-      {totalCount === 0 ? (
-        <p className={styles.empty}>{t("list.empty")}</p>
-      ) : (
-        <>
-          <DataTable
-            columns={columns}
-            rows={items.length > 0 ? items : noOffers}
-            getRowId={(offer) => String(offer.id)}
-            sort={sort}
-            onSortChange={(next) =>
-              changeView({
-                page: 1,
-                sort: sorts.find((s) => s === next.column) ?? "FirstSeen",
-                direction: next.descending ? "Descending" : "Ascending",
-              })
-            }
-            onRowClick={(offer) =>
-              void navigate(`offers/${offer.id}`, { state: { from: location.search } })
-            }
-            busy={offers.isPlaceholderData}
-          />
-          {items.length === 0 && <p className={styles.empty}>{t("list.pageEmpty")}</p>}
-          <Pagination
-            page={view.page}
-            pageSize={view.pageSize}
-            totalCount={totalCount}
-            pageSizes={pageSizes}
-            onPageChange={(page) => changeView({ page })}
-            // The first offer of the current page stays on the new page.
-            onPageSizeChange={(pageSize) =>
-              changeView({
-                pageSize,
-                page: Math.floor(((view.page - 1) * view.pageSize) / pageSize) + 1,
-              })
-            }
-          />
-        </>
-      )}
     </section>
   );
 }
@@ -202,8 +237,33 @@ export function OfferList() {
 function OfferLink({ offer }: { offer: Offer }) {
   const location = useLocation();
   return (
-    <Link to={`offers/${offer.id}`} state={{ from: location.search }} className={styles.title}>
+    <Link
+      to={String(offer.id)}
+      relative="path"
+      state={{ from: location.search }}
+      className={styles.title}
+      onClick={() => rememberOpenedOffer(offer.id)}
+    >
       {offer.title}
     </Link>
   );
+}
+
+// Kept for the browser tab, so the mark also survives a reload; storage may be unavailable (private mode).
+const openedOfferKey = "housing.openedOffer";
+
+function readOpenedOffer(): string | null {
+  try {
+    return sessionStorage.getItem(openedOfferKey);
+  } catch {
+    return null;
+  }
+}
+
+function rememberOpenedOffer(id: number) {
+  try {
+    sessionStorage.setItem(openedOfferKey, String(id));
+  } catch {
+    // Without storage the list simply marks nothing.
+  }
 }

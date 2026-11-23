@@ -53,3 +53,19 @@ again after its page answered `410` (checked 2026-11-22), so `410` is final.
 A `404` was seen once (2026-11-21), for an offer that stayed in the listing: three attempts within
 a few hours answered `404`, and the next day the page answered `200` with the active offer. So a
 `404` can be temporary (perhaps while the ad is edited or moderated) and is not a removal.
+
+## Amenities
+
+The detail page lists amenities as ticked values in groups, in `ad.additionalInformation`
+(`{"label": "extras_types", "values": ["extras_types::balcony"]}`; security values look like
+`security_types-102::monitoring`) and again in `ad.attributes`. Groups: `extras_types`,
+`equipment_types`, `media_types`, `security_types`. A value is either listed or absent: there is no
+"no". The listing page shows only a few of them as tags.
+
+There is no furnished field: furniture is the value `furniture` among `equipment_types` (in older
+pages also among `extras_types`). Of 19 285 detail pages (production, 2026-11-22) 80.2% list
+furniture, 5.7% list other equipment without it (so the flat is unfurnished) and 14.1% list no
+equipment (not stated).
+
+Other fields of the page not stored yet: `rent_to_students` (`1`/`0`, about 20% of pages),
+windows, building material and the energy certificate.
