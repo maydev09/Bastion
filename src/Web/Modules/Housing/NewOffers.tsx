@@ -1,28 +1,25 @@
-import { useQuery } from "@tanstack/react-query";
-import { useState } from "react";
 import { useTranslation } from "react-i18next";
-import { api } from "@shared/api/client";
 import { ToggleGroup } from "@shared/ui/ToggleGroup";
-import { toFilterQuery, type OfferFilter } from "./offerView";
-import { offersQueryKey } from "./queryKeys";
+import type { OfferFilter } from "./offerView";
 
 type Props = {
   filter: OfferFilter;
   onChange: (filter: OfferFilter) => void;
   // When the user last looked at the offers; null on the first visit in this browser.
   previousVisit: string | null;
+  // The moment 24 hours ago (useDayAgo), so the counts and the pick use the same one.
+  dayAgo: string;
+  // How many offers match the other filters since dayAgo and since previousVisit; undefined while loading.
+  lastDay: number | undefined;
+  sinceVisit: number | undefined;
 };
 
 const day = 24 * 60 * 60 * 1000;
 const hour = 60 * 60 * 1000;
 
 // Quick picks for offers Bastion found lately, each with how many of them match the other filters.
-export function NewOffers({ filter, onChange, previousVisit }: Props) {
+export function NewOffers({ filter, onChange, previousVisit, dayAgo, lastDay, sinceVisit }: Props) {
   const { t } = useTranslation("housing");
-  // Fixed when the page opens, so the count and the link do not move while the user looks at them.
-  const [dayAgo] = useState(() => new Date(Date.now() - day).toISOString());
-  const lastDay = useNewCount(filter, dayAgo);
-  const sinceVisit = useNewCount(filter, previousVisit);
 
   // A "last 24 h" link opened later still counts as that pick for an hour; the chip shows the exact moment.
   const picked =
@@ -51,29 +48,15 @@ export function NewOffers({ filter, onChange, previousVisit }: Props) {
       onToggle={(value) =>
         onChange({
           ...filter,
-          addedSince: value === picked ? null : value === "visit" ? previousVisit : dayAgo,
+          // "Last 24 h" counts back from the click, not from when the page opened.
+          addedSince:
+            value === picked
+              ? null
+              : value === "visit"
+                ? previousVisit
+                : new Date(Date.now() - day).toISOString(),
         })
       }
     />
   );
-}
-
-// How many offers match the other filters and were found since the moment.
-function useNewCount(filter: OfferFilter, since: string | null) {
-  const query = useQuery({
-    queryKey: [...offersQueryKey, "new", since, { ...filter, addedSince: null }],
-    queryFn: async () => {
-      const { data, error } = await api.GET("/api/housing/offers", {
-        params: {
-          query: { ...toFilterQuery(filter), addedSince: since ?? undefined, pageSize: 1 },
-        },
-      });
-      if (error) {
-        throw new Error("new offers");
-      }
-      return data.totalCount;
-    },
-    enabled: since != null,
-  });
-  return query.data;
 }

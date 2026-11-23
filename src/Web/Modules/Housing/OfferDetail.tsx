@@ -63,7 +63,7 @@ export function OfferDetail() {
   const goBack = () => {
     if (from === null) {
       void navigate("..", { relative: "path" });
-    } else if (from === listBehind) {
+    } else if (listBehind !== null && isSameView(from, listBehind)) {
       void navigate(-1);
     } else {
       void navigate({ pathname: "..", search: from }, { relative: "path", replace: true });
@@ -86,10 +86,7 @@ export function OfferDetail() {
   // The previous and the next offer of the list the card was opened from, also across its pages.
   // The list's page is usually cached already, so moving needs no request.
   const listView = from !== null ? readView(new URLSearchParams(from)) : null;
-  const list = useQuery({
-    ...offersQuery(listView ?? readView(new URLSearchParams())),
-    enabled: listView !== null,
-  });
+  const list = useQuery(offersQuery(listView));
   const index = list.data?.items.findIndex((item) => item.id === id) ?? -1;
   const canGo = (step: -1 | 1) =>
     listView !== null &&
@@ -259,4 +256,10 @@ export function OfferDetail() {
       </div>
     </article>
   );
+}
+
+// Two list links show the same view even when their keys come in another order.
+function isSameView(search: string, other: string) {
+  const view = (text: string) => writeView(readView(new URLSearchParams(text))).toString();
+  return view(search) === view(other);
 }

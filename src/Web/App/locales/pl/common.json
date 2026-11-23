@@ -57,5 +57,8 @@
     "last": "Ostatnia strona",
     "page": "Numer strony",
     "of": "z {{pages}}"
+  },
+  "dialog": {
+    "close": "Zamknij"
   }
 }

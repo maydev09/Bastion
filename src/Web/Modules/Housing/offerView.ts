@@ -71,6 +71,8 @@ export type OfferFilter = {
   // With (true) or without (false) a recorded change.
   changed: boolean | null;
   priceCut: boolean;
+  // Leaves one offer out, e.g. the offer compared with the others; never part of a list link.
+  excludeOffer: number | null;
 };
 
 export type OfferView = {
@@ -98,6 +100,7 @@ export const noFilter: OfferFilter = {
   addedSince: null,
   changed: null,
   priceCut: false,
+  excludeOffer: null,
 };
 
 const numberKeys = ["priceMin", "priceMax", "areaMin", "areaMax", "roomsMin"] as const;
@@ -217,6 +220,7 @@ export function toFilterQuery(filter: OfferFilter) {
     addedSince: filter.addedSince ?? undefined,
     changed: filter.changed ?? undefined,
     priceCut: filter.priceCut || undefined,
+    excludeOffer: filter.excludeOffer ?? undefined,
   };
 }
 

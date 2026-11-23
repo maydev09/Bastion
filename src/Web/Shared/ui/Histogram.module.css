@@ -1,18 +1,7 @@
-/* Relative: the hidden caption stays inside the chart, also in a scrolling panel. */
 .histogram {
-  position: relative;
   display: grid;
   gap: var(--space-1);
   margin: 0;
-}
-
-.caption {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
 }
 
 /* The bars stand on a baseline; a 2px gap of the surface between them. */
@@ -46,6 +35,11 @@
 
   &:hover > span {
     background: var(--color-accent-hover);
+  }
+
+  /* The bars are a mouse shortcut out of the tab order, so a click leaves no focus ring. */
+  &:focus {
+    outline: none;
   }
 }
 

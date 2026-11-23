@@ -1,0 +1,12 @@
+/* Pinned to the top left of the nearest positioned ancestor, or of the page: never where the text would
+   flow, so it cannot widen a table or lengthen the page from inside a scrolling panel. */
+.hidden {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

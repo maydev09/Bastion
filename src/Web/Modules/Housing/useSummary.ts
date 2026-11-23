@@ -4,7 +4,8 @@ import { toFilterQuery, type OfferFilter } from "./offerView";
 import { offersQueryKey } from "./queryKeys";
 
 // The typical values of the offers that match a filter (GET /api/housing/offers/summary).
-export function useSummary(filter: OfferFilter, enabled = true) {
+// keepPrevious shows the last values while new ones load; off where old values would describe something else.
+export function useSummary(filter: OfferFilter, enabled = true, keepPrevious = true) {
   return useQuery({
     queryKey: [...offersQueryKey, "summary", filter],
     queryFn: async () => {
@@ -16,7 +17,7 @@ export function useSummary(filter: OfferFilter, enabled = true) {
       }
       return data;
     },
-    placeholderData: keepPreviousData,
+    placeholderData: keepPrevious ? keepPreviousData : undefined,
     enabled,
   });
 }

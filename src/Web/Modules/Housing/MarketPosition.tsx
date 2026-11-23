@@ -38,9 +38,10 @@ export function MarketPosition({ offer: o }: { offer: Offer }) {
     ...rooms,
     voivodeship: o.voivodeship ? [o.voivodeship] : [],
   };
-  const local = useSummary(placeFilter, o.placeId != null);
+  // The offer itself is left out of its group; a previous offer's values are never shown for this one.
+  const local = useSummary({ ...placeFilter, excludeOffer: o.id }, o.placeId != null, false);
   const wider = local.data !== undefined && local.data.count < smallSample && o.voivodeship != null;
-  const regional = useSummary(voivodeshipFilter, wider);
+  const regional = useSummary({ ...voivodeshipFilter, excludeOffer: o.id }, wider, false);
   const summary = wider ? regional.data : local.data;
   const groupFilter = wider ? voivodeshipFilter : placeFilter;
 

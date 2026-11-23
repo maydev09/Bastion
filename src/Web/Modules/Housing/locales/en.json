@@ -68,7 +68,7 @@
     "searching": "Searching…",
     "inCounty": "{{county}} county",
     "voivodeship": "Voivodeship",
-    "voivodeshipPlaceholder": "Choose…",
+    "voivodeshipPlaceholder": "Type a name…",
     "voivodeshipNone": "No such voivodeship.",
     "remove": "Remove {{name}}",
     "size": "Size of place",
@@ -338,7 +338,6 @@
   "shortcuts": {
     "title": "Keyboard shortcuts",
     "show": "Keyboard shortcuts (?)",
-    "close": "Close",
     "list": "Offer list",
     "card": "Offer card",
     "everywhere": "Everywhere",
@@ -367,10 +366,10 @@
     "rooms_one": "{{count}} room",
     "rooms_other": "{{count}} rooms",
     "roomsOrMore": "{{count}} or more rooms",
-    "group_one": "Compared with: {{group}} ({{count, number}} offer)",
-    "group_other": "Compared with: {{group}} ({{count, number}} offers)",
-    "fewOffers_one": "Compared with: {{group}}, only {{count}} offer – a rough guide",
-    "fewOffers_other": "Compared with: {{group}}, only {{count}} offers – a rough guide"
+    "group_one": "Compared with others: {{group}} ({{count, number}} offer)",
+    "group_other": "Compared with others: {{group}} ({{count, number}} offers)",
+    "fewOffers_one": "Compared with others: {{group}}, only {{count}} offer – a rough guide",
+    "fewOffers_other": "Compared with others: {{group}}, only {{count}} offers – a rough guide"
   },
   "filtersHelp": {
     "show": "How the filters work",

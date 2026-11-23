@@ -1,4 +1,5 @@
 import styles from "./Histogram.module.css";
+import { VisuallyHidden } from "./VisuallyHidden";
 
 type Props = {
   // What the chart shows, e.g. "Prices of the offers from 1 000 to 9 000 zł".
@@ -22,7 +23,7 @@ export function Histogram({ label, counts, isPicked, barLabel, onPick, start, en
   const max = Math.max(...counts, 1);
   return (
     <figure className={styles.histogram}>
-      <figcaption className={styles.caption}>{label}</figcaption>
+      <VisuallyHidden>{label}</VisuallyHidden>
       <div className={styles.bars} aria-hidden="true">
         {counts.map((count, index) => (
           <button

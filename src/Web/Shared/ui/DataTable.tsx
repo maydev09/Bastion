@@ -17,6 +17,7 @@ import {
 } from "react";
 import styles from "./DataTable.module.css";
 import { Icon } from "./Icon";
+import { VisuallyHidden } from "./VisuallyHidden";
 
 const features = tableFeatures({ rowSortingFeature });
 
@@ -144,11 +145,7 @@ export function DataTable<Row extends RowData>({
   return (
     <div ref={frame} className={fill ? `${styles.frame} ${styles.fill}` : styles.frame}>
       {busy && <div className={styles.progress} aria-hidden="true" />}
-      {loading && (
-        <p className={styles.hidden} role="status">
-          {loading}
-        </p>
-      )}
+      {loading && <VisuallyHidden role="status">{loading}</VisuallyHidden>}
       <table className={styles.table} aria-busy={busy || loading !== undefined} data-busy={busy}>
         <thead>
           {table.getHeaderGroups().map((group) => (

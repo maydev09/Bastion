@@ -5,6 +5,7 @@ import { api } from "@shared/api/client";
 import type { components } from "@shared/api/schema";
 import { MultiSelect } from "@shared/ui/MultiSelect";
 import { placesQueryKey } from "./queryKeys";
+import { useFormat } from "./useFormat";
 import { usePlaces } from "./usePlaces";
 
 type Place = components["schemas"]["PlaceListItem"];
@@ -19,6 +20,7 @@ type Props = {
 // Places are searched on the server; the link keeps only their ids, so the picked ones are read by id.
 export function PlaceFilter({ value, onChange }: Props) {
   const { t } = useTranslation("housing");
+  const format = useFormat();
   const [search, setSearch] = useState("");
   const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
   useEffect(() => () => clearTimeout(timer.current), []);
@@ -63,15 +65,13 @@ export function PlaceFilter({ value, onChange }: Props) {
       itemToKey={(place) => String(place.id)}
       itemToLabel={(place) => place.name}
       itemToHint={(place) =>
-        [
-          place.county
-            ? t("filters.inCounty", { county: place.county })
-            : place.voivodeship && t(`voivodeship.${place.voivodeship}`),
-          t("list.count", { count: place.offerCount }),
-        ]
-          .filter(Boolean)
-          .join(" · ")
+        place.county
+          ? t("filters.inCounty", { county: place.county })
+          : place.voivodeship
+            ? t(`voivodeship.${place.voivodeship}`)
+            : ""
       }
+      itemToCount={(place) => format.number(place.offerCount)}
       // A place without offers is found too, greyed out, so the user knows the name is right.
       isItemMuted={(place) => place.offerCount === 0}
       onSearch={(text) => {

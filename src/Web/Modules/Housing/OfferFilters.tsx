@@ -25,6 +25,7 @@ import {
 import { FiltersHelp } from "./FiltersHelp";
 import { NewOffers } from "./NewOffers";
 import { PlaceFilter } from "./PlaceFilter";
+import { useDayAgo } from "./useDayAgo";
 import { useFacets } from "./useFacets";
 import { useFeatureGroups } from "./useFeatures";
 import { useFormat } from "./useFormat";
@@ -56,7 +57,8 @@ export function OfferFilters({ filter, onChange, onHide, previousVisit, searchRe
   const toggle = <T,>(values: T[], value: T, on: boolean) =>
     on ? [...values, value] : values.filter((v) => v !== value);
   const featureGroups = useFeatureGroups();
-  const facets = useFacets(filter);
+  const dayAgo = useDayAgo();
+  const facets = useFacets(filter, previousVisit ? [dayAgo, previousVisit] : [dayAgo]);
   // A count shows once the counts have loaded; a choice missing from them matches no offer.
   const shownCount = (counts: Record<string, number> | undefined, key: string) =>
     facets && format.number(counts?.[key] ?? 0);
@@ -119,7 +121,15 @@ export function OfferFilters({ filter, onChange, onHide, previousVisit, searchRe
       {section(
         "new",
         t("filters.newOffers"),
-        <NewOffers filter={filter} onChange={onChange} previousVisit={previousVisit} />,
+        <NewOffers
+          filter={filter}
+          onChange={onChange}
+          previousVisit={previousVisit}
+          dayAgo={dayAgo}
+          // Missing from a backend older than the page (e.g. right after an update): no count, no crash.
+          lastDay={facets?.addedSince?.[0]}
+          sinceVisit={facets?.addedSince?.[1]}
+        />,
       )}
 
       {section(
@@ -137,7 +147,7 @@ export function OfferFilters({ filter, onChange, onHide, previousVisit, searchRe
             onChange={(items) => set({ voivodeship: items.map((item) => item.value) })}
             itemToKey={(item) => item.value}
             itemToLabel={(item) => item.label}
-            itemToHint={(item) => shownCount(facets?.voivodeships, item.value) ?? ""}
+            itemToCount={(item) => shownCount(facets?.voivodeships, item.value) ?? ""}
             emptyText={t("filters.voivodeshipNone")}
             removeLabel={(name) => t("filters.remove", { name })}
           />
@@ -221,7 +231,12 @@ export function OfferFilters({ filter, onChange, onHide, previousVisit, searchRe
             value === "more"
               ? set({ roomsMin: filter.roomsMin == null ? roomsOrMore : null })
               : set({
-                  rooms: toggle(filter.rooms, Number(value), !filter.rooms.includes(Number(value))),
+                  // Sorted, so the same picks always give the same link.
+                  rooms: toggle(
+                    filter.rooms,
+                    Number(value),
+                    !filter.rooms.includes(Number(value)),
+                  ).sort((a, b) => a - b),
                 })
           }
         />,

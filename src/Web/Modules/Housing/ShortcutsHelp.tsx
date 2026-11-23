@@ -37,12 +37,7 @@ const groups = [
 export function ShortcutsHelp({ open, onOpenChange }: Props) {
   const { t } = useTranslation("housing");
   return (
-    <Dialog
-      title={t("shortcuts.title")}
-      open={open}
-      onOpenChange={onOpenChange}
-      closeLabel={t("shortcuts.close")}
-    >
+    <Dialog title={t("shortcuts.title")} open={open} onOpenChange={onOpenChange}>
       {groups.map((group) => (
         <section key={group.title} className={styles.group}>
           <h3>{t(group.title)}</h3>

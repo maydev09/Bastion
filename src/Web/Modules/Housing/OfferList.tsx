@@ -27,7 +27,7 @@ import {
 } from "./offerView";
 import { readOpenedOffer, rememberOpenedOffer } from "./openedOffer";
 import { PlaceCell } from "./PlaceCell";
-import { readPreviousVisit } from "./previousVisit";
+import { readPreviousVisit, rememberVisit } from "./previousVisit";
 import { ShortcutsHelp } from "./ShortcutsHelp";
 import { useFormat } from "./useFormat";
 
@@ -46,6 +46,15 @@ export function OfferList() {
   // The marked row: at first the offer opened last, then moved with the arrow keys.
   const [marked, setMarked] = useState(readOpenedOffer);
   const [previousVisit] = useState(readPreviousVisit);
+  // Looking at the list is a visit: it moves to now while the list is shown and when it is left.
+  useEffect(() => {
+    rememberVisit();
+    const timer = setInterval(rememberVisit, 60 * 1000);
+    return () => {
+      clearInterval(timer);
+      rememberVisit();
+    };
+  }, []);
   const [helpOpen, setHelpOpen] = useState(false);
   // "/" asks for the place search; the field gets the focus once the filters are shown.
   const searchRef = useRef<HTMLDivElement>(null);
