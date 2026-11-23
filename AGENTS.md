@@ -73,7 +73,8 @@ Spend effort only on what solves a real problem the maintainer has today
   or an interval `Every`.
   An expected failure throws `JobFailedException` with a code that the UI translates.
 - Data and API conventions: `int` identity keys,
-  `timestamptz` + `DateTimeOffset` + `TimeProvider`, money as `numeric`/`decimal` with a
+  `timestamptz` + `DateTimeOffset` + `TimeProvider` (the UI shows times in the browser's time zone, whatever
+  the language; the language picks only the format), money as `numeric`/`decimal` with a
   currency column, enums as `integer` (explicit C# values) without `CHECK` and as JSON strings, `ProblemDetails` with a
   `code`, paging via `PageRequest`/`PagedResult<T>`, expected errors as `TypedResults`.
 - UI texts only from i18next dictionaries by key; no hardcoded texts. Every new or
