@@ -429,7 +429,7 @@ export interface components {
             municipality?: null | string;
             /** Format: int32 */
             population?: null | number;
-            /** Format: int16 */
+            /** Format: int32 */
             populationYear?: null | number;
             populationSource?: null | components["schemas"]["PlaceSource"];
             nearby?: components["schemas"]["NearbyPlace"][];

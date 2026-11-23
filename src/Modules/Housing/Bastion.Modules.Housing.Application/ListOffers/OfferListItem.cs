@@ -89,7 +89,7 @@ public sealed record OfferListItem
 
     public int? Population { get; init; }
 
-    public short? PopulationYear { get; init; }
+    public int? PopulationYear { get; init; }
 
     public PlaceSource? PopulationSource { get; init; }
 

@@ -51,7 +51,7 @@ public static class WikidataPlaces
                 place = place with
                 {
                     Population = (int)Math.Round(population),
-                    PopulationYear = date is { } d ? (short)d.Year : null,
+                    PopulationYear = date?.Year,
                     PopulationSource = PlaceSource.Wikidata,
                 };
             }

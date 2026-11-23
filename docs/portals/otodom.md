@@ -69,3 +69,11 @@ equipment (not stated).
 
 Other fields of the page not stored yet: `rent_to_students` (`1`/`0`, about 20% of pages),
 windows, building material and the energy certificate.
+
+## Values typed by sellers
+
+Numbers in the detail page's `characteristics` are what the seller typed, unchecked. On 2026-11-23 an
+offer had `build_year` = `195014` (probably 1950); it did not fit the database column and stopped the
+details fetch. The parser keeps only plausible numbers (build year 1000-2100, building floors 0-100,
+location radius 0-100000 m) and stores any other value as written in `housing.offer.rejected_values`, by
+column name.

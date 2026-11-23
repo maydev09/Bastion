@@ -219,7 +219,12 @@ Update the matching file in the same change that makes it outdated:
     Everything else stays in the raw capture until a feature needs it;
   - a yes/no attribute is the `Answer` enum (yes, no, not stated), never a `bool`; a null column
     means not known yet (e.g. details not fetched). What a portal does not give at all is a fact
-    about the portal (`docs/portals/<portal>.md`), not a value stored with each offer.
+    about the portal (`docs/portals/<portal>.md`), not a value stored with each offer;
+  - a number a seller types by hand (e.g. build year) is checked for a plausible range in the parser;
+    an implausible one goes, as written, to the offer's `rejected_values` under the column name
+    (`{"build_year": "195014"}`) and clears the field, also a value stored from an earlier page (unlike
+    a missing value, which never clears). An empty value is missing, not implausible. The parser never
+    guesses a corrected value.
 - Never hardcode user-specific preferences (search criteria, cities, price ranges,
   filters) in code or configuration files. They are data, managed by the user through the UI.
   Code and configuration only hold technical settings (e.g. delays, timeouts, URLs).
