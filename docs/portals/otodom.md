@@ -53,3 +53,11 @@ again after its page answered `410` (checked 2026-11-22), so `410` is final.
 A `404` was seen once (2026-11-21), for an offer that stayed in the listing: three attempts within
 a few hours answered `404`, and the next day the page answered `200` with the active offer. So a
 `404` can be temporary (perhaps while the ad is edited or moderated) and is not a removal.
+
+## Values typed by sellers
+
+Numbers in the detail page's `characteristics` are what the seller typed, unchecked. On 2026-11-23 an
+offer had `build_year` = `195014` (probably 1950); it did not fit the database column and stopped the
+details fetch. The parser keeps only plausible numbers (build year 1000-2100, building floors 0-100,
+location radius 0-100000 m) and stores any other value as written in `housing.offer.rejected_values`, by
+column name.

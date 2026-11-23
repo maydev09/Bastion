@@ -42,6 +42,7 @@ public class OtoDomDetailParserTests
             Assert.That(details.AvailableFrom, Is.EqualTo(new DateOnly(2026, 11, 23)));
             Assert.That((details.Latitude, details.Longitude, details.LocationRadiusM), Is.EqualTo((52.389378m, 16.912691m, 0)));
             Assert.That(details.Description, Is.EqualTo("<p>Flat with a view.</p>"));
+            Assert.That(details.RejectedValues, Is.Null);
             Assert.That(details.Features, Is.EquivalentTo(new[]
             {
                 Feature.Lift, Feature.Balcony, Feature.Parking, Feature.Furnished, Feature.AirConditioning,
@@ -56,6 +57,7 @@ public class OtoDomDetailParserTests
             <script id="__NEXT_DATA__" type="application/json">
             {"props":{"pageProps":{"ad":{"id":1,"characteristics":[
               {"key":"floor_no","value":"ground_floor"},
+              {"key":"build_year","value":""},
               {"key":"building_type","value":"castle"},
               {"key":"heating","value":"other"}]}}}}
             </script>
@@ -69,6 +71,35 @@ public class OtoDomDetailParserTests
             Assert.That((details.BuildingType, details.Heating, details.Rent, details.Latitude, details.Description),
                 Is.EqualTo(((BuildingType?)null, (Heating?)null, (Money?)null, (decimal?)null, (string?)null)));
             Assert.That(details.Features, Is.Null);
+            Assert.That((details.BuildYear, details.RejectedValues), Is.EqualTo(((int?)null, (IReadOnlyDictionary<string, string>?)null)));
+        });
+    }
+
+    [Test]
+    public void Keeps_implausible_numbers_only_as_rejected_values()
+    {
+        const string html = """
+            <script id="__NEXT_DATA__" type="application/json">
+            {"props":{"pageProps":{"ad":{"id":1,"characteristics":[
+              {"key":"build_year","value":"195014"},
+              {"key":"building_floors_num","value":"250"},
+              {"key":"floor_no","value":"floor_3"}],
+              "location":{"mapDetails":{"radius":1500.5}}}}}}
+            </script>
+            """;
+
+        var (_, details) = OtoDomDetailParser.Parse(html);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((details.BuildYear, details.BuildingFloors, details.LocationRadiusM, details.Floor),
+                Is.EqualTo(((int?)null, (int?)null, (int?)null, (int?)3)));
+            Assert.That(details.RejectedValues, Is.EquivalentTo(new Dictionary<string, string>
+            {
+                ["build_year"] = "195014",
+                ["building_floors"] = "250",
+                ["location_radius_m"] = "1500.5",
+            }));
         });
     }
 

@@ -70,7 +70,7 @@ public class WikidataPlacesTests
             populations: [("Q200", 55_387m, At(2006)), ("Q200", 65_283m, At(2021)), ("Q200", 61_237m, null)]));
 
         Assert.That((places[0].Population, places[0].PopulationYear, places[0].PopulationSource),
-            Is.EqualTo(((int?)65_283, (short?)2021, (PlaceSource?)PlaceSource.Wikidata)));
+            Is.EqualTo(((int?)65_283, (int?)2021, (PlaceSource?)PlaceSource.Wikidata)));
     }
 
     [Test]

@@ -110,7 +110,7 @@ public class HousingImportTests
             }));
             Assert.That((small.PlaceKind, small.PlaceSize, small.PlaceRole, small.Voivodeship, small.Population, small.PopulationYear),
                 Is.EqualTo(((PlaceKind?)PlaceKind.Town, (PlaceSize?)PlaceSize.Metropolis, (PlaceRole?)PlaceRole.VoivodeshipCapital,
-                    (Voivodeship?)Voivodeship.Mazowieckie, (int?)1_863_056, (short?)2021)));
+                    (Voivodeship?)Voivodeship.Mazowieckie, (int?)1_863_056, (int?)2021)));
         });
     }
 
@@ -554,6 +554,68 @@ public class HousingImportTests
     }
 
     [Test]
+    public async Task A_rejected_value_clears_the_field_and_the_history_shows_both_steps()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small]];
+        _source.Details["1"] = new OfferDetails(BuildYear: 1950);
+        await RunImport(client);
+        await RunDetails(client);
+
+        _source.Pages = [[Small with { Price = new Money(2000m, Currency.Pln) }]];
+        _source.Details["1"] = new OfferDetails(RejectedValues: new Dictionary<string, string> { ["build_year"] = "195014" });
+        await RunImport(client);
+        var rejectedRun = await RunDetails(client);
+        var rejected = await Scalar<string>("SELECT concat_ws('|', build_year, rejected_values->>'build_year') FROM housing.offer");
+
+        _source.Pages = [[Small with { Price = new Money(2100m, Currency.Pln) }]];
+        _source.Details["1"] = new OfferDetails(BuildYear: 1960);
+        await RunImport(client);
+        await RunDetails(client);
+        var corrected = await Scalar<string>("SELECT concat_ws('|', build_year, rejected_values) FROM housing.offer");
+        var id = (await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json))!.Items.Single().Id;
+        using var card = await client.GetFromJsonAsync<JsonDocument>($"/api/housing/offers/{id}", Json);
+        var yearChanges = card!.RootElement.GetProperty("changes").EnumerateArray()
+            .SelectMany(o => o.GetProperty("changes").EnumerateArray())
+            .Where(c => c.GetProperty("field").GetString() == "buildYear")
+            .Select(c => (Before: c.GetProperty("before").ToString(), After: c.GetProperty("after").ToString()))
+            .ToList();
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(rejectedRun, Is.EqualTo(new Fetched(1, 0)));
+            Assert.That(rejected, Is.EqualTo("195014"));
+            Assert.That(corrected, Is.EqualTo("1960"));
+            Assert.That(yearChanges, Is.EqualTo(new[] { ("", "1960"), ("1950", "") }), "newest first; the first detail page is no change");
+        });
+    }
+
+    [Test]
+    public async Task The_first_detail_page_is_no_change_but_a_later_new_value_is()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small]];
+        _source.Details["1"] = new OfferDetails(Heating: Heating.Gas, BuildYear: 1950, Features: [Feature.Lift]);
+        await RunImport(client);
+        await RunDetails(client);
+        var afterFirstPage = await Scalar<long>("SELECT count(*) FROM housing.offer_change");
+
+        _source.Pages = [[Small with { Price = new Money(2000m, Currency.Pln) }]];
+        _source.Details["1"] = new OfferDetails(Heating: Heating.Gas, BuildYear: 1950, Condition: Condition.ReadyToUse, Features: [Feature.Lift]);
+        await RunImport(client);
+        await RunDetails(client);
+        var logged = await Scalar<string>("SELECT string_agg(key, ',' ORDER BY id, key) FROM housing.offer_change, jsonb_object_keys(changes) AS key");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(afterFirstPage, Is.Zero);
+            Assert.That(logged, Is.EqualTo("price,condition"));
+        });
+    }
+
+    [Test]
     public async Task Listing_fields_are_kept_and_details_complete_them()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
@@ -873,7 +935,7 @@ public class HousingImportTests
     }
 
     [Test]
-    public async Task Content_changes_are_recorded_but_first_values_and_bumps_are_not()
+    public async Task Content_changes_are_recorded_but_the_first_detail_page_and_bumps_are_not()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
         using var client = factory.CreateClient();
@@ -912,7 +974,7 @@ public class HousingImportTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(logged, Is.EqualTo("price,available_from,features,floor,price,price_currency"));
+            Assert.That(logged, Is.EqualTo("price,rent,rent_currency,available_from,features,floor,price,price_currency"));
             Assert.That((price, availableFrom, features), Is.EqualTo((true, true, true)));
         });
     }

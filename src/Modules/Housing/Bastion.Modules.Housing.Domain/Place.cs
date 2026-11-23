@@ -10,7 +10,7 @@ public sealed record Place(
     PlaceKind? Kind = null,
     PlaceRole? Role = null,
     int? Population = null,
-    short? PopulationYear = null,
+    int? PopulationYear = null,
     PlaceSource? PopulationSource = null,
     decimal? Latitude = null,
     decimal? Longitude = null)
