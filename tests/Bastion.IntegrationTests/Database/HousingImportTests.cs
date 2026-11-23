@@ -564,7 +564,7 @@ public class HousingImportTests
         await RunDetails(client);
 
         _source.Pages = [[Small with { Price = new Money(2000m, Currency.Pln) }]];
-        _source.Details["1"] = new OfferDetails(RejectedValues: new Dictionary<string, string> { [OfferColumn.BuildYear] = "195014" });
+        _source.Details["1"] = new OfferDetails(RejectedValues: new Dictionary<string, string> { ["build_year"] = "195014" });
         await RunImport(client);
         var rejectedRun = await RunDetails(client);
         var rejected = await Scalar<string>("SELECT concat_ws('|', build_year, rejected_values->>'build_year') FROM housing.offer");

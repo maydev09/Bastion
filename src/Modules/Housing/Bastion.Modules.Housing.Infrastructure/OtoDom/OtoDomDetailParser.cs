@@ -49,11 +49,13 @@ public static class OtoDomDetailParser
                 ? new Money(amount, currency)
                 : null;
 
-        // Sellers type these by hand (a build year of 195014); an implausible number is kept only in RejectedValues.
+        // Sellers type these by hand (a build year of 195014); an implausible number is kept only in RejectedValues,
+        // under its housing.offer column name.
         var rejected = new Dictionary<string, string>();
         int? NumberBetween(string column, string? value, int min, int max)
         {
-            if (value is null)
+            // An empty value says nothing, like a missing one: unknown, not rejected.
+            if (string.IsNullOrWhiteSpace(value))
             {
                 return null;
             }
@@ -68,14 +70,14 @@ public static class OtoDomDetailParser
         }
 
         // Planned buildings have future years; the oldest tenements to let are a few hundred years old.
-        var buildYear = NumberBetween(OfferColumn.BuildYear, Value("build_year"), 1000, 2100);
-        var buildingFloors = NumberBetween(OfferColumn.BuildingFloors, Value("building_floors_num"), 0, 100);
+        var buildYear = NumberBetween("build_year", Value("build_year"), 1000, 2100);
+        var buildingFloors = NumberBetween("building_floors", Value("building_floors_num"), 0, 100);
 
         // mapDetails.radius is a JSON number (meters around the point), not text like the characteristics.
         OtoDomListingParser.TryGetPath(ad, out var location, "location");
         var radius = OtoDomListingParser.TryGetPath(location, out var radiusValue, "mapDetails", "radius")
             && radiusValue.ValueKind != JsonValueKind.Null
-            ? NumberBetween(OfferColumn.LocationRadiusM, radiusValue.ToString(), 0, 100_000)
+            ? NumberBetween("location_radius_m", radiusValue.ToString(), 0, 100_000)
             : null;
 
         var details = new OfferDetails(

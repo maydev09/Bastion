@@ -57,6 +57,7 @@ public class OtoDomDetailParserTests
             <script id="__NEXT_DATA__" type="application/json">
             {"props":{"pageProps":{"ad":{"id":1,"characteristics":[
               {"key":"floor_no","value":"ground_floor"},
+              {"key":"build_year","value":""},
               {"key":"building_type","value":"castle"},
               {"key":"heating","value":"other"}]}}}}
             </script>
@@ -70,6 +71,7 @@ public class OtoDomDetailParserTests
             Assert.That((details.BuildingType, details.Heating, details.Rent, details.Latitude, details.Description),
                 Is.EqualTo(((BuildingType?)null, (Heating?)null, (Money?)null, (decimal?)null, (string?)null)));
             Assert.That(details.Features, Is.Null);
+            Assert.That((details.BuildYear, details.RejectedValues), Is.EqualTo(((int?)null, (IReadOnlyDictionary<string, string>?)null)));
         });
     }
 
@@ -94,9 +96,9 @@ public class OtoDomDetailParserTests
                 Is.EqualTo(((int?)null, (int?)null, (int?)null, (int?)3)));
             Assert.That(details.RejectedValues, Is.EquivalentTo(new Dictionary<string, string>
             {
-                [OfferColumn.BuildYear] = "195014",
-                [OfferColumn.BuildingFloors] = "250",
-                [OfferColumn.LocationRadiusM] = "1500.5",
+                ["build_year"] = "195014",
+                ["building_floors"] = "250",
+                ["location_radius_m"] = "1500.5",
             }));
         });
     }
