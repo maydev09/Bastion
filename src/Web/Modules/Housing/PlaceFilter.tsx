@@ -1,10 +1,11 @@
-import { useQueries, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { api } from "@shared/api/client";
 import type { components } from "@shared/api/schema";
 import { MultiSelect } from "@shared/ui/MultiSelect";
 import { placesQueryKey } from "./queryKeys";
+import { usePlaces } from "./usePlaces";
 
 type Place = components["schemas"]["PlaceListItem"];
 
@@ -30,20 +31,11 @@ export function PlaceFilter({ value, onChange }: Props) {
     },
     enabled: search.length > 0,
   });
-  const picked = useQueries({
-    queries: value.map((id) => ({
-      queryKey: [...placesQueryKey, id],
-      queryFn: async () => {
-        const { data } = await api.GET("/api/housing/places/{id}", { params: { path: { id } } });
-        return data ?? null;
-      },
-      staleTime: Infinity,
-    })),
-  });
+  const picked = usePlaces(value);
   // A place still loading (or gone) shows as its id until its name is known.
   const pickedPlaces = value.map(
     (id, index): Place =>
-      picked[index]?.data ?? {
+      picked[index] ?? {
         id,
         name: `#${id}`,
         voivodeship: null,
@@ -80,6 +72,8 @@ export function PlaceFilter({ value, onChange }: Props) {
           .filter(Boolean)
           .join(" · ")
       }
+      // A place without offers is found too, greyed out, so the user knows the name is right.
+      isItemMuted={(place) => place.offerCount === 0}
       onSearch={(text) => {
         clearTimeout(timer.current);
         timer.current = setTimeout(() => setSearch(text.trim()), typingPause);

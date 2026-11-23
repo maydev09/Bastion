@@ -1,0 +1,123 @@
+/* One row per value: label and value with its difference, below them the bar and the typical value. */
+.rows {
+  display: grid;
+  gap: var(--space-3);
+
+  /* Too few similar offers: the values are a guess. */
+  &[data-uncertain] .value,
+  &[data-uncertain] .same,
+  &[data-uncertain] .better,
+  &[data-uncertain] .worse {
+    color: var(--color-muted);
+  }
+}
+
+.row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 2px var(--space-3);
+}
+
+.label {
+  color: var(--color-text-secondary);
+}
+
+.value {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* How far from the typical value, colored for the renter like a price change: green better, red worse. */
+.same,
+.better,
+.worse {
+  margin-left: var(--space-2);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.same {
+  color: var(--color-text-secondary);
+}
+
+.better {
+  color: var(--color-success);
+}
+
+.worse {
+  color: var(--color-error);
+}
+
+.typicalValue {
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+}
+
+/* A thin track; the middle half of the similar offers on it, their median as a tick, this offer as a dot. */
+.bar {
+  position: relative;
+  height: 12px;
+
+  &::before {
+    content: "";
+    position: absolute;
+    top: 5px;
+    right: 0;
+    left: 0;
+    height: 2px;
+    border-radius: 1px;
+    background: var(--color-border);
+  }
+}
+
+.middle {
+  position: absolute;
+  top: 3px;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--color-border-strong);
+}
+
+.median {
+  position: absolute;
+  top: 1px;
+  width: 2px;
+  height: 10px;
+  margin-left: -1px;
+  background: var(--color-text-secondary);
+}
+
+.offer {
+  position: absolute;
+  top: 1px;
+  width: 10px;
+  height: 10px;
+  margin-left: -5px;
+  border: 2px solid var(--color-surface);
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+
+/* A link to the list of these similar offers. */
+.group {
+  display: block;
+  margin-top: var(--space-3);
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+  text-decoration: underline;
+  text-decoration-color: var(--color-border-strong);
+  text-underline-offset: 3px;
+
+  &:hover {
+    color: var(--color-accent);
+    text-decoration-color: currentColor;
+  }
+}
+
+.muted {
+  color: var(--color-muted);
+}

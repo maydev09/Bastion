@@ -48,6 +48,10 @@ function renderChildren(node: Node): ReactNode[] {
     }
     const name = (child as Element).tagName.toLowerCase();
     if (name === "br") {
+      // Some portals put a line break after every item of a list; between items it only widens the gaps.
+      if (node.nodeName === "UL") {
+        return;
+      }
       lineBreaks++;
       if (lineBreaks <= maxLineBreaks) {
         children.push(<br key={index} />);

@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import i18n from "i18next";
 import { Route, Routes } from "react-router";
@@ -6,11 +6,12 @@ import { describe, expect, it } from "vitest";
 import { renderWithProviders, stubApi } from "@shared/test/render";
 import { OfferList } from "./OfferList";
 
-// Inside its route, as in the app: links to an offer are relative to the list.
+// Inside its route, as in the app: links to an offer are relative to the list. The card is a stand-in.
 const renderList = (path: string) =>
   renderWithProviders(
     <Routes>
       <Route path="/housing/offers" element={<OfferList />} />
+      <Route path="/housing/offers/:id" element={<p>offer card</p>} />
     </Routes>,
     path,
   );
@@ -136,13 +137,50 @@ describe("OfferList", () => {
     const requests = stubApi({ "/api/housing/offers": longList });
     renderList("/housing/offers?page=3");
 
-    await userEvent.click(
-      await screen.findByRole("checkbox", { name: t("place.size.Metropolis") }),
-    );
+    // Only Location and Price are open at first.
+    await userEvent.click(await screen.findByRole("button", { name: t("filters.size") }));
+    await userEvent.click(screen.getByRole("checkbox", { name: t("place.size.Metropolis") }));
     expect(lastQuery(requests)).toMatchObject({ size: "Metropolis", page: "1" });
 
     await userEvent.click(screen.getByRole("button", { name: t("filters.clear") }));
     expect(lastQuery(requests)).not.toHaveProperty("size");
+  });
+
+  it("picks any of the room counts, the last one with more", async () => {
+    const requests = stubApi({ "/api/housing/offers": longList });
+    renderList("/housing/offers");
+    // The table has a "Pokoje" header too, so the section is looked up in the filter panel.
+    const filters = within(await screen.findByRole("complementary", { name: t("filters.title") }));
+    await userEvent.click(filters.getByRole("button", { name: t("filters.rooms") }));
+    const rooms = within(screen.getByRole("group", { name: t("filters.rooms") }));
+
+    await userEvent.click(rooms.getByRole("button", { name: "1" }));
+    await userEvent.click(rooms.getByRole("button", { name: t("filters.orMore", { count: 4 }) }));
+    const offers = requests.filter((r) => r.pathname === "/api/housing/offers");
+    expect(offers.at(-1)!.searchParams.getAll("rooms")).toEqual(["1"]);
+    expect(lastQuery(requests)).toMatchObject({ roomsMin: "4" });
+    expect(rooms.getByRole("button", { name: "2" })).toHaveAttribute("aria-pressed", "false");
+  });
+
+  it("shows the offers found since the last visit", async () => {
+    localStorage.setItem("housing.lastVisit", "2026-11-22T06:00:00.000Z");
+    const requests = stubApi({ "/api/housing/offers": longList });
+    renderList("/housing/offers");
+
+    await userEvent.click(
+      await screen.findByRole("button", { name: new RegExp(t("filters.sinceVisit")) }),
+    );
+    expect(lastQuery(requests)).toMatchObject({ addedSince: "2026-11-22T06:00:00.000Z" });
+  });
+
+  it("opens the offer marked with the arrow keys on Enter", async () => {
+    stubApi({ "/api/housing/offers": longList });
+    renderList("/housing/offers");
+    await screen.findByRole("link", { name: "Flat" });
+
+    await userEvent.keyboard("{ArrowDown}{Enter}");
+
+    expect(await screen.findByText("offer card")).toBeInTheDocument();
   });
 
   it("picks a whole category of amenities with one click", async () => {
@@ -158,6 +196,7 @@ describe("OfferList", () => {
       },
     });
     renderList("/housing/offers");
+    await userEvent.click(await screen.findByRole("button", { name: t("filters.features") }));
     const category = await screen.findByRole("checkbox", {
       name: t("featureCategory.Appliances"),
     });
@@ -174,7 +213,7 @@ describe("OfferList", () => {
     expect(picked()).toEqual([]);
   });
 
-  it("shows the place of an offer: town or village and how big", async () => {
+  it("shows the place of an offer, how big it is and its role", async () => {
     stubApi({
       "/api/housing/offers": {
         status: 200,
@@ -210,13 +249,11 @@ describe("OfferList", () => {
 
     renderList("/housing/offers");
 
+    // Population and the cities around are on the offer card.
     const row = (await screen.findByRole("link", { name: "Flat in Pruszków" })).closest("tr")!;
-    expect(row).toHaveTextContent(
-      t("place.name", { name: "Pruszków", voivodeship: t("voivodeship.Mazowieckie") }),
-    );
+    expect(row).toHaveTextContent("Pruszków");
     expect(row).toHaveTextContent(t("place.size.LargerTown"));
-    expect(row).toHaveTextContent(t("place.role.CountySeat"));
-    expect(row).toHaveTextContent(t("place.nearestCity", { city: "Bydgoszcz", km: "89" }));
+    expect(row).toHaveTextContent(t("place.roleShort.CountySeat"));
   });
 
   it("tells the user when nothing is stored yet", async () => {

@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 
 // Numbers, money, dates and distances in the user's language, the same in the list and on the offer card.
 // The result changes only with the language, so tables can keep their columns between renders.
+// Times show in the time zone of the device (the browser's), whatever the language: the API sends
+// moments with their offset, so "14:35" is 14:35 where the user is. The language only picks the format.
 export function useFormat() {
   const { t, i18n } = useTranslation("housing");
   const language = i18n.resolvedLanguage ?? "pl";
@@ -15,6 +17,8 @@ function createFormat(t: TFunction<"housing">, language: string) {
   const whole = new Intl.NumberFormat(language, { maximumFractionDigits: 0 });
   const dateTime = new Intl.DateTimeFormat(language, { dateStyle: "medium", timeStyle: "short" });
   const dateOnly = new Intl.DateTimeFormat(language, { dateStyle: "medium" });
+  const shortDateOnly = new Intl.DateTimeFormat(language, { dateStyle: "short" });
+  const timeOnly = new Intl.DateTimeFormat(language, { timeStyle: "short" });
   const shortDateTime = new Intl.DateTimeFormat(language, {
     dateStyle: "short",
     timeStyle: "short",
@@ -38,6 +42,9 @@ function createFormat(t: TFunction<"housing">, language: string) {
     date: (iso: string) => dateTime.format(new Date(iso)),
     // "21.11.2026, 11:45" for table columns.
     shortDate: (iso: string) => shortDateTime.format(new Date(iso)),
+    // "21.11.2026" and "11:45" for narrow columns, one under the other.
+    shortDay: (iso: string) => shortDateOnly.format(new Date(iso)),
+    time: (iso: string) => timeOnly.format(new Date(iso)),
     // A calendar day ("2026-12-01") without a time zone.
     day: (iso: string) => dateOnly.format(new Date(`${iso}T00:00`)),
     area: (m2: number) => t("units.area", { value: number.format(m2) }),

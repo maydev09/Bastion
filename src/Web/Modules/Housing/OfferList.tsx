@@ -1,30 +1,35 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router";
-import { api } from "@shared/api/client";
 import type { components } from "@shared/api/schema";
 import { Button } from "@shared/ui/Button";
 import { DataTable, type DataTableColumn, type DataTableSort } from "@shared/ui/DataTable";
+import { Icon } from "@shared/ui/Icon";
 import { IconButton } from "@shared/ui/IconButton";
 import { PageTitle } from "@shared/ui/PageTitle";
 import { Pagination } from "@shared/ui/Pagination";
 import { useErrorMessage } from "@shared/useErrorMessage";
+import { useShortcuts } from "@shared/useShortcuts";
+import { FilterChips } from "./FilterChips";
+import { MarketSummary } from "./MarketSummary";
 import styles from "./Housing.module.css";
 import { OfferFilters } from "./OfferFilters";
+import { offersQuery } from "./offersQuery";
 import {
   countFilters,
   noFilter,
   pageSizes,
   readView,
   sorts,
-  toQuery,
   writeView,
   type OfferView,
 } from "./offerView";
+import { readOpenedOffer, rememberOpenedOffer } from "./openedOffer";
 import { PlaceCell } from "./PlaceCell";
+import { readPreviousVisit } from "./previousVisit";
+import { ShortcutsHelp } from "./ShortcutsHelp";
 import { useFormat } from "./useFormat";
-import { offersQueryKey } from "./queryKeys";
 
 type Offer = components["schemas"]["OfferListItem"];
 
@@ -37,40 +42,77 @@ export function OfferList() {
   const navigate = useNavigate();
   const location = useLocation();
   const [params, setParams] = useSearchParams();
-  const [showFilters, setShowFilters] = useState(true);
-  // The offer the user opened last stays marked when they come back to the list.
-  const [openedOffer] = useState(readOpenedOffer);
+  const [showFilters, setShowFilters] = useState(readShowFilters);
+  // The marked row: at first the offer opened last, then moved with the arrow keys.
+  const [marked, setMarked] = useState(readOpenedOffer);
+  const [previousVisit] = useState(readPreviousVisit);
+  const [helpOpen, setHelpOpen] = useState(false);
+  // "/" asks for the place search; the field gets the focus once the filters are shown.
+  const searchRef = useRef<HTMLDivElement>(null);
+  const [searchAsked, setSearchAsked] = useState(0);
+  useEffect(() => {
+    if (searchAsked > 0) {
+      searchRef.current?.querySelector("input")?.focus();
+    }
+  }, [searchAsked]);
   const view = readView(params);
   const filterCount = countFilters(view.filter);
 
-  const offers = useQuery({
-    queryKey: [...offersQueryKey, view],
-    queryFn: async () => {
-      const { data, error } = await api.GET("/api/housing/offers", {
-        params: { query: toQuery(view) },
-      });
-      if (error) {
-        throw new Error((error as { code?: string }).code ?? "");
-      }
-      return data;
-    },
-    placeholderData: keepPreviousData,
-  });
+  const offers = useQuery({ ...offersQuery(view), placeholderData: keepPreviousData });
+  const items = offers.data?.items ?? noOffers;
+  const lastPage = offers.data ? Math.max(1, Math.ceil(offers.data.totalCount / view.pageSize)) : 1;
 
   const changeView = (changes: Partial<OfferView>) => setParams(writeView({ ...view, ...changes }));
+  const showOrHideFilters = (show: boolean) => {
+    setShowFilters(show);
+    rememberShowFilters(show);
+  };
+  const openOffer = (offer: Offer) => {
+    rememberOpenedOffer(offer.id);
+    void navigate(String(offer.id), { relative: "path", state: { from: location.search } });
+  };
+
+  // The arrows move the mark within the page; it starts at the top when no row of the page is marked.
+  const markedIndex = items.findIndex((offer) => String(offer.id) === marked);
+  const markedOffer = markedIndex >= 0 ? items[markedIndex] : undefined;
+  const moveMark = (step: number) => {
+    const index = markedIndex < 0 ? 0 : Math.min(Math.max(markedIndex + step, 0), items.length - 1);
+    if (items[index]) {
+      setMarked(String(items[index].id));
+    }
+  };
+  useShortcuts(
+    {
+      ArrowDown: () => moveMark(1),
+      ArrowUp: () => moveMark(-1),
+      j: () => moveMark(1),
+      k: () => moveMark(-1),
+      Enter: () => markedOffer && openOffer(markedOffer),
+      o: () => markedOffer && window.open(markedOffer.url, "_blank", "noopener"),
+      ArrowLeft: () => view.page > 1 && changeView({ page: view.page - 1 }),
+      ArrowRight: () => view.page < lastPage && changeView({ page: view.page + 1 }),
+      "/": () => {
+        showOrHideFilters(true);
+        setSearchAsked((asked) => asked + 1);
+      },
+      f: () => showOrHideFilters(!showFilters),
+      "?": () => setHelpOpen(true),
+    },
+    !helpOpen,
+  );
 
   const columns = useMemo(
     (): DataTableColumn<Offer>[] => [
       {
         id: "title",
         header: t("list.offer"),
-        minWidth: 260,
+        minWidth: 200,
         cell: (offer) => <OfferLink offer={offer} />,
       },
       {
         id: "place",
         header: t("list.place"),
-        minWidth: 240,
+        minWidth: 170,
         cell: (offer) => <PlaceCell offer={offer} />,
       },
       {
@@ -78,9 +120,16 @@ export function OfferList() {
         header: t("list.price"),
         align: "end",
         sortable: true,
+        cell: (offer) => <PriceCell offer={offer} />,
+      },
+      {
+        id: "Rent",
+        header: t("list.rent"),
+        align: "end",
+        sortable: true,
         cell: (offer) =>
-          offer.price != null && offer.priceCurrency
-            ? format.money(offer.price, offer.priceCurrency)
+          offer.rent != null && offer.rentCurrency
+            ? format.money(offer.rent, offer.rentCurrency)
             : "—",
       },
       {
@@ -108,24 +157,44 @@ export function OfferList() {
         cell: (offer) => offer.rooms ?? "—",
       },
       {
+        id: "furnished",
+        header: t("list.furnished"),
+        // Not stated and not known yet both read as no answer here; the offer card tells them apart.
+        cell: (offer) =>
+          offer.furnished === "Yes" || offer.furnished === "No"
+            ? t(`answer.${offer.furnished}`)
+            : "—",
+      },
+      {
         id: "FirstSeen",
         header: t("list.firstSeen"),
         align: "end",
         sortable: true,
         descendingFirst: true,
         cell: (offer) =>
-          offer.externalCreatedAt ? format.shortDate(offer.externalCreatedAt) : "—",
+          offer.externalCreatedAt ? (
+            <>
+              {format.shortDay(offer.externalCreatedAt)}
+              <br />
+              <small className={styles.muted}>{format.time(offer.externalCreatedAt)}</small>
+            </>
+          ) : (
+            "—"
+          ),
       },
     ],
     [t, format],
   );
 
   const sort: DataTableSort = { column: view.sort, descending: view.direction === "Descending" };
+  const changeSort = (next: DataTableSort) =>
+    changeView({
+      page: 1,
+      sort: sorts.find((s) => s === next.column) ?? "FirstSeen",
+      direction: next.descending ? "Descending" : "Ascending",
+    });
 
   const renderOffers = () => {
-    if (offers.isPending) {
-      return <p className={styles.muted}>{t("list.loading")}</p>;
-    }
     if (offers.isError) {
       return (
         <p className={styles.error} role="alert">
@@ -134,8 +203,7 @@ export function OfferList() {
       );
     }
 
-    const { items, totalCount } = offers.data;
-    if (totalCount === 0) {
+    if (offers.data?.totalCount === 0) {
       return filterCount > 0 ? (
         <div className={styles.empty}>
           <p>{t("filters.noMatch")}</p>
@@ -153,54 +221,62 @@ export function OfferList() {
       );
     }
 
+    // One table from the first load on: placeholder rows until the offers arrive, so its headers
+    // stay the same elements and a click on one while loading is not lost.
     return (
       <>
         <DataTable
           columns={columns}
-          rows={items.length > 0 ? items : noOffers}
+          rows={items}
           getRowId={(offer) => String(offer.id)}
           sort={sort}
-          onSortChange={(next) =>
-            changeView({
-              page: 1,
-              sort: sorts.find((s) => s === next.column) ?? "FirstSeen",
-              direction: next.descending ? "Descending" : "Ascending",
-            })
-          }
-          onRowClick={(offer) => {
-            rememberOpenedOffer(offer.id);
-            void navigate(String(offer.id), { relative: "path", state: { from: location.search } });
-          }}
+          onSortChange={changeSort}
+          onRowClick={openOffer}
           busy={offers.isPlaceholderData}
+          loading={offers.isPending ? t("list.loading") : undefined}
           fill
           // Each view of the list is its own history entry, so back restores how far it was scrolled.
           scrollKey={location.key}
-          markedRowId={openedOffer ?? undefined}
+          markedRowId={marked ?? undefined}
         />
-        {items.length === 0 && <p className={styles.empty}>{t("list.pageEmpty")}</p>}
-        <Pagination
-          page={view.page}
-          pageSize={view.pageSize}
-          totalCount={totalCount}
-          pageSizes={pageSizes}
-          onPageChange={(page) => changeView({ page })}
-          // The first offer of the current page stays on the new page.
-          onPageSizeChange={(pageSize) =>
-            changeView({
-              pageSize,
-              page: Math.floor(((view.page - 1) * view.pageSize) / pageSize) + 1,
-            })
-          }
-        />
+        {offers.data && (
+          <>
+            {items.length === 0 && <p className={styles.empty}>{t("list.pageEmpty")}</p>}
+            <Pagination
+              page={view.page}
+              pageSize={view.pageSize}
+              totalCount={offers.data.totalCount}
+              pageSizes={pageSizes}
+              onPageChange={(page) => changeView({ page })}
+              // The first offer of the current page stays on the new page.
+              onPageSizeChange={(pageSize) =>
+                changeView({
+                  pageSize,
+                  page: Math.floor(((view.page - 1) * view.pageSize) / pageSize) + 1,
+                })
+              }
+            />
+          </>
+        )}
       </>
     );
   };
 
   return (
     <section className={styles.list}>
-      <PageTitle aside={offers.data && t("list.count", { count: offers.data.totalCount })}>
+      <PageTitle
+        aside={offers.data && t("list.count", { count: offers.data.totalCount })}
+        actions={
+          <IconButton
+            icon="keyboard"
+            label={t("shortcuts.show")}
+            onClick={() => setHelpOpen(true)}
+          />
+        }
+      >
         {t("list.title")}
       </PageTitle>
+      <ShortcutsHelp open={helpOpen} onOpenChange={setHelpOpen} />
       <div className={styles.body} data-filters={showFilters ? "open" : "closed"}>
         {showFilters ? (
           <div className={styles.filters}>
@@ -208,7 +284,9 @@ export function OfferList() {
             <OfferFilters
               filter={view.filter}
               onChange={(filter) => changeView({ page: 1, filter })}
-              onHide={() => setShowFilters(false)}
+              previousVisit={previousVisit}
+              searchRef={searchRef}
+              onHide={() => showOrHideFilters(false)}
             />
           </div>
         ) : (
@@ -218,7 +296,7 @@ export function OfferList() {
               icon="filter"
               label={t("filters.show")}
               aria-expanded={false}
-              onClick={() => setShowFilters(true)}
+              onClick={() => showOrHideFilters(true)}
             />
             {filterCount > 0 && (
               <span className={styles.badge} title={t("filters.inUse", { count: filterCount })}>
@@ -227,43 +305,95 @@ export function OfferList() {
             )}
           </div>
         )}
-        <div className={styles.offers}>{renderOffers()}</div>
+        <div className={styles.offers}>
+          <MarketSummary filter={view.filter} />
+          <FilterChips
+            filter={view.filter}
+            onChange={(filter) => changeView({ page: 1, filter })}
+          />
+          {renderOffers()}
+        </div>
       </div>
     </section>
   );
 }
 
 // The offer card links back to the list view the user came from.
+// Next to the title, the offer on its portal opens in a new tab without going through the card.
 function OfferLink({ offer }: { offer: Offer }) {
+  const { t } = useTranslation("housing");
   const location = useLocation();
+  const portal = t("detail.portal", { source: offer.source });
   return (
-    <Link
-      to={String(offer.id)}
-      relative="path"
-      state={{ from: location.search }}
-      className={styles.title}
-      onClick={() => rememberOpenedOffer(offer.id)}
-    >
-      {offer.title}
-    </Link>
+    <div className={styles.offerCell}>
+      <Link
+        to={String(offer.id)}
+        relative="path"
+        state={{ from: location.search }}
+        className={styles.title}
+        // The list shows two lines of a long title; the whole one on hover.
+        title={offer.title}
+        onClick={() => rememberOpenedOffer(offer.id)}
+      >
+        {offer.title}
+      </Link>
+      <a
+        className={styles.portalLink}
+        href={offer.url}
+        target="_blank"
+        rel="noreferrer"
+        aria-label={portal}
+        title={portal}
+      >
+        <Icon name="external" size={18} />
+      </a>
+    </div>
   );
 }
 
-// Kept for the browser tab, so the mark also survives a reload; storage may be unavailable (private mode).
-const openedOfferKey = "housing.openedOffer";
+// The price and, under it, how the last recorded change moved it: green down, red up, like the change history.
+function PriceCell({ offer }: { offer: Offer }) {
+  const { t } = useTranslation("housing");
+  const format = useFormat();
+  if (offer.price == null || !offer.priceCurrency) {
+    return "—";
+  }
+  const currency = offer.priceCurrency;
+  const difference = offer.previousPrice != null ? offer.price - offer.previousPrice : 0;
+  return (
+    <>
+      {format.money(offer.price, currency)}
+      {difference !== 0 && (
+        <>
+          <br />
+          <small
+            className={difference < 0 ? styles.down : styles.up}
+            title={t("list.previousPrice", { price: format.money(offer.previousPrice!, currency) })}
+          >
+            {difference > 0 ? "+" : "−"}
+            {format.money(Math.abs(difference), currency)}
+          </small>
+        </>
+      )}
+    </>
+  );
+}
 
-function readOpenedOffer(): string | null {
+// Whether the filter panel is shown stays for the browser.
+const showFiltersKey = "housing.showFilters";
+
+function readShowFilters(): boolean {
   try {
-    return sessionStorage.getItem(openedOfferKey);
+    return localStorage.getItem(showFiltersKey) !== "false";
   } catch {
-    return null;
+    return true;
   }
 }
 
-function rememberOpenedOffer(id: number) {
+function rememberShowFilters(show: boolean) {
   try {
-    sessionStorage.setItem(openedOfferKey, String(id));
+    localStorage.setItem(showFiltersKey, String(show));
   } catch {
-    // Without storage the list simply marks nothing.
+    // Without storage the panel is shown again next time.
   }
 }

@@ -48,7 +48,10 @@
     "area": "Area",
     "rooms": "Rooms",
     "firstSeen": "Added",
-    "pageEmpty": "There are no more offers on this page. Go to the last page."
+    "pageEmpty": "There are no more offers on this page. Go to the last page.",
+    "rent": "Fees",
+    "furnished": "Furniture",
+    "previousPrice": "Before: {{price}}"
   },
   "filters": {
     "title": "Filters",
@@ -61,26 +64,24 @@
     "place": "Place",
     "placePlaceholder": "Type a name…",
     "placeStart": "Type the start of a place name.",
-    "placeNone": "No place with offers has this name.",
+    "placeNone": "No place has this name.",
     "searching": "Searching…",
     "inCounty": "{{county}} county",
     "voivodeship": "Voivodeship",
     "voivodeshipPlaceholder": "Choose…",
     "voivodeshipNone": "No such voivodeship.",
-    "locationHint": "Offers in any of the chosen places and voivodeships.",
     "remove": "Remove {{name}}",
     "size": "Size of place",
     "towns": "Towns",
     "villages": "Villages",
-    "price": "Monthly price (PLN)",
-    "area": "Area (m²)",
+    "price": "Rent price (without fees)",
+    "area": "Area",
     "rooms": "Rooms",
     "from": "{{what}}: from",
     "to": "{{what}}: to",
     "min": "from",
     "max": "to",
     "features": "Amenities",
-    "featuresHint": "Offers that have all the ticked ones.",
     "history": "Change history",
     "priceCut": "Price cut",
     "priceCutHint": "Changes recorded since Bastion started tracking the offer; a cut is a lower price.",
@@ -90,7 +91,27 @@
     "changed": "Offer changes",
     "changedAny": "All offers",
     "changedYes": "Changed",
-    "changedNo": "Unchanged"
+    "changedNo": "Unchanged",
+    "anyOf": "any of the picked",
+    "allOf": "all of the picked",
+    "match": "Offer has",
+    "matchAll": "all",
+    "matchAny": "any",
+    "orMore": "{{count}}+",
+    "withCount": "{{label}} ({{count, number}})",
+    "inUseList": "Filters in use",
+    "chipValue": "{{what}}: {{value}}",
+    "chipRange": "{{what}}: {{from}}–{{to}}",
+    "chipFrom": "{{what}}: from {{value}}",
+    "chipTo": "{{what}}: up to {{value}}",
+    "newOffers": "New offers",
+    "lastDay": "Last 24 h",
+    "sinceVisit": "Since last visit",
+    "addedSince": "New since",
+    "histogram": "{{what}}: how many offers from {{from}} to {{to}}",
+    "bar": "{{from}}–{{to}}: {{count, number}}",
+    "barFrom": "from {{from}}: {{count, number}}",
+    "withoutPlace": "Without a matched place"
   },
   "detail": {
     "back": "All offers",
@@ -176,7 +197,12 @@
     "detailsFetched": "Details fetched",
     "point": "Point on the map",
     "noFeatures": "The listing names no amenities.",
-    "title": "Offer"
+    "title": "Offer",
+    "noData": "no data",
+    "urbanMunicipality": "urban municipality",
+    "cityWithCountyRights": "city with county rights",
+    "previous": "Previous offer (←)",
+    "next": "Next offer (→)"
   },
   "changes": {
     "title": "Change history",
@@ -245,6 +271,11 @@
       "CountySeat": "county seat",
       "MunicipalitySeat": "municipality seat"
     },
+    "roleShort": {
+      "VoivodeshipCapital": "voiv. capital",
+      "CountySeat": "county seat",
+      "MunicipalitySeat": "municipal seat"
+    },
     "nearestCity": "{{city}} – {{km}} km",
     "population": "{{population}} residents ({{year}}, {{source}})",
     "populationNoYear": "{{population}} residents ({{source}})"
@@ -270,7 +301,9 @@
   "units": {
     "area": "{{value}} m²",
     "km": "{{value}} km",
-    "m": "{{value}} m"
+    "m": "{{value}} m",
+    "pln": "PLN",
+    "m2": "m²"
   },
   "errors": {
     "parseFailed": "OtoDom changed its page layout; the offers could not be read.",
@@ -290,5 +323,63 @@
     "Media": "Media",
     "Security": "Security",
     "Rules": "Rules"
+  },
+  "summary": {
+    "price": "Typical rent price",
+    "pricePerM2": "Typical per m²",
+    "rent": "Typical fees",
+    "area": "Typical area",
+    "middle": "middle half: {{low}}–{{high}}",
+    "from_one": "of {{count, number}} offer",
+    "from_other": "of {{count, number}} offers",
+    "few_one": "only {{count}} offer",
+    "few_other": "only {{count}} offers"
+  },
+  "shortcuts": {
+    "title": "Keyboard shortcuts",
+    "show": "Keyboard shortcuts (?)",
+    "close": "Close",
+    "list": "Offer list",
+    "card": "Offer card",
+    "everywhere": "Everywhere",
+    "move": "mark the previous / next offer",
+    "open": "open the marked offer",
+    "portal": "open the offer on its portal",
+    "page": "previous / next page",
+    "search": "search for a place",
+    "filters": "show / hide the filters",
+    "neighbour": "previous / next offer of the list",
+    "back": "back to the list",
+    "help": "this list"
+  },
+  "market": {
+    "title": "Against the market",
+    "loading": "Loading the comparison…",
+    "noPlace": "The offer has no matched place, so there is nothing to compare it with.",
+    "pricePerM2": "Price per m²",
+    "rent": "Fees",
+    "area": "Area",
+    "daysListed": "Listed for",
+    "same": "typical",
+    "typical": "typically {{value}}",
+    "days_one": "{{count}} day",
+    "days_other": "{{count}} days",
+    "rooms_one": "{{count}} room",
+    "rooms_other": "{{count}} rooms",
+    "roomsOrMore": "{{count}} or more rooms",
+    "group_one": "Compared with: {{group}} ({{count, number}} offer)",
+    "group_other": "Compared with: {{group}} ({{count, number}} offers)",
+    "fewOffers_one": "Compared with: {{group}}, only {{count}} offer – a rough guide",
+    "fewOffers_other": "Compared with: {{group}}, only {{count}} offers – a rough guide"
+  },
+  "filtersHelp": {
+    "show": "How the filters work",
+    "title": "How the filters work",
+    "sections": "An offer must match every section where you set something: e.g. the location, and the price, and the room count.",
+    "choices": "Within one section any of the ticked choices is enough: Gdańsk or Gdynia, 2 or 3 rooms, metropolis or large city. In Location this covers places, voivodeships and offers without a matched place.",
+    "features": "Amenities must all be there; with the “any” switch one of them is enough.",
+    "ranges": "Price and area are a from–to range; a click on a bar of the chart sets its range, a click on another bar widens it.",
+    "history": "In Change history, “Offer changes” and “Price cut” must both hold.",
+    "counts": "The number next to a choice says how many offers the list shows once it is ticked, with the other filters as they are."
   }
 }

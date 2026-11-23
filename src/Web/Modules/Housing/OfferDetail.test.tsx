@@ -1,7 +1,8 @@
 import { screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import i18n from "i18next";
 import { Route, Routes } from "react-router";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { renderWithProviders, stubApi } from "@shared/test/render";
 import { OfferDetail } from "./OfferDetail";
 
@@ -243,5 +244,47 @@ describe("OfferDetail", () => {
     expect(history).toHaveTextContent(t("changes.added", { list: t("detail.feature.Balcony") }));
     expect(history).toHaveTextContent(t("changes.removed", { list: t("detail.feature.Lift") }));
     expect(within(history).getByText(t("field.price"))).toBeInTheDocument();
+  });
+
+  it("moves to the next offer of the list it was opened from", async () => {
+    const offer = (id: number, title: string) => ({
+      id,
+      source: "OtoDom",
+      title,
+      url: `https://www.otodom.pl/pl/oferta/flat-ID${id}`,
+      propertyType: "Flat",
+      transaction: "Rent",
+      createdAt: "2026-11-16T10:00:00+00:00",
+      updatedAt: "2026-11-16T10:00:00+00:00",
+    });
+    stubApi({
+      "/api/housing/offers": {
+        status: 200,
+        body: {
+          items: [offer(1, "First"), offer(2, "Second")],
+          page: 1,
+          pageSize: 50,
+          totalCount: 2,
+        },
+      },
+      "/api/housing/offers/1": { status: 200, body: offer(1, "First") },
+      "/api/housing/offers/2": { status: 200, body: offer(2, "Second") },
+    });
+    renderWithProviders(
+      <Routes>
+        <Route path="/housing/offers/:id" element={<OfferDetail />} />
+      </Routes>,
+      { pathname: "/housing/offers/1", state: { from: "?sort=Price" } },
+    );
+    await screen.findByRole("heading", { name: "First" });
+    await screen.findByRole("button", { name: t("detail.next") });
+    // The list behind the card loads on its own; the move waits for it.
+    await vi.waitFor(() =>
+      expect(screen.getByRole("button", { name: t("detail.next") })).toBeEnabled(),
+    );
+
+    await userEvent.keyboard("{ArrowRight}");
+
+    expect(await screen.findByRole("heading", { name: "Second" })).toBeInTheDocument();
   });
 });

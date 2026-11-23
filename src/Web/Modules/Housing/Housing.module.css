@@ -43,10 +43,17 @@
   min-height: 480px;
 }
 
-/* Offer titles read as text in a long column; the accent shows on hover. */
+/* Offer titles read as text in a long column, at most two lines; the accent shows on hover. */
 .title {
+  display: -webkit-box;
+  overflow: hidden;
   color: var(--color-text);
   font-weight: 550;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  /* Titles such as "kuchnią|Tramwaj|Blisko" have no spaces; they break anywhere instead of widening the table. */
+  overflow-wrap: anywhere;
 
   &:hover {
     color: var(--color-accent);
@@ -68,6 +75,63 @@
   color: var(--color-muted);
 }
 
+/* The title takes the room; the portal link sits at its right. */
+.offerCell {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-1);
+
+  & > .title {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+/* A real button, big enough to hit without opening the offer's card by mistake. */
+.portalLink {
+  display: inline-grid;
+  flex-shrink: 0;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  color: var(--color-text-secondary);
+
+  &:hover {
+    border-color: var(--color-accent);
+    background: var(--color-surface-hover);
+    color: var(--color-accent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--color-focus);
+    outline-offset: 1px;
+  }
+}
+
+/* A price change in the list, the same colors as in the change history. */
+.down,
+.up {
+  font-weight: 600;
+}
+
+.down {
+  color: var(--color-success);
+}
+
+.up {
+  color: var(--color-error);
+}
+
+/* The filters in use, above the table. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
 .badge {
   min-width: 22px;
   padding: 0 6px;
@@ -82,7 +146,7 @@
 /* The filter panel sits left of the table and stays in view while the table scrolls. */
 .body {
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
+  grid-template-columns: 280px minmax(0, 1fr);
   gap: var(--space-4);
   min-height: 0;
 
