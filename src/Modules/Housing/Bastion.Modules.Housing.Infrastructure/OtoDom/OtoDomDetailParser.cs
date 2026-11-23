@@ -49,14 +49,36 @@ public static class OtoDomDetailParser
                 ? new Money(amount, currency)
                 : null;
 
+        // Sellers type these by hand (a build year of 195014); an implausible number is kept only in RejectedValues.
+        var rejected = new Dictionary<string, string>();
+        int? NumberBetween(string key, int min, int max, string column)
+        {
+            if (Value(key) is not { } value)
+            {
+                return null;
+            }
+
+            if (Integer(value) is { } number && number >= min && number <= max)
+            {
+                return number;
+            }
+
+            rejected[column] = value;
+            return null;
+        }
+
+        // Planned buildings have future years; the oldest tenements to let are a few hundred years old.
+        var buildYear = NumberBetween("build_year", 1000, 2100, "build_year");
+        var buildingFloors = NumberBetween("building_floors_num", 0, 100, "building_floors");
+
         OtoDomListingParser.TryGetPath(ad, out var location, "location");
         var details = new OfferDetails(
             OtoDomListingParser.Plausible(MoneyOf("rent")),
             MoneyOf("deposit"),
             DateOnly.TryParseExact(Value("free_from"), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var from) ? from : null,
             Floor(Value("floor_no")),
-            Integer(Value("building_floors_num")),
-            Integer(Value("build_year")),
+            buildingFloors,
+            buildYear,
             BuildingTypeOf(Value("building_type")),
             HeatingOf(Value("heating")),
             ConditionOf(Value("construction_status")),
@@ -66,7 +88,8 @@ public static class OtoDomDetailParser
                 ? radius.GetInt32()
                 : null,
             Text(ad, "description"),
-            Features(ad));
+            Features(ad),
+            rejected.Count > 0 ? rejected : null);
         return (id.GetRawText(), details);
     }
 

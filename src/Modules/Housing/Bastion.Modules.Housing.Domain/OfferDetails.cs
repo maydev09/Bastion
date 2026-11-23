@@ -3,6 +3,7 @@ namespace Bastion.Modules.Housing.Domain;
 // The columns of housing.offer (and its housing.offer_feature rows) that a detail page fills.
 // A separate record, because Offer holds the listing fields and its ListingHash covers only them.
 // Null means unknown and never clears a stored value; Features replace the stored set.
+// RejectedValues: implausible portal values by column name (build_year -> "195014"); they replace the stored ones, null means none.
 public sealed record OfferDetails(
     Money? Rent = null,
     Money? Deposit = null,
@@ -17,4 +18,5 @@ public sealed record OfferDetails(
     decimal? Longitude = null,
     int? LocationRadiusM = null,
     string? Description = null,
-    IReadOnlyList<Feature>? Features = null);
+    IReadOnlyList<Feature>? Features = null,
+    IReadOnlyDictionary<string, string>? RejectedValues = null);

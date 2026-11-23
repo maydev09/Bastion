@@ -554,6 +554,31 @@ public class HousingImportTests
     }
 
     [Test]
+    public async Task Rejected_values_are_kept_until_a_page_without_them()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small]];
+        _source.Details["1"] = new OfferDetails(RejectedValues: new Dictionary<string, string> { ["build_year"] = "195014" });
+        await RunImport(client);
+        var first = await RunDetails(client);
+        var rejected = await Scalar<string>("SELECT concat_ws('|', build_year, rejected_values->>'build_year') FROM housing.offer");
+
+        _source.Pages = [[Small with { Price = new Money(2000m, Currency.Pln) }]];
+        _source.Details["1"] = new OfferDetails(BuildYear: 1950);
+        await RunImport(client);
+        await RunDetails(client);
+        var corrected = await Scalar<string>("SELECT concat_ws('|', build_year, rejected_values) FROM housing.offer");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(first, Is.EqualTo(new Fetched(1, 0)));
+            Assert.That(rejected, Is.EqualTo("195014"));
+            Assert.That(corrected, Is.EqualTo("1950"));
+        });
+    }
+
+    [Test]
     public async Task Listing_fields_are_kept_and_details_complete_them()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));

@@ -163,7 +163,8 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             latitude = COALESCE(@Latitude, latitude),
             longitude = COALESCE(@Longitude, longitude),
             location_radius_m = COALESCE(@LocationRadiusM, location_radius_m),
-            description = COALESCE(@Description, description)
+            description = COALESCE(@Description, description),
+            rejected_values = @RejectedValues::jsonb
         WHERE source_id = @SourceId AND external_id = @ExternalId
         RETURNING id
         """;
@@ -500,6 +501,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             details.Longitude,
             details.LocationRadiusM,
             details.Description,
+            RejectedValues = details.RejectedValues is { } rejected ? JsonSerializer.Serialize(rejected) : null,
         }, transaction, cancellationToken: cancellationToken));
         if (offerId is null)
         {
