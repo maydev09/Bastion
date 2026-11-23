@@ -72,7 +72,8 @@ Spend effort only on what solves a real problem the maintainer has today
   and mapped with `MapJobs(schema)`; the module's migrations create `<schema>.job_run`. An optional
   schedule in `[Modules.<Module>.Jobs.<name>]` is either `DailyAt` (in the time zone from `[Jobs] TimeZone`)
   or an interval `Every`.
-  An expected failure throws `JobFailedException` with a code that the UI translates.
+  An expected failure throws `JobFailedException` with a code that the UI translates and, when some work
+  was done, its `Summary`, so a failed run keeps its counts.
 - Data and API conventions: `int` identity keys,
   `timestamptz` + `DateTimeOffset` + `TimeProvider` (the UI shows times in the browser's time zone, whatever
   the language; the language picks only the format), money as `numeric`/`decimal` with a

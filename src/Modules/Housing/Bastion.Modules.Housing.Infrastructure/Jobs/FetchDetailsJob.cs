@@ -4,7 +4,8 @@ using Bastion.Modules.Housing.Application.FetchDetails;
 
 namespace Bastion.Modules.Housing.Infrastructure.Jobs;
 
-// Fetches detail pages of offers that need them, for every source; the first failing source fails the run.
+// Fetches detail pages of offers that need them, for every source; the first failing source fails the run,
+// which still keeps the counts of the work done until then.
 public sealed class FetchDetailsJob(OfferSources sources, FetchDetailsHandler handler) : IJob
 {
     public const string Name = "FetchDetails";
@@ -15,23 +16,29 @@ public sealed class FetchDetailsJob(OfferSources sources, FetchDetailsHandler ha
         foreach (var source in sources.All)
         {
             var outcome = await handler.Handle(source, cancellationToken);
-            if (outcome.Failure is { } failure)
+            if (outcome.Result is { } result)
             {
-                throw new JobFailedException(failure.Code, failure.Detail);
+                fetched += result.FetchedCount;
+                failed += result.FailedCount;
+                removed += result.RemovedCount;
+                retried += result.RetriedCount;
             }
 
-            fetched += outcome.Result!.FetchedCount;
-            failed += outcome.Result.FailedCount;
-            removed += outcome.Result.RemovedCount;
-            retried += outcome.Result.RetriedCount;
+            if (outcome.Failure is { } failure)
+            {
+                throw new JobFailedException(failure.Code, failure.Detail) { Summary = BuildSummary(fetched, failed, removed, retried) };
+            }
         }
 
-        return new JobSummary(new Dictionary<string, long>
+        return BuildSummary(fetched, failed, removed, retried);
+    }
+
+    private static JobSummary BuildSummary(int fetched, int failed, int removed, int retried) =>
+        new(new Dictionary<string, long>
         {
             ["fetched"] = fetched,
             ["failed"] = failed,
             ["removed"] = removed,
             ["retried"] = retried,
         });
-    }
 }

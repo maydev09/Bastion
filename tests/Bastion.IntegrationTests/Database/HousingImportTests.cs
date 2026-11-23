@@ -8,6 +8,7 @@ using Bastion.BuildingBlocks.Jobs;
 using Bastion.Host;
 using Bastion.Modules.Housing.Application.Abstractions;
 using Bastion.Modules.Housing.Application.FetchDetails;
+using Bastion.Modules.Housing.Application.ImportOffers;
 using Bastion.Modules.Housing.Application.ListOffers;
 using Bastion.Modules.Housing.Application.ListPlaces;
 using Bastion.Modules.Housing.Application.Places;
@@ -649,6 +650,23 @@ public class HousingImportTests
     }
 
     [Test]
+    public async Task A_full_scan_stopped_at_the_page_limit_fails_but_keeps_the_counts_of_the_pages_read()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)),
+            ("Modules:Housing:Import:FullScanMaxPages", "1"));
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small], [Large]];
+
+        var run = await JobRuns.Run(client, Scan);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((run.Status, run.ErrorCode), Is.EqualTo((JobRunStatus.Failed, (string?)ImportOffersHandler.PageLimitReached)));
+            Assert.That((run.Summary?.Counts["pages"], run.Summary?.Counts["added"]), Is.EqualTo(((long?)1, (long?)1)));
+        });
+    }
+
+    [Test]
     public async Task Offer_missing_from_two_complete_scans_is_removed_and_comes_back_when_it_reappears()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
@@ -966,7 +984,7 @@ public class HousingImportTests
     }
 
     [Test]
-    public async Task A_retry_that_would_pass_the_time_limit_ends_the_run()
+    public async Task A_retry_that_would_pass_the_time_limit_ends_the_run_as_at_its_time_limit()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)),
             QuickRetry, ("Modules:Housing:Details:MaxMinutes", "1"));
@@ -977,11 +995,15 @@ public class HousingImportTests
         _source.DetailTimeouts = 1;
 
         var run = await JobRuns.Run(client, FetchDetails);
+        var blamed = await Scalar<long>("SELECT count(*) FROM housing.offer_detail_fetch");
+        var later = await RunDetails(client);
 
         Assert.Multiple(() =>
         {
-            Assert.That(run.Status, Is.EqualTo(JobRunStatus.Failed));
-            Assert.That(_source.DetailRequests, Has.Count.EqualTo(1));
+            Assert.That(run.Status, Is.EqualTo(JobRunStatus.Succeeded), run.ErrorCode);
+            Assert.That(run.Summary!.Counts["fetched"], Is.Zero);
+            Assert.That(blamed, Is.Zero);
+            Assert.That(later, Is.EqualTo(new Fetched(1, 0)));
         });
     }
 
@@ -1001,6 +1023,26 @@ public class HousingImportTests
         {
             Assert.That((run.Status, run.ErrorCode), Is.EqualTo((JobRunStatus.Failed, (string?)ScrapingException.RateLimited)));
             Assert.That(_source.DetailRequests, Has.Count.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public async Task A_failed_details_run_keeps_the_counts_of_the_pages_fetched_before()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small, Large]];
+        _source.Details["1"] = new OfferDetails(Floor: 1);
+        _source.Details["2"] = new OfferDetails(Floor: 2);
+        await RunImport(client);
+        _source.DetailsBeforeRateLimit = 1;
+
+        var run = await JobRuns.Run(client, FetchDetails);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That((run.Status, run.ErrorCode), Is.EqualTo((JobRunStatus.Failed, (string?)ScrapingException.RateLimited)));
+            Assert.That(run.Summary?.Counts["fetched"], Is.EqualTo(1));
         });
     }
 
@@ -1390,6 +1432,9 @@ public class HousingImportTests
         // HTTP 429 on every detail request.
         public bool DetailsRateLimited { get; set; }
 
+        // HTTP 429 on every detail request after this many.
+        public int DetailsBeforeRateLimit { get; set; } = int.MaxValue;
+
         // HTTP 403 on every detail request, as when the portal blocks us.
         public bool DetailsRefused { get; set; }
 
@@ -1406,7 +1451,7 @@ public class HousingImportTests
                 return Task.FromResult(FetchResult.Failed(new Failure(ScrapingException.NetworkError, "Timed out.", FailureKind.Unavailable)));
             }
 
-            if (DetailsRateLimited)
+            if (DetailsRateLimited || DetailRequests.Count > DetailsBeforeRateLimit)
             {
                 return Task.FromResult(FetchResult.Failed(new Failure(ScrapingException.RateLimited, "HTTP 429.", FailureKind.RateLimited)));
             }

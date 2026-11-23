@@ -206,7 +206,7 @@ public sealed partial class JobRunner(
         catch (JobFailedException e)
         {
             LogFailed(logger, schema, run.Job, run.Id, e.Code, e.Message);
-            return run with { Status = JobRunStatus.Failed, FinishedAt = time.GetUtcNow(), ErrorCode = e.Code };
+            return run with { Status = JobRunStatus.Failed, FinishedAt = time.GetUtcNow(), ErrorCode = e.Code, Summary = e.Summary };
         }
         catch (Exception e)
         {
