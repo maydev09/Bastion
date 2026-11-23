@@ -6,10 +6,13 @@ namespace Bastion.Modules.Housing.Application.ListOffers;
 // An offer without the filtered value (no price, no place) is left out.
 public sealed record OfferFilter
 {
-    // The location: offers in any of the voivodeships or any of the places.
+    // The location: offers in any of the voivodeships or any of the places, or without a place (WithoutPlace).
     public IReadOnlyList<Voivodeship> Voivodeships { get; init; } = [];
 
     public IReadOnlyList<int> PlaceIds { get; init; } = [];
+
+    // Offers whose location matched no place.
+    public bool WithoutPlace { get; init; }
 
     public IReadOnlyList<PlaceSize> PlaceSizes { get; init; } = [];
 
@@ -25,15 +28,22 @@ public sealed record OfferFilter
 
     public decimal? AreaMax { get; init; }
 
-    public int? RoomsMin { get; init; }
+    // The room counts: offers with any of Rooms, or with at least RoomsMin (e.g. 1, 2 or 4 and more).
+    public IReadOnlyList<int> Rooms { get; init; } = [];
 
-    public int? RoomsMax { get; init; }
+    public int? RoomsMin { get; init; }
 
     // Offers whose page says so; an offer not known yet or not stated is left out.
     public Answer? Furnished { get; init; }
 
-    // Offers with all of them.
+    // Offers with all of them, or with any of them (FeatureMatch).
     public IReadOnlyList<Feature> Features { get; init; } = [];
+
+    public FeatureMatch FeatureMatch { get; init; } = FeatureMatch.All;
+
+    // Offers Bastion first saw at or after this moment (created_at, not the portal's date), so an offer
+    // published earlier but collected later still counts as new.
+    public DateTimeOffset? AddedSince { get; init; }
 
     // Offers with (true) or without (false) any recorded change.
     public bool? Changed { get; init; }

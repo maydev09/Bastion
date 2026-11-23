@@ -11,7 +11,7 @@ public sealed class ListPlacesHandler(IPlaceRepository repository)
     public async Task<IReadOnlyList<PlaceListItem>> Search(string search, CancellationToken cancellationToken)
     {
         var nameKey = PlaceNames.Normalize(search);
-        return nameKey.Length == 0 ? [] : await repository.SearchWithOffersAsync(nameKey, MaxResults, cancellationToken);
+        return nameKey.Length == 0 ? [] : await repository.SearchAsync(nameKey, MaxResults, cancellationToken);
     }
 
     public Task<PlaceListItem?> Get(int id, CancellationToken cancellationToken) => repository.GetListItemAsync(id, cancellationToken);

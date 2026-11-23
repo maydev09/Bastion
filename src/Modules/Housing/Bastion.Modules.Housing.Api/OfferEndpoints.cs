@@ -49,49 +49,33 @@ public static class OfferEndpoints
         .WithName("ReparseHousingOffers")
         .WithSummary("Parses all stored raw pages again, oldest first, and saves the offers. Nothing is fetched.");
 
-        // Repeated filters are repeated keys: ?voivodeship=Slaskie&voivodeship=Opolskie.
         app.MapGet("/offers", async (
             ListOffersHandler handler,
             CancellationToken cancellationToken,
-            [FromQuery] Voivodeship[]? voivodeship,
-            [FromQuery] int[]? place,
-            [FromQuery] PlaceSize[]? size,
-            [FromQuery] Feature[]? feature,
-            decimal? priceMin,
-            decimal? priceMax,
-            decimal? areaMin,
-            decimal? areaMax,
-            int? roomsMin,
-            int? roomsMax,
-            Answer? furnished,
-            bool? changed,
-            bool priceCut = false,
+            [AsParameters] OfferFilterQuery filter,
             [Range(1, int.MaxValue)] int page = 1,
             [Range(1, PageRequest.MaxPageSize)] int pageSize = PageRequest.DefaultPageSize,
             OfferSort sort = OfferSort.FirstSeen,
             SortDirection direction = SortDirection.Descending) =>
-        {
-            var filter = new OfferFilter
-            {
-                Voivodeships = voivodeship ?? [],
-                PlaceIds = place ?? [],
-                PlaceSizes = size ?? [],
-                Features = feature ?? [],
-                PriceMin = priceMin,
-                PriceMax = priceMax,
-                AreaMin = areaMin,
-                AreaMax = areaMax,
-                RoomsMin = roomsMin,
-                RoomsMax = roomsMax,
-                Furnished = furnished,
-                Changed = changed,
-                PriceCut = priceCut,
-            };
-            return TypedResults.Ok(await handler.Handle(filter, new PageRequest(page, pageSize), sort, direction, cancellationToken));
-        })
+            TypedResults.Ok(await handler.Handle(filter.ToFilter(), new PageRequest(page, pageSize), sort, direction, cancellationToken)))
         .WithName("ListHousingOffers")
         .WithSummary("Returns stored offers that match all given filters, by default newest first; offers without the sorted value come last. "
-            + "Prices are in PLN; place and voivodeship together match offers in any of them.");
+            + "Prices are in PLN; place and voivodeship together match offers in any of them, and so do rooms and roomsMin; "
+            + "amenities match all of them unless featureMatch is Any.");
+
+        app.MapGet("/offers/facets", async (
+            ListOffersHandler handler, CancellationToken cancellationToken, [AsParameters] OfferFilterQuery filter) =>
+            TypedResults.Ok(await handler.CountFacets(filter.ToFilter(), cancellationToken)))
+        .WithName("CountHousingOfferFacets")
+        .WithSummary("Returns how many offers each filter choice would show with the other given filters, "
+            + "and the spread of prices and areas without the price and area bounds.");
+
+        app.MapGet("/offers/summary", async (
+            ListOffersHandler handler, CancellationToken cancellationToken, [AsParameters] OfferFilterQuery filter) =>
+            TypedResults.Ok(await handler.Summarize(filter.ToFilter(), cancellationToken)))
+        .WithName("SummarizeHousingOffers")
+        .WithSummary("Returns the typical price, price per m², rent and area of the offers that match the filters: "
+            + "the median, the middle half and how many offers have the value. Money is in PLN.");
 
         app.MapGet("/features", () =>
             TypedResults.Ok(FeatureCategories.All.Select(f => new FeatureListItem(f, FeatureCategories.Of(f))).ToList()))
@@ -101,7 +85,7 @@ public static class OfferEndpoints
         app.MapGet("/places", async (ListPlacesHandler handler, CancellationToken cancellationToken, [Required] string search) =>
             TypedResults.Ok(await handler.Search(search, cancellationToken)))
         .WithName("SearchHousingPlaces")
-        .WithSummary($"Returns up to {ListPlacesHandler.MaxResults} places with listed offers whose name or a word of it starts with the search, most offers first.");
+        .WithSummary($"Returns up to {ListPlacesHandler.MaxResults} places whose name or a word of it starts with the search, most listed offers first, also places without offers.");
 
         app.MapGet("/places/{id:int}", async Task<Results<Ok<PlaceListItem>, NotFound>> (
             int id, ListPlacesHandler handler, CancellationToken cancellationToken) =>

@@ -47,18 +47,13 @@ public sealed class PlaceRepository(NpgsqlDataSource db) : IPlaceRepository
         """;
 
     // A name key holds only a-z, 0-9 and '-', so the prefix needs no LIKE escaping.
-    // Ties go to the bigger place, then to the name, so the order is stable.
-    private const string SearchWithOffersSql = """
-        SELECT p.id, p.name, p.voivodeship, p.county, p.municipality, p.kind, o.offer_count
-        FROM (
-            SELECT place_id, count(*)::int AS offer_count
-            FROM housing.offer
-            WHERE removed_at IS NULL AND place_id IS NOT NULL
-            GROUP BY place_id
-        ) o
-        JOIN housing.place p ON p.id = o.place_id
+    // Places with offers come first; ties go to the bigger place, then to the name, so the order is stable.
+    private const string SearchSql = """
+        SELECT p.id, p.name, p.voivodeship, p.county, p.municipality, p.kind,
+            (SELECT count(*)::int FROM housing.offer o WHERE o.place_id = p.id AND o.removed_at IS NULL) AS offer_count
+        FROM housing.place p
         WHERE p.name_key LIKE @Prefix || '%' OR p.name_key LIKE '%-' || @Prefix || '%'
-        ORDER BY o.offer_count DESC, p.population DESC NULLS LAST, p.name, p.id
+        ORDER BY offer_count DESC, p.population DESC NULLS LAST, p.name, p.id
         LIMIT @Limit
         """;
 
@@ -115,11 +110,11 @@ public sealed class PlaceRepository(NpgsqlDataSource db) : IPlaceRepository
         return new SaveCounts(added, updated, places.Count - added - updated);
     }
 
-    public async Task<IReadOnlyList<PlaceListItem>> SearchWithOffersAsync(string nameKeyPrefix, int limit, CancellationToken cancellationToken)
+    public async Task<IReadOnlyList<PlaceListItem>> SearchAsync(string nameKeyPrefix, int limit, CancellationToken cancellationToken)
     {
         await using var connection = await db.OpenConnectionAsync(cancellationToken);
         var rows = await connection.QueryAsync<PlaceListRow>(new CommandDefinition(
-            SearchWithOffersSql, new { Prefix = nameKeyPrefix, Limit = limit }, cancellationToken: cancellationToken));
+            SearchSql, new { Prefix = nameKeyPrefix, Limit = limit }, cancellationToken: cancellationToken));
         return rows.Select(ToListItem).ToList();
     }
 

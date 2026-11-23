@@ -145,7 +145,7 @@
         "tags": [
           "Housing"
         ],
-        "summary": "Returns stored offers that match all given filters, by default newest first; offers without the sorted value come last. Prices are in PLN; place and voivodeship together match offers in any of them.",
+        "summary": "Returns stored offers that match all given filters, by default newest first; offers without the sorted value come last. Prices are in PLN; place and voivodeship together match offers in any of them, and so do rooms and roomsMin; amenities match all of them unless featureMatch is Any.",
         "operationId": "ListHousingOffers",
         "parameters": [
           {
@@ -170,6 +170,13 @@
             }
           },
           {
+            "name": "withoutPlace",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "size",
             "in": "query",
             "schema": {
@@ -187,6 +194,13 @@
               "items": {
                 "$ref": "#/components/schemas/Feature"
               }
+            }
+          },
+          {
+            "name": "featureMatch",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/FeatureMatch"
             }
           },
           {
@@ -222,15 +236,18 @@
             }
           },
           {
-            "name": "roomsMin",
+            "name": "rooms",
             "in": "query",
             "schema": {
-              "type": "integer",
-              "format": "int32"
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "int32"
+              }
             }
           },
           {
-            "name": "roomsMax",
+            "name": "roomsMin",
             "in": "query",
             "schema": {
               "type": "integer",
@@ -245,6 +262,14 @@
             }
           },
           {
+            "name": "addedSince",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
             "name": "changed",
             "in": "query",
             "schema": {
@@ -255,8 +280,7 @@
             "name": "priceCut",
             "in": "query",
             "schema": {
-              "type": "boolean",
-              "default": false
+              "type": "boolean"
             }
           },
           {
@@ -312,6 +336,322 @@
         }
       }
     },
+    "/api/housing/offers/facets": {
+      "get": {
+        "tags": [
+          "Housing"
+        ],
+        "summary": "Returns how many offers each filter choice would show with the other given filters, and the spread of prices and areas without the price and area bounds.",
+        "operationId": "CountHousingOfferFacets",
+        "parameters": [
+          {
+            "name": "voivodeship",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Voivodeship"
+              }
+            }
+          },
+          {
+            "name": "place",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "int32"
+              }
+            }
+          },
+          {
+            "name": "withoutPlace",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/PlaceSize"
+              }
+            }
+          },
+          {
+            "name": "feature",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Feature"
+              }
+            }
+          },
+          {
+            "name": "featureMatch",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/FeatureMatch"
+            }
+          },
+          {
+            "name": "priceMin",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "priceMax",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "areaMin",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "areaMax",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "rooms",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "int32"
+              }
+            }
+          },
+          {
+            "name": "roomsMin",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "furnished",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Answer"
+            }
+          },
+          {
+            "name": "addedSince",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "changed",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "priceCut",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferFacets"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/housing/offers/summary": {
+      "get": {
+        "tags": [
+          "Housing"
+        ],
+        "summary": "Returns the typical price, price per m², rent and area of the offers that match the filters: the median, the middle half and how many offers have the value. Money is in PLN.",
+        "operationId": "SummarizeHousingOffers",
+        "parameters": [
+          {
+            "name": "voivodeship",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Voivodeship"
+              }
+            }
+          },
+          {
+            "name": "place",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "int32"
+              }
+            }
+          },
+          {
+            "name": "withoutPlace",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "size",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/PlaceSize"
+              }
+            }
+          },
+          {
+            "name": "feature",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/Feature"
+              }
+            }
+          },
+          {
+            "name": "featureMatch",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/FeatureMatch"
+            }
+          },
+          {
+            "name": "priceMin",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "priceMax",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "areaMin",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "areaMax",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "rooms",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "int32"
+              }
+            }
+          },
+          {
+            "name": "roomsMin",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "furnished",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/Answer"
+            }
+          },
+          {
+            "name": "addedSince",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "changed",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "priceCut",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OfferSummary"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/housing/features": {
       "get": {
         "tags": [
@@ -341,7 +681,7 @@
         "tags": [
           "Housing"
         ],
-        "summary": "Returns up to 20 places with listed offers whose name or a word of it starts with the search, most offers first.",
+        "summary": "Returns up to 20 places whose name or a word of it starts with the search, most listed offers first, also places without offers.",
         "operationId": "SearchHousingPlaces",
         "parameters": [
           {
@@ -633,6 +973,13 @@
           }
         }
       },
+      "FeatureMatch": {
+        "enum": [
+          "All",
+          "Any",
+          null
+        ]
+      },
       "FieldChange": {
         "required": [
           "field",
@@ -657,6 +1004,31 @@
           "TiledStove",
           null
         ]
+      },
+      "Histogram": {
+        "required": [
+          "from",
+          "width",
+          "counts"
+        ],
+        "type": "object",
+        "properties": {
+          "from": {
+            "type": "number",
+            "format": "double"
+          },
+          "width": {
+            "type": "number",
+            "format": "double"
+          },
+          "counts": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        }
       },
       "ImportResult": {
         "required": [
@@ -889,6 +1261,85 @@
           }
         }
       },
+      "OfferFacets": {
+        "required": [
+          "voivodeships",
+          "withoutPlace",
+          "placeSizes",
+          "furnished",
+          "features",
+          "changed",
+          "unchanged",
+          "priceCut"
+        ],
+        "type": "object",
+        "properties": {
+          "voivodeships": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "withoutPlace": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "placeSizes": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "furnished": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "features": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "changed": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "unchanged": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "priceCut": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "price": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Histogram"
+              }
+            ]
+          },
+          "areaM2": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Histogram"
+              }
+            ]
+          }
+        }
+      },
       "OfferListItem": {
         "required": [
           "id",
@@ -937,6 +1388,13 @@
                 "$ref": "#/components/schemas/Currency"
               }
             ]
+          },
+          "previousPrice": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
           },
           "areaM2": {
             "type": [
@@ -995,6 +1453,16 @@
               },
               {
                 "$ref": "#/components/schemas/Currency"
+              }
+            ]
+          },
+          "furnished": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Answer"
               }
             ]
           },
@@ -1100,16 +1568,6 @@
               "string"
             ]
           },
-          "furnished": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/Answer"
-              }
-            ]
-          },
           "features": {
             "type": "array",
             "items": {
@@ -1122,6 +1580,13 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "placeId": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
           },
           "placeName": {
             "type": [
@@ -1225,8 +1690,71 @@
           "Price",
           "PricePerM2",
           "AreaM2",
-          "Rooms"
+          "Rooms",
+          "Rent"
         ]
+      },
+      "OfferSummary": {
+        "required": [
+          "count"
+        ],
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "price": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Spread"
+              }
+            ]
+          },
+          "pricePerM2": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Spread"
+              }
+            ]
+          },
+          "rent": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Spread"
+              }
+            ]
+          },
+          "areaM2": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Spread"
+              }
+            ]
+          },
+          "daysListed": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Spread"
+              }
+            ]
+          }
+        }
       },
       "PagedResultOfOfferListItem": {
         "required": [
@@ -1455,6 +1983,33 @@
         "enum": [
           "OtoDom"
         ]
+      },
+      "Spread": {
+        "required": [
+          "low",
+          "median",
+          "high",
+          "count"
+        ],
+        "type": "object",
+        "properties": {
+          "low": {
+            "type": "number",
+            "format": "double"
+          },
+          "median": {
+            "type": "number",
+            "format": "double"
+          },
+          "high": {
+            "type": "number",
+            "format": "double"
+          },
+          "count": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
       },
       "Transaction": {
         "enum": [

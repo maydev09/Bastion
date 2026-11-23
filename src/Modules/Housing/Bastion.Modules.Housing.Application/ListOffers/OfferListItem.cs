@@ -20,6 +20,9 @@ public sealed record OfferListItem
 
     public Currency? PriceCurrency { get; init; }
 
+    // The price before the last recorded price change, so the list can show a cut or a rise; null without one.
+    public decimal? PreviousPrice { get; init; }
+
     public decimal? AreaM2 { get; init; }
 
     // In PriceCurrency; null without a price or an area.
@@ -35,11 +38,13 @@ public sealed record OfferListItem
 
     public DateTimeOffset? ExternalUpdatedAt { get; init; }
 
-    // From Rent to DetailsFetchedAt only on the offer card (GetAsync); the list does not show them.
     public decimal? Rent { get; init; }
 
     public Currency? RentCurrency { get; init; }
 
+    public Answer? Furnished { get; init; }
+
+    // From Deposit to DetailsFetchedAt only on the offer card (GetAsync); the list does not show them.
     public decimal? Deposit { get; init; }
 
     public Currency? DepositCurrency { get; init; }
@@ -66,12 +71,12 @@ public sealed record OfferListItem
 
     public string? Description { get; init; }
 
-    public Answer? Furnished { get; init; }
-
     public IReadOnlyList<Feature> Features { get; init; } = [];
 
     // When the detail page was last fetched; null while it never was.
     public DateTimeOffset? DetailsFetchedAt { get; init; }
+
+    public int? PlaceId { get; init; }
 
     public string? PlaceName { get; init; }
 

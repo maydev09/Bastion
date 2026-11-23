@@ -23,6 +23,17 @@ public interface IOfferRepository
         SortDirection direction,
         CancellationToken cancellationToken);
 
+    // allSizes: the population range of every place size, to count offers by the size of their place.
+    Task<OfferFacets> CountFacetsAsync(
+        OfferFilter filter,
+        IReadOnlyList<PopulationRange> placeSizes,
+        IReadOnlyDictionary<PlaceSize, PopulationRange> allSizes,
+        CancellationToken cancellationToken);
+
+    // now: the moment the days listed are counted to.
+    Task<OfferSummary> SummarizeAsync(
+        OfferFilter filter, IReadOnlyList<PopulationRange> placeSizes, DateTimeOffset now, CancellationToken cancellationToken);
+
     // Also a removed offer; null when there is no offer with the id.
     Task<OfferListItem?> GetAsync(int id, CancellationToken cancellationToken);
 

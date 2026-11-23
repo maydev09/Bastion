@@ -268,15 +268,19 @@ public class HousingImportTests
         await RunImport(client);
 
         var byPrice = await ListedTitles(client, "?priceMin=3000&priceMax=4100&sort=Price&direction=Ascending");
-        var byAreaAndRooms = await ListedTitles(client, "?areaMin=30.5&areaMax=50&roomsMin=2&roomsMax=2");
+        var byAreaAndRooms = await ListedTitles(client, "?areaMin=30.5&areaMax=50&rooms=2");
+        var oneOrThreeAndMore = await ListedTitles(client, "?rooms=1&roomsMin=3");
         var byFeatures = await ListedTitles(client, "?feature=Lift&feature=Balcony");
+        var byAnyFeature = await ListedTitles(client, "?feature=Lift&feature=Balcony&featureMatch=Any");
         var list = await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers?feature=Lift&pageSize=1", Json);
 
         Assert.Multiple(() =>
         {
             Assert.That(byPrice, Is.EqualTo(new[] { "Medium flat", "Large flat" }));
             Assert.That(byAreaAndRooms, Is.EquivalentTo(new[] { "Medium flat", "Flat without price" }));
+            Assert.That(oneOrThreeAndMore, Is.EquivalentTo(new[] { "Small flat", "Large flat" }));
             Assert.That(byFeatures, Is.EqualTo(new[] { "Medium flat" }));
+            Assert.That(byAnyFeature, Is.EquivalentTo(new[] { "Small flat", "Medium flat", "Large flat" }));
             Assert.That((list!.Items.Count, list.TotalCount), Is.EqualTo((1, 2)));
         });
     }
@@ -293,6 +297,8 @@ public class HousingImportTests
 
         var inPomorskie = await ListedTitles(client, "?voivodeship=Pomorskie");
         var inPomorskieOrWarszawa = await ListedTitles(client, $"?voivodeship=Pomorskie&place={warszawa.Id}");
+        var withoutPlace = await ListedTitles(client, "?withoutPlace=true");
+        var inPomorskieOrWithoutPlace = await ListedTitles(client, "?voivodeship=Pomorskie&withoutPlace=true");
         var metropolis = await ListedTitles(client, "?size=Metropolis");
         var bigCityOrVillage = await ListedTitles(client, "?size=VeryLargeCity&size=VeryLargeVillage");
 
@@ -300,13 +306,85 @@ public class HousingImportTests
         {
             Assert.That(inPomorskie, Is.EqualTo(new[] { "Large flat" }));
             Assert.That(inPomorskieOrWarszawa, Is.EquivalentTo(new[] { "Small flat", "Large flat" }));
+            Assert.That(withoutPlace, Is.EqualTo(new[] { "Medium flat" }));
+            Assert.That(inPomorskieOrWithoutPlace, Is.EquivalentTo(new[] { "Medium flat", "Large flat" }));
             Assert.That(metropolis, Is.Empty);
             Assert.That(bigCityOrVillage, Is.EquivalentTo(new[] { "Small flat", "Large flat" }));
         });
     }
 
     [Test]
-    public async Task Places_with_offers_are_found_by_the_start_of_a_word_in_their_name()
+    public async Task Facets_count_what_each_choice_would_show_with_the_other_filters()
+    {
+        await using var factory = App(WithFakes);
+        using var client = factory.CreateClient();
+        await JobRuns.Run(client, ImportPlaces);
+        _source.Pages = [[
+            Small with { LocationKey = WarszawaKey, Features = [Feature.Balcony] },
+            Medium with { Features = [Feature.Balcony, Feature.Lift] },
+            Large with { LocationKey = GoscicinoKey, Features = [Feature.Lift] },
+        ]];
+        await RunImport(client);
+
+        var inPomorskie = await Facets(client, "?voivodeship=Pomorskie");
+        var withBalcony = await Facets(client, "?feature=Balcony");
+        var withBalconyOrMore = await Facets(client, "?feature=Balcony&featureMatch=Any");
+
+        Assert.Multiple(() =>
+        {
+            // Location choices join with OR, so they are counted without the picked voivodeship; the size under it.
+            Assert.That(inPomorskie.Voivodeships, Is.EquivalentTo(new Dictionary<Voivodeship, int> { [Voivodeship.Mazowieckie] = 1, [Voivodeship.Pomorskie] = 1 }));
+            Assert.That(inPomorskie.PlaceSizes, Is.EquivalentTo(new Dictionary<PlaceSize, int> { [PlaceSize.VeryLargeVillage] = 1 }));
+            Assert.That(inPomorskie.WithoutPlace, Is.EqualTo(1));
+            Assert.That(withBalcony.Features, Is.EquivalentTo(new Dictionary<Feature, int> { [Feature.Balcony] = 2, [Feature.Lift] = 1 }));
+            Assert.That(withBalconyOrMore.Features, Is.EquivalentTo(new Dictionary<Feature, int> { [Feature.Balcony] = 2, [Feature.Lift] = 2 }));
+        });
+    }
+
+    [Test]
+    public async Task Summary_shows_typical_values_and_histograms_ignore_their_own_bounds()
+    {
+        await using var factory = App(WithFakes);
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small, Medium, Large]];
+        await RunImport(client);
+
+        var summary = await client.GetFromJsonAsync<OfferSummary>("/api/housing/offers/summary", Json);
+        var cheap = await Facets(client, "?priceMax=2500");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(summary!.Count, Is.EqualTo(3));
+            Assert.That(summary.Price, Is.EqualTo(new Spread(2600m, 3000m, 3550m, 3)));
+            Assert.That(summary.AreaM2!.Median, Is.EqualTo(50m));
+            Assert.That(summary.Rent, Is.Null);
+            Assert.That(summary.DaysListed!.Count, Is.EqualTo(3));
+            Assert.That(summary.DaysListed.Median, Is.InRange(summary.DaysListed.Low, summary.DaysListed.High));
+            // The price bound does not narrow the price histogram: it shows all three, in five 500 zł bars from 2 000 zł.
+            Assert.That((cheap.Price!.From, cheap.Price.Width), Is.EqualTo((2000m, 500m)));
+            Assert.That(cheap.Price.Counts, Is.EqualTo(new[] { 1, 0, 1, 0, 1 }));
+            Assert.That(cheap.AreaM2!.Counts.Sum(), Is.EqualTo(1));
+        });
+    }
+
+    [Test]
+    public async Task List_is_filtered_by_when_bastion_first_saw_an_offer()
+    {
+        await using var factory = App(WithFakes);
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small]];
+        await RunImport(client);
+        _source.Pages = [[Medium, Small]];
+        await RunImport(client);
+        var medium = (await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers?sort=Price&direction=Ascending", Json))!.Items[1];
+
+        var added = await ListedTitles(client, $"?addedSince={Uri.EscapeDataString(medium.CreatedAt.ToString("O"))}");
+
+        Assert.That(added, Is.EqualTo(new[] { "Medium flat" }));
+    }
+
+    [Test]
+    public async Task Places_are_found_by_the_start_of_a_word_in_their_name_with_offers_first()
     {
         var bielsko = new Place("0943000", "Bielsko-Biała", Voivodeship.Slaskie, Kind: PlaceKind.Town, Population: 168_000);
         _places.FetchAsync(Arg.Any<CancellationToken>()).Returns(new PlaceFetchResult([Warszawa, Goscicino, bielsko]));
@@ -325,7 +403,7 @@ public class HousingImportTests
         Assert.Multiple(() =>
         {
             Assert.That(byWord!.Select(p => (p.Name, p.OfferCount)), Is.EqualTo(new[] { ("Bielsko-Biała", 1) }));
-            Assert.That(withoutOffers, Is.Empty);
+            Assert.That(withoutOffers!.Select(p => (p.Name, p.OfferCount)), Is.EqualTo(new[] { ("Warszawa", 0) }));
             Assert.That((byId!.Name, byId.County, byId.Kind, byId.OfferCount), Is.EqualTo(("Gościcino", "wejherowski", (PlaceKind?)PlaceKind.Village, 1)));
             Assert.That(missing.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
         });
@@ -344,28 +422,37 @@ public class HousingImportTests
         var cut = await ListedTitles(client, "?priceCut=true");
         var changed = await ListedTitles(client, "?changed=true");
         var unchanged = await ListedTitles(client, "?changed=false");
+        var facets = await Facets(client, "?changed=true");
+        var previous = (await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers?sort=Price&direction=Ascending", Json))!
+            .Items.Select(o => (o.Title, o.Price, o.PreviousPrice));
 
         Assert.Multiple(() =>
         {
             Assert.That(cut, Is.EqualTo(new[] { "Small flat" }));
             Assert.That(changed, Is.EquivalentTo(new[] { "Small flat", "Medium flat" }));
             Assert.That(unchanged, Is.EqualTo(new[] { "Large flat" }));
+            Assert.That((facets.Changed, facets.Unchanged, facets.PriceCut), Is.EqualTo((2, 1, 1)));
+            Assert.That(previous, Is.EqualTo(new[]
+            {
+                ("Small flat", (decimal?)2000m, (decimal?)2200m), ("Medium flat", 3200m, 3000m), ("Large flat", 4100m, null),
+            }));
         });
     }
 
     [Test]
-    public async Task Furnished_comes_from_the_detail_page_is_filtered_and_its_changes_are_recorded()
+    public async Task Furnished_and_rent_come_from_the_detail_page_and_furnished_changes_are_recorded()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
         using var client = factory.CreateClient();
         _source.Pages = [[Small, Medium, Large]];
-        _source.Details["1"] = new OfferDetails(Furnished: Answer.Yes);
-        _source.Details["3"] = new OfferDetails(Furnished: Answer.No);
+        _source.Details["1"] = new OfferDetails(Rent: new Money(500m, Currency.Pln), Furnished: Answer.Yes);
+        _source.Details["3"] = new OfferDetails(Rent: new Money(300m, Currency.Pln), Furnished: Answer.No);
         await RunImport(client);
         await RunDetails(client);
 
         var furnished = await ListedTitles(client, "?furnished=Yes");
         var unfurnished = await ListedTitles(client, "?furnished=No");
+        var byRent = await ListedTitles(client, "?sort=Rent&direction=Ascending");
         var small = (await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers?furnished=Yes", Json))!.Items.Single();
 
         _source.Pages = [[Small with { Price = new Money(2100m, Currency.Pln) }, Medium, Large]];
@@ -378,6 +465,8 @@ public class HousingImportTests
         {
             Assert.That(furnished, Is.EqualTo(new[] { "Small flat" }));
             Assert.That(unfurnished, Is.EqualTo(new[] { "Medium flat" }));
+            Assert.That(byRent, Is.EqualTo(new[] { "Medium flat", "Small flat", "Large flat" }));
+            Assert.That((small.Rent, small.Furnished), Is.EqualTo(((decimal?)500m, (Answer?)Answer.Yes)));
             Assert.That(card!.Furnished, Is.EqualTo(Answer.No));
             var change = card.Changes.SelectMany(c => c.Changes).Single(c => c.Field == "furnished");
             Assert.That((change.Before.ToString(), change.After?.ToString()), Is.EqualTo(("Yes", "No")));
@@ -1215,6 +1304,9 @@ public class HousingImportTests
         var list = await client.GetFromJsonAsync<PagedResult<OfferListItem>>($"/api/housing/offers{query}", Json);
         return list!.Items.Select(o => o.Title).ToList();
     }
+
+    private static async Task<OfferFacets> Facets(HttpClient client, string query) =>
+        (await client.GetFromJsonAsync<OfferFacets>($"/api/housing/offers/facets{query}", Json))!;
 
     private static DateTimeOffset At(int hour) => new(2026, 11, 19, hour, 0, 0, TimeSpan.Zero);
 

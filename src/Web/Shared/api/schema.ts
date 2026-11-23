@@ -97,8 +97,42 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Returns stored offers that match all given filters, by default newest first; offers without the sorted value come last. Prices are in PLN; place and voivodeship together match offers in any of them. */
+        /** Returns stored offers that match all given filters, by default newest first; offers without the sorted value come last. Prices are in PLN; place and voivodeship together match offers in any of them, and so do rooms and roomsMin; amenities match all of them unless featureMatch is Any. */
         get: operations["ListHousingOffers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/housing/offers/facets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns how many offers each filter choice would show with the other given filters, and the spread of prices and areas without the price and area bounds. */
+        get: operations["CountHousingOfferFacets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/housing/offers/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns the typical price, price per m², rent and area of the offers that match the filters: the median, the middle half and how many offers have the value. Money is in PLN. */
+        get: operations["SummarizeHousingOffers"];
         put?: never;
         post?: never;
         delete?: never;
@@ -131,7 +165,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Returns up to 20 places with listed offers whose name or a word of it starts with the search, most offers first. */
+        /** Returns up to 20 places whose name or a word of it starts with the search, most listed offers first, also places without offers. */
         get: operations["SearchHousingPlaces"];
         put?: never;
         post?: never;
@@ -295,6 +329,8 @@ export interface components {
             feature: components["schemas"]["Feature"];
             category: components["schemas"]["FeatureCategory"];
         };
+        /** @enum {unknown} */
+        FeatureMatch: "All" | "Any" | null;
         FieldChange: {
             field: string;
             before: unknown;
@@ -302,6 +338,13 @@ export interface components {
         };
         /** @enum {unknown} */
         Heating: "District" | "Gas" | "Electric" | "BoilerRoom" | "TiledStove" | null;
+        Histogram: {
+            /** Format: double */
+            from: number;
+            /** Format: double */
+            width: number;
+            counts: number[];
+        };
         ImportResult: {
             source: components["schemas"]["Source"];
             /** Format: int32 */
@@ -367,6 +410,30 @@ export interface components {
             changedAt: string;
             changes: components["schemas"]["FieldChange"][];
         };
+        OfferFacets: {
+            voivodeships: {
+                [key: string]: number;
+            };
+            /** Format: int32 */
+            withoutPlace: number;
+            placeSizes: {
+                [key: string]: number;
+            };
+            furnished: {
+                [key: string]: number;
+            };
+            features: {
+                [key: string]: number;
+            };
+            /** Format: int32 */
+            changed: number;
+            /** Format: int32 */
+            unchanged: number;
+            /** Format: int32 */
+            priceCut: number;
+            price?: null | components["schemas"]["Histogram"];
+            areaM2?: null | components["schemas"]["Histogram"];
+        };
         OfferListItem: {
             /** Format: int32 */
             id: number;
@@ -378,6 +445,8 @@ export interface components {
             /** Format: double */
             price?: null | number;
             priceCurrency?: null | components["schemas"]["Currency"];
+            /** Format: double */
+            previousPrice?: null | number;
             /** Format: double */
             areaM2?: null | number;
             /** Format: double */
@@ -395,6 +464,7 @@ export interface components {
             /** Format: double */
             rent?: null | number;
             rentCurrency?: null | components["schemas"]["Currency"];
+            furnished?: null | components["schemas"]["Answer"];
             /** Format: double */
             deposit?: null | number;
             depositCurrency?: null | components["schemas"]["Currency"];
@@ -416,10 +486,11 @@ export interface components {
             /** Format: int32 */
             locationRadiusM?: null | number;
             description?: null | string;
-            furnished?: null | components["schemas"]["Answer"];
             features?: components["schemas"]["Feature"][];
             /** Format: date-time */
             detailsFetchedAt?: null | string;
+            /** Format: int32 */
+            placeId?: null | number;
             placeName?: null | string;
             placeKind?: null | components["schemas"]["PlaceKind"];
             placeSize?: null | components["schemas"]["PlaceSize"];
@@ -436,7 +507,16 @@ export interface components {
             changes?: components["schemas"]["OfferChange"][];
         };
         /** @enum {unknown} */
-        OfferSort: "FirstSeen" | "Price" | "PricePerM2" | "AreaM2" | "Rooms";
+        OfferSort: "FirstSeen" | "Price" | "PricePerM2" | "AreaM2" | "Rooms" | "Rent";
+        OfferSummary: {
+            /** Format: int32 */
+            count: number;
+            price?: null | components["schemas"]["Spread"];
+            pricePerM2?: null | components["schemas"]["Spread"];
+            rent?: null | components["schemas"]["Spread"];
+            areaM2?: null | components["schemas"]["Spread"];
+            daysListed?: null | components["schemas"]["Spread"];
+        };
         PagedResultOfOfferListItem: {
             items: components["schemas"]["OfferListItem"][];
             /** Format: int32 */
@@ -499,6 +579,16 @@ export interface components {
         SortDirection: "Ascending" | "Descending";
         /** @enum {unknown} */
         Source: "OtoDom";
+        Spread: {
+            /** Format: double */
+            low: number;
+            /** Format: double */
+            median: number;
+            /** Format: double */
+            high: number;
+            /** Format: int32 */
+            count: number;
+        };
         /** @enum {unknown} */
         Transaction: "Rent";
         /** @enum {unknown} */
@@ -615,15 +705,18 @@ export interface operations {
             query?: {
                 voivodeship?: components["schemas"]["Voivodeship"][];
                 place?: number[];
+                withoutPlace?: boolean;
                 size?: components["schemas"]["PlaceSize"][];
                 feature?: components["schemas"]["Feature"][];
+                featureMatch?: components["schemas"]["FeatureMatch"];
                 priceMin?: number;
                 priceMax?: number;
                 areaMin?: number;
                 areaMax?: number;
+                rooms?: number[];
                 roomsMin?: number;
-                roomsMax?: number;
                 furnished?: components["schemas"]["Answer"];
+                addedSince?: string;
                 changed?: boolean;
                 priceCut?: boolean;
                 page?: number;
@@ -644,6 +737,80 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["PagedResultOfOfferListItem"];
+                };
+            };
+        };
+    };
+    CountHousingOfferFacets: {
+        parameters: {
+            query?: {
+                voivodeship?: components["schemas"]["Voivodeship"][];
+                place?: number[];
+                withoutPlace?: boolean;
+                size?: components["schemas"]["PlaceSize"][];
+                feature?: components["schemas"]["Feature"][];
+                featureMatch?: components["schemas"]["FeatureMatch"];
+                priceMin?: number;
+                priceMax?: number;
+                areaMin?: number;
+                areaMax?: number;
+                rooms?: number[];
+                roomsMin?: number;
+                furnished?: components["schemas"]["Answer"];
+                addedSince?: string;
+                changed?: boolean;
+                priceCut?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfferFacets"];
+                };
+            };
+        };
+    };
+    SummarizeHousingOffers: {
+        parameters: {
+            query?: {
+                voivodeship?: components["schemas"]["Voivodeship"][];
+                place?: number[];
+                withoutPlace?: boolean;
+                size?: components["schemas"]["PlaceSize"][];
+                feature?: components["schemas"]["Feature"][];
+                featureMatch?: components["schemas"]["FeatureMatch"];
+                priceMin?: number;
+                priceMax?: number;
+                areaMin?: number;
+                areaMax?: number;
+                rooms?: number[];
+                roomsMin?: number;
+                furnished?: components["schemas"]["Answer"];
+                addedSince?: string;
+                changed?: boolean;
+                priceCut?: boolean;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfferSummary"];
                 };
             };
         };
