@@ -167,8 +167,9 @@
   border-bottom: 1px solid var(--color-border);
 }
 
-/* Filled by the page's PageTitle. */
+/* Filled by the page's PageTitle; it takes the room up to the shell's own buttons. */
 .title {
+  flex: 1;
   min-width: 0;
   padding-left: var(--space-2);
 }

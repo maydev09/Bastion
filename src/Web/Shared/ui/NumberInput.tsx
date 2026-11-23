@@ -12,12 +12,22 @@ type Props = {
   min?: number;
   // The smallest step the field accepts: 1 for whole numbers.
   step?: number | "any";
+  // Shown inside the field after the number, e.g. "zł" or "m²".
+  unit?: string;
 };
 
 const typingPause = 600;
 
 // A number in the user's language ("3 500", "45,5"), typed freely and passed on once the user pauses.
-export function NumberInput({ value, onChange, label, placeholder, min = 0, step = "any" }: Props) {
+export function NumberInput({
+  value,
+  onChange,
+  label,
+  placeholder,
+  min = 0,
+  step = "any",
+  unit,
+}: Props) {
   const { i18n } = useTranslation();
   const [draft, setDraft] = useState(value);
   const [shown, setShown] = useState(value);
@@ -53,7 +63,7 @@ export function NumberInput({ value, onChange, label, placeholder, min = 0, step
       onValueCommitted={commit}
     >
       <NumberField.Input
-        className={styles.input}
+        className={unit ? `${styles.input} ${styles.withUnit}` : styles.input}
         aria-label={label}
         placeholder={placeholder}
         onKeyDown={(event) => {
@@ -62,6 +72,11 @@ export function NumberInput({ value, onChange, label, placeholder, min = 0, step
           }
         }}
       />
+      {unit && (
+        <span className={styles.unit} aria-hidden="true">
+          {unit}
+        </span>
+      )}
     </NumberField.Root>
   );
 }

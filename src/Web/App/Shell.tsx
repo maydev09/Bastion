@@ -17,7 +17,7 @@ import { ThemeSwitch } from "./ThemeSwitch";
 
 export function Shell() {
   const { t, i18n } = useTranslation();
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(readSidebarOpen);
   const { pathname } = useLocation();
   const [shownPath, setShownPath] = useState(pathname);
   const [titleSlot, setTitleSlot] = useState<HTMLElement | null>(null);
@@ -33,8 +33,8 @@ export function Shell() {
     },
   });
 
-  // The menu is open when the app starts; going to another page hides it, so the page gets the
-  // whole width. The menu button shows it again.
+  // The menu starts as the user left it with its button (open the first time); going to another page
+  // hides it, so the page gets the whole width. The menu button shows it again.
   if (pathname !== shownPath) {
     setShownPath(pathname);
     setSidebarOpen(false);
@@ -49,7 +49,10 @@ export function Shell() {
             label={t("nav.toggle")}
             aria-controls="navigation"
             aria-expanded={sidebarOpen}
-            onClick={() => setSidebarOpen((open) => !open)}
+            onClick={() => {
+              setSidebarOpen(!sidebarOpen);
+              rememberSidebarOpen(!sidebarOpen);
+            }}
           />
           <span hidden={!sidebarOpen}>{t("app.title")}</span>
         </div>
@@ -165,4 +168,22 @@ function NavItem({ to, end, icon, label, collapsed }: NavItemProps) {
       <span className={styles.label}>{label}</span>
     </NavLink>
   );
+}
+
+const sidebarKey = "shell.sidebarOpen";
+
+function readSidebarOpen(): boolean {
+  try {
+    return localStorage.getItem(sidebarKey) !== "false";
+  } catch {
+    return true;
+  }
+}
+
+function rememberSidebarOpen(open: boolean) {
+  try {
+    localStorage.setItem(sidebarKey, String(open));
+  } catch {
+    // Without storage the menu starts open next time.
+  }
 }

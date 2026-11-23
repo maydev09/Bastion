@@ -119,6 +119,10 @@
   cursor: default;
   user-select: none;
 
+  &[data-muted]:not([data-highlighted]) {
+    color: var(--color-muted);
+  }
+
   &[data-highlighted] {
     background: var(--color-highlight);
     color: var(--color-on-highlight);

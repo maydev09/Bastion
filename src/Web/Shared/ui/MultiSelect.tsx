@@ -13,6 +13,8 @@ type Props<Item> = {
   itemToLabel: (item: Item) => string;
   // A muted second part of an item in the list, e.g. its county.
   itemToHint?: (item: Item) => string;
+  // An item shown greyed out, e.g. a place without offers: it can still be picked.
+  isItemMuted?: (item: Item) => boolean;
   // Given when the caller searches itself (e.g. on the server); the typed text is passed on and items are not filtered here.
   onSearch?: (text: string) => void;
   // Shown when no item matches, or before anything is typed into a search.
@@ -31,6 +33,7 @@ export function MultiSelect<Item>({
   itemToKey,
   itemToLabel,
   itemToHint,
+  isItemMuted,
   onSearch,
   emptyText,
   removeLabel,
@@ -91,7 +94,12 @@ export function MultiSelect<Item>({
             <Combobox.Empty className={styles.empty}>{emptyText}</Combobox.Empty>
             <Combobox.List className={styles.list}>
               {(item: Item) => (
-                <Combobox.Item key={itemToKey(item)} value={item} className={styles.item}>
+                <Combobox.Item
+                  key={itemToKey(item)}
+                  value={item}
+                  className={styles.item}
+                  data-muted={isItemMuted?.(item) || undefined}
+                >
                   <span className={styles.indicator}>
                     {isPicked(item) && <Icon name="check" size={16} />}
                   </span>

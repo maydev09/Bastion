@@ -23,3 +23,11 @@
   color: var(--color-muted);
   font-variant-numeric: tabular-nums;
 }
+
+/* At the right end of the title, before the shell's own buttons. */
+.actions {
+  display: flex;
+  flex: none;
+  gap: var(--space-1);
+  margin-left: auto;
+}

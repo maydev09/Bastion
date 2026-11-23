@@ -4,7 +4,11 @@ import type { ReactNode } from "react";
 import { MemoryRouter } from "react-router";
 import { vi } from "vitest";
 
-export function renderWithProviders(ui: ReactNode, path = "/") {
+// path may carry the history state a page reads, e.g. the list an offer card was opened from.
+export function renderWithProviders(
+  ui: ReactNode,
+  path: string | { pathname: string; state: unknown } = "/",
+) {
   const client = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   return render(
     <QueryClientProvider client={client}>

@@ -1,0 +1,78 @@
+.group {
+  display: flex;
+  min-width: 0;
+}
+
+.toggle {
+  flex: 1;
+  min-width: 0;
+  height: var(--control-height);
+  padding: 0 var(--space-2);
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-text);
+  font: inherit;
+  white-space: nowrap;
+  cursor: pointer;
+
+  & + & {
+    margin-left: -1px;
+  }
+
+  &:first-child {
+    border-radius: var(--radius) 0 0 var(--radius);
+  }
+
+  &:last-child {
+    border-radius: 0 var(--radius) var(--radius) 0;
+  }
+
+  &:disabled {
+    color: var(--color-muted);
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+
+  &:hover:not([data-pressed], :disabled) {
+    background: var(--color-surface-hover);
+  }
+
+  &[data-pressed] {
+    position: relative;
+    border-color: var(--color-accent);
+    background: var(--color-accent-soft);
+    color: var(--color-text);
+    font-weight: 600;
+  }
+
+  &:focus-visible {
+    position: relative;
+    z-index: 1;
+    outline: 2px solid var(--color-focus);
+    outline-offset: 1px;
+  }
+}
+
+/* Stacked: the joined edges are the top and bottom ones, the text starts on the left. */
+.vertical {
+  flex-direction: column;
+
+  /* Each button keeps its full height; side by side they share the width instead. */
+  & .toggle {
+    flex: none;
+    text-align: start;
+  }
+
+  & .toggle + .toggle {
+    margin-top: -1px;
+    margin-left: 0;
+  }
+
+  & .toggle:first-child {
+    border-radius: var(--radius) var(--radius) 0 0;
+  }
+
+  & .toggle:last-child {
+    border-radius: 0 0 var(--radius) var(--radius);
+  }
+}
