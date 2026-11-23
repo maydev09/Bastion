@@ -554,7 +554,7 @@ public class HousingImportTests
     }
 
     [Test]
-    public async Task A_rejected_value_clears_the_field_until_a_page_without_it()
+    public async Task A_rejected_value_clears_the_field_and_the_history_shows_both_steps()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
         using var client = factory.CreateClient();
@@ -574,12 +574,20 @@ public class HousingImportTests
         await RunImport(client);
         await RunDetails(client);
         var corrected = await Scalar<string>("SELECT concat_ws('|', build_year, rejected_values) FROM housing.offer");
+        var id = (await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json))!.Items.Single().Id;
+        using var card = await client.GetFromJsonAsync<JsonDocument>($"/api/housing/offers/{id}", Json);
+        var yearChanges = card!.RootElement.GetProperty("changes").EnumerateArray()
+            .SelectMany(o => o.GetProperty("changes").EnumerateArray())
+            .Where(c => c.GetProperty("field").GetString() == "buildYear")
+            .Select(c => (Before: c.GetProperty("before").ToString(), After: c.GetProperty("after").ToString()))
+            .ToList();
 
         Assert.Multiple(() =>
         {
             Assert.That(rejectedRun, Is.EqualTo(new Fetched(1, 0)));
             Assert.That(rejected, Is.EqualTo("195014"));
             Assert.That(corrected, Is.EqualTo("1960"));
+            Assert.That(yearChanges, Is.EqualTo(new[] { ("", "1960"), ("1950", "") }), "newest first; the first detail page is no change");
         });
     }
 
@@ -903,7 +911,7 @@ public class HousingImportTests
     }
 
     [Test]
-    public async Task Content_changes_are_recorded_but_first_values_and_bumps_are_not()
+    public async Task Content_changes_are_recorded_but_the_first_detail_page_and_bumps_are_not()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
         using var client = factory.CreateClient();
@@ -942,7 +950,7 @@ public class HousingImportTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(logged, Is.EqualTo("price,available_from,features,floor,price,price_currency"));
+            Assert.That(logged, Is.EqualTo("price,rent,rent_currency,available_from,features,floor,price,price_currency"));
             Assert.That((price, availableFrom, features), Is.EqualTo((true, true, true)));
         });
     }

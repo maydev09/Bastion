@@ -217,7 +217,8 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             o.description,
             CASE WHEN f.fetched_at IS NOT NULL
                 THEN ARRAY(SELECT feature FROM housing.offer_feature WHERE offer_id = o.id ORDER BY feature)
-            END AS features
+            END AS features,
+            f.fetched_at IS NOT NULL AS has_details
         FROM housing.offer o
         LEFT JOIN housing.offer_detail_fetch f ON f.offer_id = o.id
         WHERE o.source_id = @SourceId AND o.external_id = ANY(@ExternalIds)
@@ -315,7 +316,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
 
         if (recordChanges && updated > 0)
         {
-            await RecordChangesAsync(connection, transaction, capture, externalIds, before, cancellationToken);
+            await RecordChangesAsync(connection, transaction, capture, externalIds, before, isDetailPage: false, cancellationToken);
         }
 
         await transaction.CommitAsync(cancellationToken);
@@ -339,12 +340,13 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         RawCapture capture,
         string[] externalIds,
         Dictionary<int, IDictionary<string, object?>> before,
+        bool isDetailPage,
         CancellationToken cancellationToken)
     {
         var after = await ReadContentAsync(connection, transaction, capture.SourceId, externalIds, cancellationToken);
         var changes = after
             .Where(a => before.ContainsKey(a.Key))
-            .Select(a => (OfferId: a.Key, Changes: BuildChangeMap(before[a.Key], a.Value)))
+            .Select(a => (OfferId: a.Key, Changes: BuildChangeMap(before[a.Key], a.Value, isDetailPage)))
             .Where(c => c.Changes.Count > 0)
             .ToList();
         if (changes.Count == 0)
@@ -360,14 +362,25 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         }, transaction, cancellationToken: cancellationToken));
     }
 
-    // A field that had no value gets its first one, which is not a change.
-    private static Dictionary<string, object?[]> BuildChangeMap(IDictionary<string, object?> before, IDictionary<string, object?> after) =>
-        after
-            .Where(f => f.Key != "id" && before[f.Key] is { } old && !AreEqual(old, f.Value))
+    // A value where there was none is a change (a seller adds the heating), except on the first detail page of an
+    // offer: it fills all detail fields at once. A new offer has no "before" and so no changes.
+    private static Dictionary<string, object?[]> BuildChangeMap(
+        IDictionary<string, object?> before, IDictionary<string, object?> after, bool isDetailPage)
+    {
+        var isFirstDetailPage = isDetailPage && !(bool)before["has_details"]!;
+        return after
+            .Where(f => f.Key is not ("id" or "has_details"))
+            .Where(f => !(isFirstDetailPage && before[f.Key] is null))
+            .Where(f => !AreEqual(before[f.Key], f.Value))
             .ToDictionary(f => f.Key, f => new[] { before[f.Key], f.Value });
+    }
 
-    private static bool AreEqual(object old, object? value) =>
-        old is int[] oldFeatures && value is int[] features ? oldFeatures.SequenceEqual(features) : old.Equals(value);
+    private static bool AreEqual(object? old, object? value) => old switch
+    {
+        null => value is null,
+        int[] oldFeatures when value is int[] features => oldFeatures.SequenceEqual(features),
+        _ => old.Equals(value),
+    };
 
     public async Task<MissedCounts> MarkMissedAsync(Source source, DateTimeOffset scanStartedAt, int missedScansToRemove, CancellationToken cancellationToken)
     {
@@ -520,7 +533,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
 
         if (recordChanges)
         {
-            await RecordChangesAsync(connection, transaction, capture, externalIds, before, cancellationToken);
+            await RecordChangesAsync(connection, transaction, capture, externalIds, before, isDetailPage: true, cancellationToken);
         }
 
         await transaction.CommitAsync(cancellationToken);
