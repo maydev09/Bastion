@@ -16,6 +16,9 @@ public sealed record OfferFilter
 
     public IReadOnlyList<PlaceSize> PlaceSizes { get; init; } = [];
 
+    // Offers in places whose highest seat is any of them, e.g. villages that are municipality seats.
+    public IReadOnlyList<PlaceRole> PlaceRoles { get; init; } = [];
+
     // The currency of the price bounds; an offer priced in another currency is left out.
     public const Currency PriceCurrency = Currency.Pln;
 
@@ -23,6 +26,11 @@ public sealed record OfferFilter
     public decimal? PriceMin { get; init; }
 
     public decimal? PriceMax { get; init; }
+
+    // In PriceCurrency and rounded to two decimals, as an offer carries its price per m².
+    public decimal? PricePerM2Min { get; init; }
+
+    public decimal? PricePerM2Max { get; init; }
 
     public decimal? AreaMin { get; init; }
 

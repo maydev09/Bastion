@@ -38,6 +38,9 @@ public sealed class ListOffersHandler(IOfferRepository repository, IOptions<Plac
     private OfferListItem AddDerivedValues(OfferListItem offer) => offer with
     {
         PlaceSize = offer.Population is { } population ? sizes.Value.Of(offer.PlaceKind, population) : null,
-        PricePerM2 = offer is { Price: { } price, AreaM2: { } area } && area > 0 ? Math.Round(price / area, 2) : null,
+        // Rounded half away from zero, as PostgreSQL's round() in the price per m² filter.
+        PricePerM2 = offer is { Price: { } price, AreaM2: { } area } && area > 0
+            ? Math.Round(price / area, 2, MidpointRounding.AwayFromZero)
+            : null,
     };
 }

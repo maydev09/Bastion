@@ -187,6 +187,16 @@
             }
           },
           {
+            "name": "role",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/PlaceRole"
+              }
+            }
+          },
+          {
             "name": "feature",
             "in": "query",
             "schema": {
@@ -213,6 +223,22 @@
           },
           {
             "name": "priceMax",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "pricePerM2Min",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "pricePerM2Max",
             "in": "query",
             "schema": {
               "type": "number",
@@ -391,6 +417,16 @@
             }
           },
           {
+            "name": "role",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/PlaceRole"
+              }
+            }
+          },
+          {
             "name": "feature",
             "in": "query",
             "schema": {
@@ -417,6 +453,22 @@
           },
           {
             "name": "priceMax",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "pricePerM2Min",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "pricePerM2Max",
             "in": "query",
             "schema": {
               "type": "number",
@@ -568,6 +620,16 @@
             }
           },
           {
+            "name": "role",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/components/schemas/PlaceRole"
+              }
+            }
+          },
+          {
             "name": "feature",
             "in": "query",
             "schema": {
@@ -594,6 +656,22 @@
           },
           {
             "name": "priceMax",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "pricePerM2Min",
+            "in": "query",
+            "schema": {
+              "type": "number",
+              "format": "double"
+            }
+          },
+          {
+            "name": "pricePerM2Max",
             "in": "query",
             "schema": {
               "type": "number",
@@ -703,6 +781,30 @@
                   "type": "array",
                   "items": {
                     "$ref": "#/components/schemas/FeatureListItem"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/housing/place-sizes": {
+      "get": {
+        "tags": [
+          "Housing"
+        ],
+        "summary": "Returns every place size with the populations it covers under the configured thresholds.",
+        "operationId": "ListHousingPlaceSizes",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PlaceSizeListItem"
                   }
                 }
               }
@@ -1301,6 +1403,7 @@
           "voivodeships",
           "withoutPlace",
           "placeSizes",
+          "placeRoles",
           "furnished",
           "features",
           "changed",
@@ -1322,6 +1425,13 @@
             "format": "int32"
           },
           "placeSizes": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          "placeRoles": {
             "type": "object",
             "additionalProperties": {
               "type": "integer",
@@ -1362,6 +1472,16 @@
             }
           },
           "price": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Histogram"
+              }
+            ]
+          },
+          "pricePerM2": {
             "oneOf": [
               {
                 "type": "null"
@@ -1908,6 +2028,34 @@
           "Metropolis",
           null
         ]
+      },
+      "PlaceSizeListItem": {
+        "required": [
+          "size",
+          "kind",
+          "minPopulation",
+          "maxPopulation"
+        ],
+        "type": "object",
+        "properties": {
+          "size": {
+            "$ref": "#/components/schemas/PlaceSize"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/PlaceKind"
+          },
+          "minPopulation": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "maxPopulation": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          }
+        }
       },
       "PlaceSource": {
         "enum": [

@@ -15,6 +15,7 @@ import {
   answers,
   countFilters,
   noFilter,
+  placeRoles,
   roomCounts,
   roomsOrMore,
   townSizes,
@@ -29,6 +30,7 @@ import { useDayAgo } from "./useDayAgo";
 import { useFacets } from "./useFacets";
 import { useFeatureGroups } from "./useFeatures";
 import { useFormat } from "./useFormat";
+import { usePlaceSizes } from "./usePlaceSizes";
 
 type Histogram = components["schemas"]["Histogram"];
 
@@ -43,7 +45,17 @@ type Props = {
 };
 
 type SectionId =
-  "new" | "location" | "size" | "price" | "area" | "rooms" | "furnished" | "features" | "history";
+  | "new"
+  | "location"
+  | "size"
+  | "role"
+  | "price"
+  | "pricePerM2"
+  | "area"
+  | "rooms"
+  | "furnished"
+  | "features"
+  | "history";
 
 // Open until the user closes them; the other sections open while they hold a filter.
 const openAtFirst: SectionId[] = ["new", "location", "price"];
@@ -64,13 +76,31 @@ export function OfferFilters({ filter, onChange, onHide, previousVisit, searchRe
     facets && format.number(counts?.[key] ?? 0);
   const withCount = (label: string, count: number | undefined) =>
     count == null ? label : t("filters.withCount", { label, count });
+  const placeSizes = usePlaceSizes();
+  // "5 000–20 000": from the lower threshold up to, but not including, the upper one, as on the histograms.
+  const populationOf = (size: keyof typeof placeSizes) => {
+    const range = placeSizes[size];
+    if (!range) {
+      return null;
+    }
+    const from = format.number(range.minPopulation);
+    if (range.maxPopulation == null) {
+      return t("filters.populationFrom", { from });
+    }
+    const to = format.number(range.maxPopulation);
+    return range.minPopulation === 0
+      ? t("filters.populationBelow", { to })
+      : t("filters.populationRange", { from, to });
+  };
   const voivodeshipItems = voivodeships.map((v) => ({ value: v, label: t(`voivodeship.${v}`) }));
 
   const counts: Record<SectionId, number> = {
     new: filter.addedSince ? 1 : 0,
     location: filter.place.length + filter.voivodeship.length + (filter.withoutPlace ? 1 : 0),
     size: filter.size.length,
+    role: filter.role.length,
     price: [filter.priceMin, filter.priceMax].filter((v) => v != null).length,
+    pricePerM2: [filter.pricePerM2Min, filter.pricePerM2Max].filter((v) => v != null).length,
     area: [filter.areaMin, filter.areaMax].filter((v) => v != null).length,
     rooms: filter.rooms.length + (filter.roomsMin != null ? 1 : 0),
     furnished: filter.furnished ? 1 : 0,
@@ -171,19 +201,45 @@ export function OfferFilters({ filter, onChange, onHide, previousVisit, searchRe
         ].map((group) => (
           <div key={group.title} className={styles.group}>
             <span className={styles.groupTitle}>{group.title}</span>
-            {group.sizes.map((size) => (
-              <Checkbox
-                key={size}
-                checked={filter.size.includes(size)}
-                onChange={(on) => set({ size: toggle(filter.size, size, on) })}
-                hint={shownCount(facets?.placeSizes, size)}
-              >
-                {t(`place.size.${size}`)}
-              </Checkbox>
-            ))}
+            {group.sizes.map((size) => {
+              const population = populationOf(size);
+              return (
+                <Checkbox
+                  key={size}
+                  checked={filter.size.includes(size)}
+                  onChange={(on) => set({ size: toggle(filter.size, size, on) })}
+                  hint={shownCount(facets?.placeSizes, size)}
+                >
+                  {t(`place.size.${size}`)}
+                  {/* The space keeps the name and the populations apart for a screen reader too. */}
+                  {population && (
+                    <>
+                      {" "}
+                      <span className={styles.population}>{population}</span>
+                    </>
+                  )}
+                </Checkbox>
+              );
+            })}
           </div>
         )),
         anyOf(counts.size),
+      )}
+
+      {section(
+        "role",
+        t("filters.role"),
+        placeRoles.map((role) => (
+          <Checkbox
+            key={role}
+            checked={filter.role.includes(role)}
+            onChange={(on) => set({ role: toggle(filter.role, role, on) })}
+            hint={shownCount(facets?.placeRoles, role)}
+          >
+            {t(`place.role.${role}`)}
+          </Checkbox>
+        )),
+        anyOf(counts.role),
       )}
 
       {section(
@@ -197,6 +253,20 @@ export function OfferFilters({ filter, onChange, onHide, previousVisit, searchRe
           onChange={(priceMin, priceMax) => set({ priceMin, priceMax })}
           histogram={facets?.price}
           show={(value) => format.wholeMoney(value, "PLN")}
+        />,
+      )}
+
+      {section(
+        "pricePerM2",
+        t("filters.pricePerM2"),
+        <Range
+          title={t("filters.pricePerM2")}
+          unit={t("units.plnPerM2")}
+          min={filter.pricePerM2Min}
+          max={filter.pricePerM2Max}
+          onChange={(pricePerM2Min, pricePerM2Max) => set({ pricePerM2Min, pricePerM2Max })}
+          histogram={facets?.pricePerM2}
+          show={(value) => format.perM2(value, "PLN")}
         />,
       )}
 

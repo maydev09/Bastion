@@ -33,6 +33,15 @@ function createFormat(t: TFunction<"housing">, language: string) {
         currency,
         trailingZeroDisplay: "stripIfInteger",
       }).format(value),
+    // "45,50 zł/m²" in the price per m² filter and its chip.
+    perM2: (value: number, currency: string) =>
+      t("units.perM2", {
+        value: new Intl.NumberFormat(language, {
+          style: "currency",
+          currency,
+          trailingZeroDisplay: "stripIfInteger",
+        }).format(value),
+      }),
     wholeMoney: (value: number, currency: string) =>
       new Intl.NumberFormat(language, {
         style: "currency",
