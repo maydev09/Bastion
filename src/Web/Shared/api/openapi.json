@@ -933,7 +933,7 @@
               "null",
               "integer"
             ],
-            "format": "int16"
+            "format": "int32"
           },
           "populationSource": {
             "oneOf": [

@@ -113,5 +113,5 @@ public sealed class PlaceRepository(NpgsqlDataSource db) : IPlaceRepository
 
     private sealed record PlaceRow(
         int Id, string Simc, string Name, int Voivodeship, string? County, string? Municipality, int? Kind, int? Role,
-        int? Population, short? PopulationYear, int? PopulationSource, decimal? Latitude, decimal? Longitude);
+        int? Population, int? PopulationYear, int? PopulationSource, decimal? Latitude, decimal? Longitude);
 }

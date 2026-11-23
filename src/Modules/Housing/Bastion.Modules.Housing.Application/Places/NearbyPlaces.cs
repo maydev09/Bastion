@@ -41,7 +41,7 @@ public static class NearbyPlaces
                 AddNearest(NearbyTier.Metropolis, metropolises);
             }
 
-            short rank = 1;
+            int rank = 1;
             foreach (var (city, km) in bigCities
                          .Where(c => c.Place.Id != place.Id)
                          .Select(c => (City: c, Km: point.KmTo(c)))

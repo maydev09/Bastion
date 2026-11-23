@@ -110,7 +110,7 @@ public class HousingImportTests
             }));
             Assert.That((small.PlaceKind, small.PlaceSize, small.PlaceRole, small.Voivodeship, small.Population, small.PopulationYear),
                 Is.EqualTo(((PlaceKind?)PlaceKind.Town, (PlaceSize?)PlaceSize.Metropolis, (PlaceRole?)PlaceRole.VoivodeshipCapital,
-                    (Voivodeship?)Voivodeship.Mazowieckie, (int?)1_863_056, (short?)2021)));
+                    (Voivodeship?)Voivodeship.Mazowieckie, (int?)1_863_056, (int?)2021)));
         });
     }
 
