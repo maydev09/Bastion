@@ -351,6 +351,8 @@ public class HousingImportTests
 
         var summary = await client.GetFromJsonAsync<OfferSummary>("/api/housing/offers/summary", Json);
         var cheap = await Facets(client, "?priceMax=2500");
+        var large = (await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers?sort=Price&direction=Descending&pageSize=1", Json))!.Items.Single();
+        var others = await client.GetFromJsonAsync<OfferSummary>($"/api/housing/offers/summary?excludeOffer={large.Id}", Json);
 
         Assert.Multiple(() =>
         {
@@ -364,7 +366,22 @@ public class HousingImportTests
             Assert.That((cheap.Price!.From, cheap.Price.Width), Is.EqualTo((2000m, 500m)));
             Assert.That(cheap.Price.Counts, Is.EqualTo(new[] { 1, 0, 1, 0, 1 }));
             Assert.That(cheap.AreaM2!.Counts.Sum(), Is.EqualTo(1));
+            // An offer compared with the others is not one of them.
+            Assert.That((others!.Count, others.Price!.Median), Is.EqualTo((2, 2600m)));
         });
+    }
+
+    [Test]
+    public async Task Price_histogram_copes_with_a_price_far_beyond_the_others()
+    {
+        await using var factory = App(WithFakes);
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small, Medium, Large with { Price = new Money(90_000_000m, Currency.Pln) }]];
+        await RunImport(client);
+
+        var facets = await Facets(client, "");
+
+        Assert.That(facets.Price!.Counts.Sum(), Is.EqualTo(3));
     }
 
     [Test]
@@ -378,9 +395,15 @@ public class HousingImportTests
         await RunImport(client);
         var medium = (await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers?sort=Price&direction=Ascending", Json))!.Items[1];
 
-        var added = await ListedTitles(client, $"?addedSince={Uri.EscapeDataString(medium.CreatedAt.ToString("O"))}");
+        var since = Uri.EscapeDataString(medium.CreatedAt.ToString("O"));
+        var added = await ListedTitles(client, $"?addedSince={since}");
+        var counts = await Facets(client, $"?countAddedSince={since}&countAddedSince={Uri.EscapeDataString(At(0).ToString("O"))}");
 
-        Assert.That(added, Is.EqualTo(new[] { "Medium flat" }));
+        Assert.Multiple(() =>
+        {
+            Assert.That(added, Is.EqualTo(new[] { "Medium flat" }));
+            Assert.That(counts.AddedSince, Is.EqualTo(new[] { 1, 2 }));
+        });
     }
 
     [Test]

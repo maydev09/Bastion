@@ -22,7 +22,8 @@ public sealed record OfferFilterQuery(
     Answer? furnished,
     DateTimeOffset? addedSince,
     bool? changed,
-    bool? priceCut)
+    bool? priceCut,
+    int? excludeOffer)
 {
     public OfferFilter ToFilter() => new()
     {
@@ -42,5 +43,6 @@ public sealed record OfferFilterQuery(
         AddedSince = addedSince,
         Changed = changed,
         PriceCut = priceCut ?? false,
+        ExcludeOffer = excludeOffer,
     };
 }

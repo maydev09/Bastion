@@ -458,6 +458,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         OfferFilter filter,
         IReadOnlyList<PopulationRange> placeSizes,
         IReadOnlyDictionary<PlaceSize, PopulationRange> allSizes,
+        IReadOnlyList<DateTimeOffset> countAddedSince,
         CancellationToken cancellationToken)
     {
         var withoutLocation = BuildWhere(filter with { Voivodeships = [], PlaceIds = [], WithoutPlace = false }, placeSizes);
@@ -468,6 +469,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         var withPriceCut = BuildWhere(filter with { PriceCut = true }, placeSizes);
         var withoutPrice = BuildWhere(filter with { PriceMin = null, PriceMax = null }, placeSizes) + " AND o.price_currency = @PriceCurrency";
         var withoutArea = BuildWhere(filter with { AreaMin = null, AreaMax = null }, placeSizes);
+        var withoutAddedSince = BuildWhere(filter with { AddedSince = null }, placeSizes);
         var sql = $$"""
             SELECT p.voivodeship, count(*)::int
             FROM housing.offer o
@@ -506,6 +508,8 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             {{BuildHistogramSql("o.price", withoutPrice)}}
 
             {{BuildHistogramSql("o.area_m2", withoutArea)}}
+
+            {{string.Concat(countAddedSince.Select((_, i) => $"SELECT count(*)::int FROM housing.offer o WHERE {withoutAddedSince} AND o.created_at >= @CountAddedSince{i};\n"))}}
             """;
         var parameters = BuildParameters(filter, placeSizes);
         parameters.Add("AllSizes", allSizes.Keys.Select(s => (int)s).ToArray());
@@ -514,6 +518,11 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         parameters.Add("AllSizeMaxes", allSizes.Values.Select(s => s.Max).ToArray());
         parameters.Add("Widths", HistogramWidths);
         parameters.Add("MinBars", HistogramMinBars);
+        for (var i = 0; i < countAddedSince.Count; i++)
+        {
+            parameters.Add($"CountAddedSince{i}", countAddedSince[i]);
+        }
+
         parameters.Add("MaxBars", HistogramMaxBars);
         await using var connection = await db.OpenConnectionAsync(cancellationToken);
         await using var results = await connection.QueryMultipleAsync(new CommandDefinition(sql, parameters, cancellationToken: cancellationToken));
@@ -536,6 +545,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             PriceCut = await results.ReadSingleAsync<int>(),
             Price = ReadHistogram(await results.ReadAsync<HistogramRow>()),
             AreaM2 = ReadHistogram(await results.ReadAsync<HistogramRow>()),
+            AddedSince = await ReadCountsAsync(results, countAddedSince.Count),
         };
     }
 
@@ -568,7 +578,11 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         ), s AS (
             SELECT floor(r.low / w.width) * w.width AS start, w.width,
                 greatest(ceil(r.high / w.width), floor(r.low / w.width) + 1) * w.width AS stop
-            FROM r, LATERAL (SELECT min(c) AS width FROM unnest(@Widths) AS c WHERE (r.high - r.low) / c <= r.bars) w
+            -- A range too wide for every round width (e.g. a price typed in millions) gets a plain one.
+            FROM r, LATERAL (
+                SELECT coalesce(min(c), ceil((r.high - r.low) / r.bars::numeric)) AS width
+                FROM unnest(@Widths) AS c
+                WHERE (r.high - r.low) / c <= r.bars) w
         )
         SELECT s.start, s.width, s.stop,
             least(greatest(floor((v.value - s.start) / s.width), 0), (s.stop - s.start) / s.width - 1)::int AS bucket,
@@ -594,6 +608,17 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         }
 
         return new Histogram(start, width, counts);
+    }
+
+    private static async Task<List<int>> ReadCountsAsync(SqlMapper.GridReader results, int count)
+    {
+        var counts = new List<int>(count);
+        for (var i = 0; i < count; i++)
+        {
+            counts.Add(await results.ReadSingleAsync<int>());
+        }
+
+        return counts;
     }
 
     private sealed record HistogramRow(decimal Start, decimal Width, decimal Stop, int Bucket, int Count);
@@ -685,6 +710,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             FeatureCount = features.Length,
             Furnished = (int?)filter.Furnished,
             filter.AddedSince,
+            filter.ExcludeOffer,
         });
     }
 
@@ -762,6 +788,11 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         if (filter.AddedSince is not null)
         {
             conditions.Add("o.created_at >= @AddedSince");
+        }
+
+        if (filter.ExcludeOffer is not null)
+        {
+            conditions.Add("o.id <> @ExcludeOffer");
         }
 
         if (filter.Changed is { } changed)

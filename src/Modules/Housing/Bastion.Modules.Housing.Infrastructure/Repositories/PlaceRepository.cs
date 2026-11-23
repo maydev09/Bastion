@@ -48,10 +48,16 @@ public sealed class PlaceRepository(NpgsqlDataSource db) : IPlaceRepository
 
     // A name key holds only a-z, 0-9 and '-', so the prefix needs no LIKE escaping.
     // Places with offers come first; ties go to the bigger place, then to the name, so the order is stable.
+    // The offers are counted once per place and joined, not counted again for every matching place.
     private const string SearchSql = """
-        SELECT p.id, p.name, p.voivodeship, p.county, p.municipality, p.kind,
-            (SELECT count(*)::int FROM housing.offer o WHERE o.place_id = p.id AND o.removed_at IS NULL) AS offer_count
+        WITH counts AS (
+            SELECT place_id, count(*)::int AS offer_count
+            FROM housing.offer
+            WHERE removed_at IS NULL AND place_id IS NOT NULL
+            GROUP BY place_id)
+        SELECT p.id, p.name, p.voivodeship, p.county, p.municipality, p.kind, coalesce(c.offer_count, 0) AS offer_count
         FROM housing.place p
+        LEFT JOIN counts c ON c.place_id = p.id
         WHERE p.name_key LIKE @Prefix || '%' OR p.name_key LIKE '%-' || @Prefix || '%'
         ORDER BY offer_count DESC, p.population DESC NULLS LAST, p.name, p.id
         LIMIT @Limit

@@ -45,6 +45,9 @@ public sealed record OfferFilter
     // published earlier but collected later still counts as new.
     public DateTimeOffset? AddedSince { get; init; }
 
+    // Leaves this offer out, e.g. to compare an offer with the others.
+    public int? ExcludeOffer { get; init; }
+
     // Offers with (true) or without (false) any recorded change.
     public bool? Changed { get; init; }
 

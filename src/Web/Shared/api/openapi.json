@@ -284,6 +284,14 @@
             }
           },
           {
+            "name": "excludeOffer",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
             "name": "page",
             "in": "query",
             "schema": {
@@ -341,7 +349,7 @@
         "tags": [
           "Housing"
         ],
-        "summary": "Returns how many offers each filter choice would show with the other given filters, and the spread of prices and areas without the price and area bounds.",
+        "summary": "Returns how many offers each filter choice would show with the other given filters, the spread of prices and areas without the price and area bounds, and the offers first seen since each countAddedSince.",
         "operationId": "CountHousingOfferFacets",
         "parameters": [
           {
@@ -477,6 +485,25 @@
             "in": "query",
             "schema": {
               "type": "boolean"
+            }
+          },
+          {
+            "name": "excludeOffer",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          },
+          {
+            "name": "countAddedSince",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "format": "date-time"
+              }
             }
           }
         ],
@@ -635,6 +662,14 @@
             "in": "query",
             "schema": {
               "type": "boolean"
+            }
+          },
+          {
+            "name": "excludeOffer",
+            "in": "query",
+            "schema": {
+              "type": "integer",
+              "format": "int32"
             }
           }
         ],
@@ -1270,7 +1305,8 @@
           "features",
           "changed",
           "unchanged",
-          "priceCut"
+          "priceCut",
+          "addedSince"
         ],
         "type": "object",
         "properties": {
@@ -1317,6 +1353,13 @@
           "priceCut": {
             "type": "integer",
             "format": "int32"
+          },
+          "addedSince": {
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            }
           },
           "price": {
             "oneOf": [

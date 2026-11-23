@@ -18,11 +18,12 @@ public sealed class ListOffersHandler(IOfferRepository repository, IOptions<Plac
         return offers with { Items = offers.Items.Select(AddDerivedValues).ToList() };
     }
 
-    public Task<OfferFacets> CountFacets(OfferFilter filter, CancellationToken cancellationToken)
+    public Task<OfferFacets> CountFacets(
+        OfferFilter filter, IReadOnlyList<DateTimeOffset> countAddedSince, CancellationToken cancellationToken)
     {
         var placeSizes = filter.PlaceSizes.Distinct().Select(sizes.Value.RangeOf).ToList();
         var allSizes = Enum.GetValues<PlaceSize>().ToDictionary(size => size, sizes.Value.RangeOf);
-        return repository.CountFacetsAsync(filter, placeSizes, allSizes, cancellationToken);
+        return repository.CountFacetsAsync(filter, placeSizes, allSizes, countAddedSince, cancellationToken);
     }
 
     public Task<OfferSummary> Summarize(OfferFilter filter, CancellationToken cancellationToken)

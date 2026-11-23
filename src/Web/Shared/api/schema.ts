@@ -114,7 +114,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Returns how many offers each filter choice would show with the other given filters, and the spread of prices and areas without the price and area bounds. */
+        /** Returns how many offers each filter choice would show with the other given filters, the spread of prices and areas without the price and area bounds, and the offers first seen since each countAddedSince. */
         get: operations["CountHousingOfferFacets"];
         put?: never;
         post?: never;
@@ -431,6 +431,7 @@ export interface components {
             unchanged: number;
             /** Format: int32 */
             priceCut: number;
+            addedSince: number[];
             price?: null | components["schemas"]["Histogram"];
             areaM2?: null | components["schemas"]["Histogram"];
         };
@@ -719,6 +720,7 @@ export interface operations {
                 addedSince?: string;
                 changed?: boolean;
                 priceCut?: boolean;
+                excludeOffer?: number;
                 page?: number;
                 pageSize?: number;
                 sort?: components["schemas"]["OfferSort"];
@@ -760,6 +762,8 @@ export interface operations {
                 addedSince?: string;
                 changed?: boolean;
                 priceCut?: boolean;
+                excludeOffer?: number;
+                countAddedSince?: string[];
             };
             header?: never;
             path?: never;
@@ -797,6 +801,7 @@ export interface operations {
                 addedSince?: string;
                 changed?: boolean;
                 priceCut?: boolean;
+                excludeOffer?: number;
             };
             header?: never;
             path?: never;

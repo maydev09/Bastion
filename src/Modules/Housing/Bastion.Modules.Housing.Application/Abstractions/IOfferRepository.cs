@@ -24,10 +24,12 @@ public interface IOfferRepository
         CancellationToken cancellationToken);
 
     // allSizes: the population range of every place size, to count offers by the size of their place.
+    // countAddedSince: moments to count the offers first seen since, in place of the filter's own AddedSince.
     Task<OfferFacets> CountFacetsAsync(
         OfferFilter filter,
         IReadOnlyList<PopulationRange> placeSizes,
         IReadOnlyDictionary<PlaceSize, PopulationRange> allSizes,
+        IReadOnlyList<DateTimeOffset> countAddedSince,
         CancellationToken cancellationToken);
 
     // now: the moment the days listed are counted to.

@@ -25,6 +25,9 @@ public sealed record OfferFacets
 
     public required int PriceCut { get; init; }
 
+    // For each asked moment, in the order asked, how many offers Bastion first saw since then (e.g. the last visit).
+    public required IReadOnlyList<int> AddedSince { get; init; }
+
     // The prices (PLN) and areas under the other filters, so the chosen range can be seen against all of them;
     // null when no offer has the value.
     public Histogram? Price { get; init; }

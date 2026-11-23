@@ -64,11 +64,14 @@ public static class OfferEndpoints
             + "amenities match all of them unless featureMatch is Any.");
 
         app.MapGet("/offers/facets", async (
-            ListOffersHandler handler, CancellationToken cancellationToken, [AsParameters] OfferFilterQuery filter) =>
-            TypedResults.Ok(await handler.CountFacets(filter.ToFilter(), cancellationToken)))
+            ListOffersHandler handler,
+            CancellationToken cancellationToken,
+            [AsParameters] OfferFilterQuery filter,
+            [FromQuery] DateTimeOffset[]? countAddedSince) =>
+            TypedResults.Ok(await handler.CountFacets(filter.ToFilter(), countAddedSince ?? [], cancellationToken)))
         .WithName("CountHousingOfferFacets")
         .WithSummary("Returns how many offers each filter choice would show with the other given filters, "
-            + "and the spread of prices and areas without the price and area bounds.");
+            + "the spread of prices and areas without the price and area bounds, and the offers first seen since each countAddedSince.");
 
         app.MapGet("/offers/summary", async (
             ListOffersHandler handler, CancellationToken cancellationToken, [AsParameters] OfferFilterQuery filter) =>
