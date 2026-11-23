@@ -18,7 +18,8 @@ public sealed class FetchDetailsHandler(
     // A missing page (HTTP 404) is no sign of a refusal; only far more of them in a row mean the whole portal
     // answers so (changed URLs, a block page) and stop the run.
     // A portal out of reach (no VPN, network, timeout) is retried after FirstRetrySeconds, then twice as long each time;
-    // when the retries run out it stops the run and blames no offer.
+    // when the retries run out it stops the run and blames no offer. When a retry would pass the time limit, the run ends
+    // as at its time limit and the offer waits for the next run.
     // A rate limited portal (429, 503) stops the run at once: the scraping client already backs off before its next request.
     public const int MaxFetchFailuresInRow = 10;
 
@@ -62,11 +63,13 @@ public sealed class FetchDetailsHandler(
 
                 var fetch = await offerSource.FetchDetailPageAsync(offer.Url, cancellationToken);
                 var retries = 0;
+                var outOfTime = false;
                 while (fetch.Failure is { Kind: FailureKind.Unavailable } && retries < options.Value.Retries)
                 {
                     var wait = TimeSpan.FromSeconds(options.Value.FirstRetrySeconds * (1 << retries));
                     if (time.GetUtcNow() + wait + RequestAllowance >= deadline)
                     {
+                        outOfTime = true;
                         break;
                     }
 
@@ -76,10 +79,17 @@ public sealed class FetchDetailsHandler(
                 }
 
                 retried += retries;
+                if (outOfTime)
+                {
+                    failed += await BlameAsync(streak, cancellationToken);
+                    return new DetailsOutcome(new DetailsResult(source, fetched, failed, removed, retried), null);
+                }
+
                 if (fetch.Failure is { Kind: FailureKind.Unavailable or FailureKind.RateLimited } unavailable)
                 {
-                    // A failed run keeps no summary, so the retries go into the error.
-                    return new DetailsOutcome(null, unavailable with { Detail = $"{unavailable.Detail} (after {retries} retries)" });
+                    // The summary counts the retries of the whole run; the error says how often this request was retried.
+                    return new DetailsOutcome(new DetailsResult(source, fetched, failed, removed, retried),
+                        unavailable with { Detail = $"{unavailable.Detail} (after {retries} retries)" });
                 }
 
                 if (fetch.Failure is { Kind: FailureKind.Removed })
@@ -94,7 +104,7 @@ public sealed class FetchDetailsHandler(
                     streak.Add((offer, time.GetUtcNow(), fetchFailure.Detail, fetchFailure.Kind == FailureKind.Missing));
                     if (streak.Count(f => !f.IsMissing) >= MaxFetchFailuresInRow || streak.Count(f => f.IsMissing) >= MaxMissingPagesInRow)
                     {
-                        return new DetailsOutcome(null, fetchFailure);
+                        return new DetailsOutcome(new DetailsResult(source, fetched, failed, removed, retried), fetchFailure);
                     }
 
                     continue;

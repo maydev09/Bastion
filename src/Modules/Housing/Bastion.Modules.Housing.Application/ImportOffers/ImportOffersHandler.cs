@@ -38,7 +38,7 @@ public sealed class ImportOffersHandler(
             var fetch = await offerSource.FetchListingPageAsync(number, cancellationToken);
             if (fetch.Failure is not null)
             {
-                return new ImportOutcome(null, fetch.Failure);
+                return new ImportOutcome(BuildResult(new MissedCounts(0, 0)), fetch.Failure);
             }
 
             // Stored before parsing, so a page the parser cannot read is kept for fixing it.
@@ -48,7 +48,7 @@ public sealed class ImportOffersHandler(
             var parsed = offerSource.Parse(page);
             if (parsed.Failure is not null)
             {
-                return new ImportOutcome(null, parsed.Failure);
+                return new ImportOutcome(BuildResult(new MissedCounts(0, 0)), parsed.Failure);
             }
 
             // New offers posted during the import push offers of a read page onto the next one; they are not saved twice.
@@ -76,7 +76,7 @@ public sealed class ImportOffersHandler(
             // Offers after the limit were not read, so none can be counted as missing.
             if (!reachedLastPage)
             {
-                return new ImportOutcome(null, new Failure(PageLimitReached,
+                return new ImportOutcome(BuildResult(missed), new Failure(PageLimitReached,
                     $"The full scan of {source} stopped at the limit of {maxPages} pages before the last page; no offer was marked removed.",
                     FailureKind.Failed));
             }
@@ -84,8 +84,9 @@ public sealed class ImportOffersHandler(
             missed = await repository.MarkMissedAsync(source, startedAt!.Value, MissedScansToRemove, cancellationToken);
         }
 
-        var result = new ImportResult(source, pageCount, statistics.Added, statistics.Updated, statistics.Unchanged, statistics.Skipped,
-            missed.Missed, missed.Removed);
-        return new ImportOutcome(result, null);
+        return new ImportOutcome(BuildResult(missed), null);
+
+        ImportResult BuildResult(MissedCounts missedCounts) => new(source, pageCount, statistics.Added, statistics.Updated,
+            statistics.Unchanged, statistics.Skipped, missedCounts.Missed, missedCounts.Removed);
     }
 }

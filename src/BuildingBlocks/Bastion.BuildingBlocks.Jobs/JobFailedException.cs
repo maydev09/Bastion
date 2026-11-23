@@ -6,4 +6,7 @@ public sealed class JobFailedException(string code, string message) : Exception(
     public const string Unexpected = "jobs.unexpected";
 
     public string Code { get; } = code;
+
+    // The work done before the failure, kept with the run.
+    public JobSummary? Summary { get; init; }
 }
