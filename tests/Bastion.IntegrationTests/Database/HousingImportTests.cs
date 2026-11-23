@@ -554,27 +554,32 @@ public class HousingImportTests
     }
 
     [Test]
-    public async Task Rejected_values_are_kept_until_a_page_without_them()
+    public async Task A_rejected_value_clears_the_field_until_a_page_without_it()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
         using var client = factory.CreateClient();
         _source.Pages = [[Small]];
-        _source.Details["1"] = new OfferDetails(RejectedValues: new Dictionary<string, string> { ["build_year"] = "195014" });
+        _source.Details["1"] = new OfferDetails(BuildYear: 1950);
         await RunImport(client);
-        var first = await RunDetails(client);
-        var rejected = await Scalar<string>("SELECT concat_ws('|', build_year, rejected_values->>'build_year') FROM housing.offer");
+        await RunDetails(client);
 
         _source.Pages = [[Small with { Price = new Money(2000m, Currency.Pln) }]];
-        _source.Details["1"] = new OfferDetails(BuildYear: 1950);
+        _source.Details["1"] = new OfferDetails(RejectedValues: new Dictionary<string, string> { [OfferColumn.BuildYear] = "195014" });
+        await RunImport(client);
+        var rejectedRun = await RunDetails(client);
+        var rejected = await Scalar<string>("SELECT concat_ws('|', build_year, rejected_values->>'build_year') FROM housing.offer");
+
+        _source.Pages = [[Small with { Price = new Money(2100m, Currency.Pln) }]];
+        _source.Details["1"] = new OfferDetails(BuildYear: 1960);
         await RunImport(client);
         await RunDetails(client);
         var corrected = await Scalar<string>("SELECT concat_ws('|', build_year, rejected_values) FROM housing.offer");
 
         Assert.Multiple(() =>
         {
-            Assert.That(first, Is.EqualTo(new Fetched(1, 0)));
+            Assert.That(rejectedRun, Is.EqualTo(new Fetched(1, 0)));
             Assert.That(rejected, Is.EqualTo("195014"));
-            Assert.That(corrected, Is.EqualTo("1950"));
+            Assert.That(corrected, Is.EqualTo("1960"));
         });
     }
 

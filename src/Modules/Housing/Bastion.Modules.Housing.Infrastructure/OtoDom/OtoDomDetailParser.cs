@@ -51,9 +51,9 @@ public static class OtoDomDetailParser
 
         // Sellers type these by hand (a build year of 195014); an implausible number is kept only in RejectedValues.
         var rejected = new Dictionary<string, string>();
-        int? NumberBetween(string key, int min, int max, string column)
+        int? NumberBetween(string column, string? value, int min, int max)
         {
-            if (Value(key) is not { } value)
+            if (value is null)
             {
                 return null;
             }
@@ -68,10 +68,16 @@ public static class OtoDomDetailParser
         }
 
         // Planned buildings have future years; the oldest tenements to let are a few hundred years old.
-        var buildYear = NumberBetween("build_year", 1000, 2100, "build_year");
-        var buildingFloors = NumberBetween("building_floors_num", 0, 100, "building_floors");
+        var buildYear = NumberBetween(OfferColumn.BuildYear, Value("build_year"), 1000, 2100);
+        var buildingFloors = NumberBetween(OfferColumn.BuildingFloors, Value("building_floors_num"), 0, 100);
 
+        // mapDetails.radius is a JSON number (meters around the point), not text like the characteristics.
         OtoDomListingParser.TryGetPath(ad, out var location, "location");
+        var radius = OtoDomListingParser.TryGetPath(location, out var radiusValue, "mapDetails", "radius")
+            && radiusValue.ValueKind != JsonValueKind.Null
+            ? NumberBetween(OfferColumn.LocationRadiusM, radiusValue.ToString(), 0, 100_000)
+            : null;
+
         var details = new OfferDetails(
             OtoDomListingParser.Plausible(MoneyOf("rent")),
             MoneyOf("deposit"),
@@ -84,9 +90,7 @@ public static class OtoDomDetailParser
             ConditionOf(Value("construction_status")),
             Coordinate(location, "latitude"),
             Coordinate(location, "longitude"),
-            OtoDomListingParser.TryGetPath(location, out var radius, "mapDetails", "radius") && radius.ValueKind == JsonValueKind.Number
-                ? radius.GetInt32()
-                : null,
+            radius,
             Text(ad, "description"),
             Features(ad),
             rejected.Count > 0 ? rejected : null);

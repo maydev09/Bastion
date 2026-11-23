@@ -81,7 +81,8 @@ public class OtoDomDetailParserTests
             {"props":{"pageProps":{"ad":{"id":1,"characteristics":[
               {"key":"build_year","value":"195014"},
               {"key":"building_floors_num","value":"250"},
-              {"key":"floor_no","value":"floor_3"}]}}}}
+              {"key":"floor_no","value":"floor_3"}],
+              "location":{"mapDetails":{"radius":1500.5}}}}}}
             </script>
             """;
 
@@ -89,11 +90,13 @@ public class OtoDomDetailParserTests
 
         Assert.Multiple(() =>
         {
-            Assert.That((details.BuildYear, details.BuildingFloors, details.Floor), Is.EqualTo(((int?)null, (int?)null, (int?)3)));
+            Assert.That((details.BuildYear, details.BuildingFloors, details.LocationRadiusM, details.Floor),
+                Is.EqualTo(((int?)null, (int?)null, (int?)null, (int?)3)));
             Assert.That(details.RejectedValues, Is.EquivalentTo(new Dictionary<string, string>
             {
-                ["build_year"] = "195014",
-                ["building_floors"] = "250",
+                [OfferColumn.BuildYear] = "195014",
+                [OfferColumn.BuildingFloors] = "250",
+                [OfferColumn.LocationRadiusM] = "1500.5",
             }));
         });
     }

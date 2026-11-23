@@ -147,6 +147,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         """;
 
     // A null never clears a stored value: another page may not show a field this one showed.
+    // A rejected value does: the page shows the field, and the stored value is no longer what it says.
     private const string SaveDetailsSql = """
         UPDATE housing.offer
         SET rent = COALESCE(@Rent, rent),
@@ -155,14 +156,14 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             deposit_currency = COALESCE(@DepositCurrency, deposit_currency),
             available_from = COALESCE(@AvailableFrom, available_from),
             floor = COALESCE(@Floor, floor),
-            building_floors = COALESCE(@BuildingFloors, building_floors),
-            build_year = COALESCE(@BuildYear, build_year),
+            building_floors = CASE WHEN @RejectedValues::jsonb ? 'building_floors' THEN NULL ELSE COALESCE(@BuildingFloors, building_floors) END,
+            build_year = CASE WHEN @RejectedValues::jsonb ? 'build_year' THEN NULL ELSE COALESCE(@BuildYear, build_year) END,
             building_type = COALESCE(@BuildingType, building_type),
             heating = COALESCE(@Heating, heating),
             condition = COALESCE(@Condition, condition),
             latitude = COALESCE(@Latitude, latitude),
             longitude = COALESCE(@Longitude, longitude),
-            location_radius_m = COALESCE(@LocationRadiusM, location_radius_m),
+            location_radius_m = CASE WHEN @RejectedValues::jsonb ? 'location_radius_m' THEN NULL ELSE COALESCE(@LocationRadiusM, location_radius_m) END,
             description = COALESCE(@Description, description),
             rejected_values = @RejectedValues::jsonb
         WHERE source_id = @SourceId AND external_id = @ExternalId
