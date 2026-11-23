@@ -118,6 +118,8 @@ Spend effort only on what solves a real problem the maintainer has today
   Migrations are `.sql` files run by dbmate (with `migrate:down`), one folder and schema per module.
   Never edit an applied migration. No generated columns (identity keys are fine); the domain calculates derived values.
   The database guards only the data model: types, `NOT NULL`, keys, foreign keys and uniqueness.
+  A column accepts every value of its C# type: `integer`, not `smallint`; a `numeric` keeps its scale but has
+  29 digits before the point, enough for any `decimal` (money `numeric(31,2)`).
   No `CHECK` constraints: rules on values (e.g. price needs a currency) are validated in C#, and code
   that writes an enum column passes the C# enum type, never a bare number.
   An enum has only the values the code uses now; add a value when a feature needs it.
