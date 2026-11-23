@@ -1,2 +1,4 @@
 export const offersQueryKey = ["housing", "offers"];
-export const placesRunQueryKey = ["housing", "jobs", "ImportPlaces", "latest"];
+export const latestRunQueryKey = (job: string) => ["housing", "jobs", job, "latest"];
+export const placesQueryKey = ["housing", "places"];
+export const featuresQueryKey = ["housing", "features"];

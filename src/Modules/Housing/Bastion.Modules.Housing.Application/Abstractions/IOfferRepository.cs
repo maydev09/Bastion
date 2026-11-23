@@ -1,4 +1,5 @@
 using Bastion.Modules.Housing.Application.ListOffers;
+using Bastion.Modules.Housing.Application.Places;
 using Bastion.Modules.Housing.Domain;
 using Bastion.Platform.Abstractions;
 
@@ -13,7 +14,27 @@ public interface IOfferRepository
     // Called after a complete full scan: listed offers not seen since it started miss one more scan.
     Task<MissedCounts> MarkMissedAsync(Source source, DateTimeOffset scanStartedAt, int missedScansToRemove, CancellationToken cancellationToken);
 
-    Task<PagedResult<OfferListItem>> ListAsync(PageRequest page, OfferSort sort, SortDirection direction, CancellationToken cancellationToken);
+    // placeSizes: the population ranges of filter.PlaceSizes under the configured thresholds; a place matches any of them.
+    Task<PagedResult<OfferListItem>> ListAsync(
+        OfferFilter filter,
+        IReadOnlyList<PopulationRange> placeSizes,
+        PageRequest page,
+        OfferSort sort,
+        SortDirection direction,
+        CancellationToken cancellationToken);
+
+    // allSizes: the population range of every place size, to count offers by the size of their place.
+    // countAddedSince: moments to count the offers first seen since, in place of the filter's own AddedSince.
+    Task<OfferFacets> CountFacetsAsync(
+        OfferFilter filter,
+        IReadOnlyList<PopulationRange> placeSizes,
+        IReadOnlyDictionary<PlaceSize, PopulationRange> allSizes,
+        IReadOnlyList<DateTimeOffset> countAddedSince,
+        CancellationToken cancellationToken);
+
+    // now: the moment the days listed are counted to.
+    Task<OfferSummary> SummarizeAsync(
+        OfferFilter filter, IReadOnlyList<PopulationRange> placeSizes, DateTimeOffset now, CancellationToken cancellationToken);
 
     // Also a removed offer; null when there is no offer with the id.
     Task<OfferListItem?> GetAsync(int id, CancellationToken cancellationToken);

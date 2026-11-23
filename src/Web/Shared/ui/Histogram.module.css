@@ -1,0 +1,52 @@
+.histogram {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+}
+
+/* The bars stand on a baseline; a 2px gap of the surface between them. */
+.bars {
+  display: flex;
+  gap: 2px;
+  height: 40px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+/* The whole column is the click target, also above a short bar. */
+.bar {
+  display: flex;
+  flex: 1;
+  align-items: flex-end;
+  min-width: 0;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+
+  & > span {
+    width: 100%;
+    border-radius: 2px 2px 0 0;
+    background: var(--color-border-strong);
+  }
+
+  &[data-picked] > span {
+    background: var(--color-accent);
+  }
+
+  &:hover > span {
+    background: var(--color-accent-hover);
+  }
+
+  /* The bars are a mouse shortcut out of the tab order, so a click leaves no focus ring. */
+  &:focus {
+    outline: none;
+  }
+}
+
+.axis {
+  display: flex;
+  justify-content: space-between;
+  color: var(--color-muted);
+  font-size: 0.75rem;
+  font-variant-numeric: tabular-nums;
+}

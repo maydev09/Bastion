@@ -8,4 +8,5 @@ public enum OfferSort
     PricePerM2 = 3,
     AreaM2 = 4,
     Rooms = 5,
+    Rent = 6,
 }

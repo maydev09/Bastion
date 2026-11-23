@@ -21,8 +21,6 @@ public sealed class ImportPlacesJob(ImportPlacesHandler handler) : IJob
             ["places"] = result.PlaceCount,
             ["added"] = result.AddedCount,
             ["updated"] = result.UpdatedCount,
-            ["linkedOffers"] = result.LinkedOfferCount,
-            ["unlinkedOffers"] = result.UnlinkedOfferCount,
         });
     }
 }

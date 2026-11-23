@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Bastion.Modules.Housing.Application.Abstractions;
 using Bastion.Modules.Housing.Application.ListOffers;
+using Bastion.Modules.Housing.Application.Places;
 using Bastion.Modules.Housing.Domain;
 using Bastion.Platform.Abstractions;
 using Dapper;
@@ -83,31 +84,67 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
     private const string OfferColumns = """
         o.id, o.source_id AS source, o.title, o.url, o.property_type, o.transaction, o.price, o.price_currency,
         o.area_m2, o.rooms, o.created_at, o.updated_at, o.external_created_at, o.external_updated_at,
-        p.name AS place_name, p.kind AS place_kind, p.role AS place_role, p.voivodeship, p.county, p.municipality,
-        p.population, p.population_year, p.population_source
+        o.place_id, p.name AS place_name, p.kind AS place_kind, p.role AS place_role, p.voivodeship, p.county, p.municipality,
+        p.population, p.population_year, p.population_source, o.rent, o.rent_currency, o.furnished,
+        (SELECT (c.changes -> 'price' ->> 0)::numeric
+         FROM housing.offer_change c
+         WHERE c.offer_id = o.id AND c.changes ? 'price'
+         ORDER BY c.changed_at DESC, c.id DESC
+         LIMIT 1) AS previous_price
         """;
 
     // The page is cut first and only its offers are joined with their places.
-    // The ORDER BY list from BuildOrderBy picks the page and orders its rows.
-    private static string BuildListSql(string orderBy) => $$"""
+    // The WHERE conditions from BuildWhere pick the offers; the ORDER BY list from BuildOrderBy picks the page and orders its rows.
+    private static string BuildListSql(string where, string orderBy) => $$"""
         SELECT {{OfferColumns}}
         FROM (
             SELECT *
             FROM housing.offer o
-            WHERE removed_at IS NULL
+            WHERE {{where}}
             ORDER BY {{orderBy}}
             LIMIT @PageSize OFFSET @Offset
         ) o
         LEFT JOIN housing.place p ON p.id = o.place_id
         ORDER BY {{orderBy}};
 
-        SELECT count(*)::int FROM housing.offer WHERE removed_at IS NULL;
+        SELECT count(*)::int FROM housing.offer o WHERE {{where}};
+        """;
+
+    // A place filter picks places first: a few hundred of them have offers, so the offers are found by their place_id.
+    private const string LocationCondition = """
+        o.place_id IN (SELECT id FROM housing.place WHERE voivodeship = ANY(@Voivodeships) OR id = ANY(@PlaceIds))
+        """;
+
+    private const string PlaceSizeCondition = """
+        o.place_id IN (
+            SELECT p.id
+            FROM housing.place p
+            JOIN unnest(@SizeKinds, @SizeMins, @SizeMaxes) AS s (kind, min, max)
+                ON p.kind = s.kind AND p.population >= s.min AND (s.max IS NULL OR p.population < s.max))
+        """;
+
+    private const string AllFeaturesCondition = """
+        (SELECT count(*) FROM housing.offer_feature f WHERE f.offer_id = o.id AND f.feature = ANY(@Features)) = @FeatureCount
+        """;
+
+    private const string AnyFeatureCondition = """
+        EXISTS (SELECT 1 FROM housing.offer_feature f WHERE f.offer_id = o.id AND f.feature = ANY(@Features))
+        """;
+
+    private const string ChangedCondition = "EXISTS (SELECT 1 FROM housing.offer_change c WHERE c.offer_id = o.id)";
+
+    // housing.offer_change keeps a price change as [old, new]; a price removed (new is null) is no cut.
+    private const string PriceCutCondition = """
+        EXISTS (
+            SELECT 1
+            FROM housing.offer_change c
+            WHERE c.offer_id = o.id AND (c.changes -> 'price' ->> 1)::numeric < (c.changes -> 'price' ->> 0)::numeric)
         """;
 
     // A removed offer is still shown, e.g. from an old link.
     private const string GetSql = $"""
         SELECT {OfferColumns},
-            o.rent, o.rent_currency, o.deposit, o.deposit_currency, o.available_from, o.floor, o.building_floors,
+            o.deposit, o.deposit_currency, o.available_from, o.floor, o.building_floors,
             o.build_year, o.building_type, o.heating, o.condition, o.latitude, o.longitude, o.location_radius_m,
             o.description, f.fetched_at AS details_fetched_at
         FROM housing.offer o
@@ -165,6 +202,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             longitude = COALESCE(@Longitude, longitude),
             location_radius_m = CASE WHEN @RejectedValues::jsonb ? 'location_radius_m' THEN NULL ELSE COALESCE(@LocationRadiusM, location_radius_m) END,
             description = COALESCE(@Description, description),
+            furnished = COALESCE(@Furnished, furnished),
             rejected_values = @RejectedValues::jsonb
         WHERE source_id = @SourceId AND external_id = @ExternalId
         RETURNING id
@@ -214,7 +252,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         SELECT o.id, o.title, o.property_type, o.transaction, o.price, o.price_currency, o.area_m2, o.rooms,
             o.rent, o.rent_currency, o.deposit, o.deposit_currency, o.available_from::text AS available_from, o.floor, o.building_floors,
             o.build_year, o.building_type, o.heating, o.condition, o.latitude, o.longitude, o.location_radius_m,
-            o.description,
+            o.description, o.furnished,
             CASE WHEN f.fetched_at IS NOT NULL
                 THEN ARRAY(SELECT feature FROM housing.offer_feature WHERE offer_id = o.id ORDER BY feature)
             END AS features,
@@ -396,16 +434,378 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
     }
 
     public async Task<PagedResult<OfferListItem>> ListAsync(
-        PageRequest page, OfferSort sort, SortDirection direction, CancellationToken cancellationToken)
+        OfferFilter filter,
+        IReadOnlyList<PopulationRange> placeSizes,
+        PageRequest page,
+        OfferSort sort,
+        SortDirection direction,
+        CancellationToken cancellationToken)
     {
-        var sql = BuildListSql(BuildOrderBy(sort, direction));
+        var sql = BuildListSql(BuildWhere(filter, placeSizes), BuildOrderBy(sort, direction));
+        var parameters = BuildParameters(filter, placeSizes);
+        parameters.Add("PageSize", page.PageSize);
+        parameters.Add("Offset", page.Offset);
         await using var connection = await db.OpenConnectionAsync(cancellationToken);
-        await using var results = await connection.QueryMultipleAsync(new CommandDefinition(
-            sql, new { page.PageSize, page.Offset }, cancellationToken: cancellationToken));
+        await using var results = await connection.QueryMultipleAsync(new CommandDefinition(sql, parameters, cancellationToken: cancellationToken));
 
         var items = (await results.ReadAsync<OfferListItem>()).ToList();
         var total = await results.ReadSingleAsync<int>();
         return new PagedResult<OfferListItem>(await WithNearbyAsync(connection, items, cancellationToken), page.Page, page.PageSize, total);
+    }
+
+    // Each group is counted under the filter without its own choices where they join with OR (see OfferFacets).
+    public async Task<OfferFacets> CountFacetsAsync(
+        OfferFilter filter,
+        IReadOnlyList<PopulationRange> placeSizes,
+        IReadOnlyDictionary<PlaceSize, PopulationRange> allSizes,
+        IReadOnlyList<DateTimeOffset> countAddedSince,
+        CancellationToken cancellationToken)
+    {
+        var withoutLocation = BuildWhere(filter with { Voivodeships = [], PlaceIds = [], WithoutPlace = false }, placeSizes);
+        var withoutSize = BuildWhere(filter, []);
+        var withoutFurnished = BuildWhere(filter with { Furnished = null }, placeSizes);
+        var forFeatures = BuildWhere(filter.FeatureMatch == FeatureMatch.Any ? filter with { Features = [] } : filter, placeSizes);
+        var withoutChanged = BuildWhere(filter with { Changed = null }, placeSizes);
+        var withPriceCut = BuildWhere(filter with { PriceCut = true }, placeSizes);
+        var withoutPrice = BuildWhere(filter with { PriceMin = null, PriceMax = null }, placeSizes) + " AND o.price_currency = @PriceCurrency";
+        var withoutArea = BuildWhere(filter with { AreaMin = null, AreaMax = null }, placeSizes);
+        var withoutAddedSince = BuildWhere(filter with { AddedSince = null }, placeSizes);
+        var sql = $$"""
+            SELECT p.voivodeship, count(*)::int
+            FROM housing.offer o
+            JOIN housing.place p ON p.id = o.place_id
+            WHERE {{withoutLocation}} AND p.voivodeship IS NOT NULL
+            GROUP BY p.voivodeship;
+
+            SELECT count(*)::int FROM housing.offer o WHERE {{withoutLocation}} AND o.place_id IS NULL;
+
+            SELECT s.size, count(*)::int
+            FROM housing.offer o
+            JOIN housing.place p ON p.id = o.place_id
+            JOIN unnest(@AllSizes, @AllSizeKinds, @AllSizeMins, @AllSizeMaxes) AS s (size, kind, min, max)
+                ON p.kind = s.kind AND p.population >= s.min AND (s.max IS NULL OR p.population < s.max)
+            WHERE {{withoutSize}}
+            GROUP BY s.size;
+
+            SELECT o.furnished, count(*)::int
+            FROM housing.offer o
+            WHERE {{withoutFurnished}} AND o.furnished IS NOT NULL
+            GROUP BY o.furnished;
+
+            SELECT listed.feature, count(*)::int
+            FROM housing.offer o
+            JOIN housing.offer_feature listed ON listed.offer_id = o.id
+            WHERE {{forFeatures}}
+            GROUP BY listed.feature;
+
+            SELECT {{ChangedCondition}} AS changed, count(*)::int
+            FROM housing.offer o
+            WHERE {{withoutChanged}}
+            GROUP BY 1;
+
+            SELECT count(*)::int FROM housing.offer o WHERE {{withPriceCut}};
+
+            {{BuildHistogramSql("o.price", withoutPrice)}}
+
+            {{BuildHistogramSql("o.area_m2", withoutArea)}}
+
+            {{string.Concat(countAddedSince.Select((_, i) => $"SELECT count(*)::int FROM housing.offer o WHERE {withoutAddedSince} AND o.created_at >= @CountAddedSince{i};\n"))}}
+            """;
+        var parameters = BuildParameters(filter, placeSizes);
+        parameters.Add("AllSizes", allSizes.Keys.Select(s => (int)s).ToArray());
+        parameters.Add("AllSizeKinds", allSizes.Values.Select(s => (int)s.Kind).ToArray());
+        parameters.Add("AllSizeMins", allSizes.Values.Select(s => s.Min).ToArray());
+        parameters.Add("AllSizeMaxes", allSizes.Values.Select(s => s.Max).ToArray());
+        parameters.Add("Widths", HistogramWidths);
+        parameters.Add("MinBars", HistogramMinBars);
+        for (var i = 0; i < countAddedSince.Count; i++)
+        {
+            parameters.Add($"CountAddedSince{i}", countAddedSince[i]);
+        }
+
+        parameters.Add("MaxBars", HistogramMaxBars);
+        await using var connection = await db.OpenConnectionAsync(cancellationToken);
+        await using var results = await connection.QueryMultipleAsync(new CommandDefinition(sql, parameters, cancellationToken: cancellationToken));
+
+        var voivodeships = (await results.ReadAsync<(int Value, int Count)>()).ToDictionary(r => (Voivodeship)r.Value, r => r.Count);
+        var withoutPlace = await results.ReadSingleAsync<int>();
+        var sizes = (await results.ReadAsync<(int Value, int Count)>()).ToDictionary(r => (PlaceSize)r.Value, r => r.Count);
+        var furnished = (await results.ReadAsync<(int Value, int Count)>()).ToDictionary(r => (Answer)r.Value, r => r.Count);
+        var features = (await results.ReadAsync<(int Value, int Count)>()).ToDictionary(r => (Feature)r.Value, r => r.Count);
+        var changed = (await results.ReadAsync<(bool Changed, int Count)>()).ToDictionary(r => r.Changed, r => r.Count);
+        return new OfferFacets
+        {
+            Voivodeships = voivodeships,
+            WithoutPlace = withoutPlace,
+            PlaceSizes = sizes,
+            Furnished = furnished,
+            Features = features,
+            Changed = changed.GetValueOrDefault(true),
+            Unchanged = changed.GetValueOrDefault(false),
+            PriceCut = await results.ReadSingleAsync<int>(),
+            Price = ReadHistogram(await results.ReadAsync<HistogramRow>()),
+            AreaM2 = ReadHistogram(await results.ReadAsync<HistogramRow>()),
+            AddedSince = await ReadCountsAsync(results, countAddedSince.Count),
+        };
+    }
+
+    // The widths a histogram bucket may have, so its edges are round numbers ("2 500 zł", "40 m²").
+    private static readonly decimal[] HistogramWidths =
+        [1, 2, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1_000, 2_000, 2_500, 5_000, 10_000, 20_000, 50_000, 100_000];
+
+    // The number of bars grows with the offers (Rice rule: 2 * cube root of n), so a few offers get a few wide bars.
+    private const int HistogramMinBars = 5;
+
+    private const int HistogramMaxBars = 30;
+
+    // The scale spans the usual values (Tukey's fences: from Q1 - 1.5 * IQR to Q3 + 1.5 * IQR, within the lowest
+    // and the highest value), so a few extreme offers do not squeeze the rest into one bar; the values beyond the
+    // fences fall into the first and the last bar. The width is the narrowest round one that fits in the bars.
+    private static string BuildHistogramSql(string value, string where) => $$"""
+        WITH v AS (
+            SELECT {{value}} AS value FROM housing.offer o WHERE {{where}} AND {{value}} IS NOT NULL
+        ), q AS (
+            SELECT percentile_cont(0.25) WITHIN GROUP (ORDER BY value)::numeric AS q1,
+                percentile_cont(0.75) WITHIN GROUP (ORDER BY value)::numeric AS q3,
+                min(value) AS lowest, max(value) AS highest,
+                least(@MaxBars, greatest(@MinBars, ceil(2 * cbrt(count(*))))) AS bars
+            FROM v
+        ), r AS (
+            SELECT greatest(q.lowest, q.q1 - 1.5 * (q.q3 - q.q1)) AS low,
+                least(q.highest, q.q3 + 1.5 * (q.q3 - q.q1)) AS high,
+                q.bars
+            FROM q
+        ), s AS (
+            SELECT floor(r.low / w.width) * w.width AS start, w.width,
+                greatest(ceil(r.high / w.width), floor(r.low / w.width) + 1) * w.width AS stop
+            -- A range too wide for every round width (e.g. a price typed in millions) gets a plain one.
+            FROM r, LATERAL (
+                SELECT coalesce(min(c), ceil((r.high - r.low) / r.bars::numeric)) AS width
+                FROM unnest(@Widths) AS c
+                WHERE (r.high - r.low) / c <= r.bars) w
+        )
+        SELECT s.start, s.width, s.stop,
+            least(greatest(floor((v.value - s.start) / s.width), 0), (s.stop - s.start) / s.width - 1)::int AS bucket,
+            count(*)::int AS count
+        FROM v, s
+        GROUP BY s.start, s.width, s.stop, bucket
+        ORDER BY bucket;
+        """;
+
+    private static Histogram? ReadHistogram(IEnumerable<HistogramRow> rows)
+    {
+        var buckets = rows.ToList();
+        if (buckets.Count == 0)
+        {
+            return null;
+        }
+
+        var (start, width, stop) = (buckets[0].Start, buckets[0].Width, buckets[0].Stop);
+        var counts = new int[(int)((stop - start) / width)];
+        foreach (var bucket in buckets)
+        {
+            counts[bucket.Bucket] = bucket.Count;
+        }
+
+        return new Histogram(start, width, counts);
+    }
+
+    private static async Task<List<int>> ReadCountsAsync(SqlMapper.GridReader results, int count)
+    {
+        var counts = new List<int>(count);
+        for (var i = 0; i < count; i++)
+        {
+            counts.Add(await results.ReadSingleAsync<int>());
+        }
+
+        return counts;
+    }
+
+    private sealed record HistogramRow(decimal Start, decimal Width, decimal Stop, int Bucket, int Count);
+
+    public async Task<OfferSummary> SummarizeAsync(
+        OfferFilter filter, IReadOnlyList<PopulationRange> placeSizes, DateTimeOffset now, CancellationToken cancellationToken)
+    {
+        var sql = $$"""
+            SELECT count(*)::int AS count,
+                {{BuildSpreadSql("o.price", "o.price_currency = @PriceCurrency", "price")}},
+                {{BuildSpreadSql("o.price / NULLIF(o.area_m2, 0)", "o.price_currency = @PriceCurrency", "price_per_m2")}},
+                {{BuildSpreadSql("o.rent", "o.rent_currency = @PriceCurrency", "rent")}},
+                {{BuildSpreadSql("o.area_m2", "TRUE", "area")}},
+                {{BuildSpreadSql("extract(epoch FROM @Now - coalesce(o.external_created_at, o.created_at)) / 86400", "TRUE", "days_listed")}}
+            FROM housing.offer o
+            WHERE {{BuildWhere(filter, placeSizes)}};
+            """;
+        await using var connection = await db.OpenConnectionAsync(cancellationToken);
+        var parameters = BuildParameters(filter, placeSizes);
+        parameters.Add("Now", now);
+        var row = await connection.QuerySingleAsync<SummaryRow>(new CommandDefinition(sql, parameters, cancellationToken: cancellationToken));
+        return new OfferSummary
+        {
+            Count = row.Count,
+            Price = ReadSpread(row.Price, row.PriceCount),
+            PricePerM2 = ReadSpread(row.PricePerM2, row.PricePerM2Count),
+            Rent = ReadSpread(row.Rent, row.RentCount),
+            AreaM2 = ReadSpread(row.Area, row.AreaCount),
+            DaysListed = ReadSpread(row.DaysListed, row.DaysListedCount),
+        };
+    }
+
+    // The quartiles and the number of offers with the value; condition picks the offers it is counted for (e.g. its currency).
+    private static string BuildSpreadSql(string value, string condition, string name) => $"""
+        percentile_cont(ARRAY[0.25, 0.5, 0.75]) WITHIN GROUP (ORDER BY {value}) FILTER (WHERE {condition}) AS {name},
+        count({value}) FILTER (WHERE {condition})::int AS {name}_count
+        """;
+
+    private static Spread? ReadSpread(double[]? quartiles, int count) =>
+        quartiles is [var low, var median, var high] && count > 0
+            ? new Spread(Math.Round((decimal)low, 2), Math.Round((decimal)median, 2), Math.Round((decimal)high, 2), count)
+            : null;
+
+    // Properties, not a constructor: Dapper matches snake_case columns (price_per_m2_count) to property names.
+    private sealed class SummaryRow
+    {
+        public int Count { get; init; }
+
+        public double[]? Price { get; init; }
+
+        public int PriceCount { get; init; }
+
+        public double[]? PricePerM2 { get; init; }
+
+        public int PricePerM2Count { get; init; }
+
+        public double[]? Rent { get; init; }
+
+        public int RentCount { get; init; }
+
+        public double[]? Area { get; init; }
+
+        public int AreaCount { get; init; }
+
+        public double[]? DaysListed { get; init; }
+
+        public int DaysListedCount { get; init; }
+    }
+
+    // The values of every condition BuildWhere may add.
+    private static DynamicParameters BuildParameters(OfferFilter filter, IReadOnlyList<PopulationRange> placeSizes)
+    {
+        var features = filter.Features.Distinct().Select(f => (int)f).ToArray();
+        return new DynamicParameters(new
+        {
+            Voivodeships = filter.Voivodeships.Select(v => (int)v).ToArray(),
+            PlaceIds = filter.PlaceIds.ToArray(),
+            SizeKinds = placeSizes.Select(s => (int)s.Kind).ToArray(),
+            SizeMins = placeSizes.Select(s => s.Min).ToArray(),
+            SizeMaxes = placeSizes.Select(s => s.Max).ToArray(),
+            PriceCurrency = (int)OfferFilter.PriceCurrency,
+            filter.PriceMin,
+            filter.PriceMax,
+            filter.AreaMin,
+            filter.AreaMax,
+            Rooms = filter.Rooms.ToArray(),
+            filter.RoomsMin,
+            Features = features,
+            FeatureCount = features.Length,
+            Furnished = (int?)filter.Furnished,
+            filter.AddedSince,
+            filter.ExcludeOffer,
+        });
+    }
+
+    // Only the filters in use become conditions, so the plain list stays a plain query.
+    private static string BuildWhere(OfferFilter filter, IReadOnlyList<PopulationRange> placeSizes)
+    {
+        var conditions = new List<string> { "o.removed_at IS NULL" };
+        var byPlace = filter.Voivodeships.Count > 0 || filter.PlaceIds.Count > 0;
+        if (byPlace && filter.WithoutPlace)
+        {
+            conditions.Add($"({LocationCondition.Trim()} OR o.place_id IS NULL)");
+        }
+        else if (byPlace)
+        {
+            conditions.Add(LocationCondition);
+        }
+        else if (filter.WithoutPlace)
+        {
+            conditions.Add("o.place_id IS NULL");
+        }
+
+        if (placeSizes.Count > 0)
+        {
+            conditions.Add(PlaceSizeCondition);
+        }
+
+        if (filter.PriceMin is not null || filter.PriceMax is not null)
+        {
+            conditions.Add("o.price_currency = @PriceCurrency");
+        }
+
+        if (filter.PriceMin is not null)
+        {
+            conditions.Add("o.price >= @PriceMin");
+        }
+
+        if (filter.PriceMax is not null)
+        {
+            conditions.Add("o.price <= @PriceMax");
+        }
+
+        if (filter.AreaMin is not null)
+        {
+            conditions.Add("o.area_m2 >= @AreaMin");
+        }
+
+        if (filter.AreaMax is not null)
+        {
+            conditions.Add("o.area_m2 <= @AreaMax");
+        }
+
+        if (filter.Rooms.Count > 0 && filter.RoomsMin is not null)
+        {
+            conditions.Add("(o.rooms = ANY(@Rooms) OR o.rooms >= @RoomsMin)");
+        }
+        else if (filter.Rooms.Count > 0)
+        {
+            conditions.Add("o.rooms = ANY(@Rooms)");
+        }
+        else if (filter.RoomsMin is not null)
+        {
+            conditions.Add("o.rooms >= @RoomsMin");
+        }
+
+        if (filter.Furnished is not null)
+        {
+            conditions.Add("o.furnished = @Furnished");
+        }
+
+        if (filter.Features.Count > 0)
+        {
+            conditions.Add(filter.FeatureMatch == FeatureMatch.Any ? AnyFeatureCondition : AllFeaturesCondition);
+        }
+
+        if (filter.AddedSince is not null)
+        {
+            conditions.Add("o.created_at >= @AddedSince");
+        }
+
+        if (filter.ExcludeOffer is not null)
+        {
+            conditions.Add("o.id <> @ExcludeOffer");
+        }
+
+        if (filter.Changed is { } changed)
+        {
+            conditions.Add(changed ? ChangedCondition : $"NOT {ChangedCondition}");
+        }
+
+        if (filter.PriceCut)
+        {
+            conditions.Add(PriceCutCondition);
+        }
+
+        return string.Join(" AND ", conditions.Select(c => c.Trim()));
     }
 
     public async Task<OfferListItem?> GetAsync(int id, CancellationToken cancellationToken)
@@ -435,6 +835,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             OfferSort.PricePerM2 => "o.price / NULLIF(o.area_m2, 0)",
             OfferSort.AreaM2 => "o.area_m2",
             OfferSort.Rooms => "o.rooms",
+            OfferSort.Rent => "o.rent",
             _ => throw new ArgumentOutOfRangeException(nameof(sort), sort, null),
         };
         var order = direction == SortDirection.Ascending ? "ASC" : "DESC";
@@ -465,6 +866,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         "building_type" => value.Deserialize<BuildingType?>(),
         "heating" => value.Deserialize<Heating?>(),
         "condition" => value.Deserialize<Condition?>(),
+        "furnished" => value.Deserialize<Answer?>(),
         "features" => value.Deserialize<Feature[]>(),
         _ => value.ValueKind == JsonValueKind.Null ? null : value.Clone(),
     };
@@ -515,6 +917,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             details.Longitude,
             details.LocationRadiusM,
             details.Description,
+            Furnished = (int?)details.Furnished,
             RejectedValues = details.RejectedValues is { } rejected ? JsonSerializer.Serialize(rejected) : null,
         }, transaction, cancellationToken: cancellationToken));
         if (offerId is null)

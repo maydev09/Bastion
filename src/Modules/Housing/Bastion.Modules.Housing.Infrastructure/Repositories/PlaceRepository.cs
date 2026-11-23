@@ -1,4 +1,5 @@
 using Bastion.Modules.Housing.Application.Abstractions;
+using Bastion.Modules.Housing.Application.ListPlaces;
 using Bastion.Modules.Housing.Domain;
 using Dapper;
 using Npgsql;
@@ -43,6 +44,30 @@ public sealed class PlaceRepository(NpgsqlDataSource db) : IPlaceRepository
                excluded.population, excluded.population_year, excluded.population_source, excluded.latitude,
                excluded.longitude)
         RETURNING (xmax = 0) AS inserted
+        """;
+
+    // A name key holds only a-z, 0-9 and '-', so the prefix needs no LIKE escaping.
+    // Places with offers come first; ties go to the bigger place, then to the name, so the order is stable.
+    // The offers are counted once per place and joined, not counted again for every matching place.
+    private const string SearchSql = """
+        WITH counts AS (
+            SELECT place_id, count(*)::int AS offer_count
+            FROM housing.offer
+            WHERE removed_at IS NULL AND place_id IS NOT NULL
+            GROUP BY place_id)
+        SELECT p.id, p.name, p.voivodeship, p.county, p.municipality, p.kind, coalesce(c.offer_count, 0) AS offer_count
+        FROM housing.place p
+        LEFT JOIN counts c ON c.place_id = p.id
+        WHERE p.name_key LIKE @Prefix || '%' OR p.name_key LIKE '%-' || @Prefix || '%'
+        ORDER BY offer_count DESC, p.population DESC NULLS LAST, p.name, p.id
+        LIMIT @Limit
+        """;
+
+    private const string GetListItemSql = """
+        SELECT p.id, p.name, p.voivodeship, p.county, p.municipality, p.kind,
+            (SELECT count(*)::int FROM housing.offer o WHERE o.place_id = p.id AND o.removed_at IS NULL) AS offer_count
+        FROM housing.place p
+        WHERE p.id = @Id
         """;
 
     private const string ReplaceNearbySql = """
@@ -91,6 +116,22 @@ public sealed class PlaceRepository(NpgsqlDataSource db) : IPlaceRepository
         return new SaveCounts(added, updated, places.Count - added - updated);
     }
 
+    public async Task<IReadOnlyList<PlaceListItem>> SearchAsync(string nameKeyPrefix, int limit, CancellationToken cancellationToken)
+    {
+        await using var connection = await db.OpenConnectionAsync(cancellationToken);
+        var rows = await connection.QueryAsync<PlaceListRow>(new CommandDefinition(
+            SearchSql, new { Prefix = nameKeyPrefix, Limit = limit }, cancellationToken: cancellationToken));
+        return rows.Select(ToListItem).ToList();
+    }
+
+    public async Task<PlaceListItem?> GetListItemAsync(int id, CancellationToken cancellationToken)
+    {
+        await using var connection = await db.OpenConnectionAsync(cancellationToken);
+        var row = await connection.QuerySingleOrDefaultAsync<PlaceListRow>(new CommandDefinition(
+            GetListItemSql, new { Id = id }, cancellationToken: cancellationToken));
+        return row is null ? null : ToListItem(row);
+    }
+
     public async Task ReplaceNearbyAsync(IReadOnlyList<PlaceNearby> nearby, CancellationToken cancellationToken)
     {
         await using var connection = await db.OpenConnectionAsync(cancellationToken);
@@ -110,6 +151,11 @@ public sealed class PlaceRepository(NpgsqlDataSource db) : IPlaceRepository
         r.Simc, r.Name, (Voivodeship)r.Voivodeship, r.County, r.Municipality, (PlaceKind?)r.Kind, (PlaceRole?)r.Role,
         r.Population, r.PopulationYear, (PlaceSource?)r.PopulationSource, r.Latitude, r.Longitude)
     { Id = r.Id };
+
+    private static PlaceListItem ToListItem(PlaceListRow r) =>
+        new(r.Id, r.Name, (Voivodeship)r.Voivodeship, r.County, r.Municipality, (PlaceKind?)r.Kind, r.OfferCount);
+
+    private sealed record PlaceListRow(int Id, string Name, int Voivodeship, string? County, string? Municipality, int? Kind, int OfferCount);
 
     private sealed record PlaceRow(
         int Id, string Simc, string Name, int Voivodeship, string? County, string? Municipality, int? Kind, int? Role,

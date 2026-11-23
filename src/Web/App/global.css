@@ -1,34 +1,36 @@
 /*
- * Design tokens with the colors of the Noctalia palette (default), light and dark:
- * https://github.com/noctalia-dev/noctalia/blob/main/src/theme/builtin_palettes.cpp
- * Noctalia defines the roles (primary, surface, outline...); the shades it computes at runtime
- * (panel backgrounds, borders, hovers) and the success color are chosen here from its hues.
+ * Design tokens with the colors of the Noctalia palette, light and dark.
+ * Light: the roles of the built-in palette
+ * (https://github.com/noctalia-dev/noctalia/blob/main/src/theme/builtin_palettes.cpp).
+ * Dark: the color scheme Noctalia writes for KDE Plasma (noctalia.colors), so the app matches the desktop:
+ * a deep background and vivid accents. Shades it does not give (borders, hovers) are mixed from its colors.
  * Each color is light-dark(light, dark). The theme follows the system unless the user picks one
  * in the top bar, which sets data-theme on <html>.
  */
 :root {
   color-scheme: light dark;
-  --color-bg: light-dark(#dcddea, #15162e); /* surface */
-  --color-surface: light-dark(#e9eaf3, #1b1c37);
-  --color-surface-raised: light-dark(#f0f0f7, #262848);
-  --color-surface-sunken: light-dark(#cfd2e4, #20213d); /* surface_container */
-  --color-surface-hover: light-dark(#d4d7ea, #26284a);
-  --color-text: light-dark(#292b45, #ece9f4); /* on_surface */
-  --color-text-secondary: light-dark(#414765, #a5a7c6); /* on_surface_variant */
-  --color-muted: light-dark(#5d6386, #8587ab);
-  --color-border: light-dark(#bfc3dc, #2c2e51);
-  --color-border-strong: light-dark(#a4aac9, #3e4166); /* outline_variant */
-  --color-accent: light-dark(#5058b1, #f7e9a8); /* primary */
-  --color-accent-hover: light-dark(#434a9c, #fff3c8);
-  --color-accent-soft: light-dark(#d0d3ef, #34334a);
-  --color-on-accent: light-dark(#f0eff7, #302c1e); /* on_primary */
-  --color-highlight: light-dark(#3b4168, #a0ddc0); /* hover */
-  --color-on-highlight: light-dark(#fff0bd, #1d3029); /* on_hover */
-  --color-success: light-dark(#2a6e51, #a0ddc0); /* dark: tertiary */
-  --color-warning: light-dark(#8a5a00, #f0c27a);
-  --color-error: light-dark(#a53c59, #ed8296); /* error */
-  --color-info: light-dark(#555e88, #b3b8ed); /* secondary */
-  --color-focus: light-dark(#5058b1, #b3b8ed);
+  --color-bg: light-dark(#dcddea, #070722); /* surface */
+  --color-surface: light-dark(#e9eaf3, #11112d);
+  --color-surface-raised: light-dark(#f0f0f7, #1a1a42);
+  --color-surface-sunken: light-dark(#cfd2e4, #0c0c27); /* surface_container */
+  --color-surface-hover: light-dark(#d4d7ea, #1f1f4c);
+  --color-text: light-dark(#292b45, #f3edf7); /* on_surface */
+  --color-text-secondary: light-dark(#414765, #c4c3e0); /* on_surface_variant */
+  --color-muted: light-dark(#5d6386, #8589bd);
+  --color-border: light-dark(#bfc3dc, #25254a);
+  --color-border-strong: light-dark(#a4aac9, #3a3a66); /* outline_variant */
+  --color-accent: light-dark(#5058b1, #fff59b); /* primary */
+  --color-accent-hover: light-dark(#434a9c, #fffac8);
+  --color-accent-soft: light-dark(#d0d3ef, #33323f);
+  --color-on-accent: light-dark(#f0eff7, #070722); /* on_primary */
+  --color-highlight: light-dark(#3b4168, #9bfece); /* hover */
+  --color-on-highlight: light-dark(#fff0bd, #062a1c); /* on_hover */
+  --color-success: light-dark(#2a6e51, #9bfece); /* dark: tertiary */
+  --color-warning: light-dark(#8a5a00, #ffc66b);
+  --color-error: light-dark(#a53c59, #fd4663); /* error */
+  --color-info: light-dark(#555e88, #a9aefe); /* secondary */
+  --color-focus: light-dark(#5058b1, #a9aefe);
+  --color-backdrop: light-dark(rgb(41 43 69 / 35%), rgb(3 3 15 / 65%)); /* behind a dialog */
   --shadow-popup:
     0 8px 24px light-dark(rgb(51 54 82 / 22%), rgb(11 12 27 / 60%)),
     0 1px 2px light-dark(rgb(51 54 82 / 14%), rgb(11 12 27 / 40%)); /* shadow */
@@ -41,11 +43,13 @@
   --space-8: 32px;
   --radius: 6px;
   --radius-sm: 4px;
-  --control-height: 32px;
-  --font-size-sm: 0.8125rem;
-  --font-size: 0.875rem;
-  --font-size-lg: 1rem;
-  --font-size-title: 1.25rem;
+  /* Sized for comfortable reading and clicking: 16px text, 40px controls. */
+  --control-height: 40px;
+  --control-height-sm: 34px;
+  --font-size-sm: 0.875rem;
+  --font-size: 1rem;
+  --font-size-lg: 1.125rem;
+  --font-size-title: 1.5rem;
 
   font-family:
     system-ui,

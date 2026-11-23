@@ -95,6 +95,7 @@ public static class OtoDomDetailParser
             radius,
             Text(ad, "description"),
             Features(ad),
+            Furnished(ad),
             rejected.Count > 0 ? rejected : null);
         return (id.GetRawText(), details);
     }
@@ -136,39 +137,72 @@ public static class OtoDomDetailParser
         _ => null,
     };
 
-    // additionalInformation is a list of {label, values}; values look like "extras_types::balcony".
-    // Air conditioning comes as "extras_types::air_conditioning" inside equipment_types, so only the part after "::" counts.
-    // Null when the page has neither group: unknown, so the stored features are kept.
+    // additionalInformation is a list of {label, values}; values look like "extras_types::balcony" or
+    // "security_types-102::monitoring". Air conditioning comes as "extras_types::air_conditioning" inside
+    // equipment_types, so only the part after "::" counts.
+    private static readonly string[] FeatureGroups = ["extras_types", "equipment_types", "media_types", "security_types"];
+
+    // Null when the page has none of the groups: unknown, so the stored features are kept.
     private static List<Feature>? Features(JsonElement ad)
     {
-        if (!ad.TryGetProperty("additionalInformation", out var groups) || groups.ValueKind != JsonValueKind.Array)
+        if (ReadGroups(ad) is not { } groups)
         {
             return null;
         }
 
         var features = new List<Feature>();
-        var found = false;
-        foreach (var group in groups.EnumerateArray())
+        foreach (var value in groups.Where(g => FeatureGroups.Contains(g.Key)).SelectMany(g => g.Value))
         {
-            if (Text(group, "label") is not ("extras_types" or "equipment_types")
+            if (FeatureOf(value) is { } feature && !features.Contains(feature))
+            {
+                features.Add(feature);
+            }
+        }
+
+        return groups.Keys.Any(FeatureGroups.Contains) ? features : null;
+    }
+
+    // OtoDom has no furnished field, only "furniture" among the equipment the advertiser ticked: other equipment
+    // without it means an unfurnished flat, no equipment at all means not stated.
+    private static Answer? Furnished(JsonElement ad)
+    {
+        if (ReadGroups(ad) is not { } groups)
+        {
+            return null;
+        }
+
+        var values = groups.Where(g => FeatureGroups.Contains(g.Key)).SelectMany(g => g.Value).ToList();
+        var equipment = groups.GetValueOrDefault("equipment_types") ?? [];
+        return values.Contains("furniture") ? Answer.Yes
+            : equipment.Count > 0 ? Answer.No
+            : Answer.NotStated;
+    }
+
+    // Each group's values without their "group::" prefix; null without additionalInformation.
+    private static Dictionary<string, List<string>>? ReadGroups(JsonElement ad)
+    {
+        if (!ad.TryGetProperty("additionalInformation", out var list) || list.ValueKind != JsonValueKind.Array)
+        {
+            return null;
+        }
+
+        var groups = new Dictionary<string, List<string>>();
+        foreach (var group in list.EnumerateArray())
+        {
+            if (Text(group, "label") is not { } label
                 || !group.TryGetProperty("values", out var values) || values.ValueKind != JsonValueKind.Array)
             {
                 continue;
             }
 
-            found = true;
-            foreach (var value in values.EnumerateArray())
-            {
-                var text = value.ValueKind == JsonValueKind.String ? value.GetString()! : "";
-                var separator = text.IndexOf("::", StringComparison.Ordinal);
-                if (separator >= 0 && FeatureOf(text[(separator + 2)..]) is { } feature && !features.Contains(feature))
-                {
-                    features.Add(feature);
-                }
-            }
+            groups[label] = values.EnumerateArray()
+                .Select(v => v.ValueKind == JsonValueKind.String ? v.GetString()! : "")
+                .Where(v => v.Contains("::", StringComparison.Ordinal))
+                .Select(v => v[(v.IndexOf("::", StringComparison.Ordinal) + 2)..])
+                .ToList();
         }
 
-        return found ? features : null;
+        return groups;
     }
 
     private static Feature? FeatureOf(string value) => value switch
@@ -180,9 +214,21 @@ public static class OtoDomDetailParser
         "basement" => Feature.Basement,
         "garage" => Feature.Parking,
         "air_conditioning" => Feature.AirConditioning,
-        "furniture" => Feature.Furnished,
         "dishwasher" => Feature.Dishwasher,
         "washing_machine" => Feature.WashingMachine,
+        "fridge" => Feature.Fridge,
+        "stove" => Feature.Stove,
+        "oven" => Feature.Oven,
+        "separate_kitchen" => Feature.SeparateKitchen,
+        "usable_room" => Feature.UsableRoom,
+        "two_storey" => Feature.TwoStorey,
+        "internet" => Feature.Internet,
+        "cable-television" => Feature.CableTelevision,
+        "entryphone" => Feature.Entryphone,
+        "monitoring" => Feature.Monitoring,
+        "closed_area" => Feature.ClosedArea,
+        "anti_burglary_door" => Feature.AntiBurglaryDoor,
+        "non_smokers_only" => Feature.NonSmokersOnly,
         _ => null,
     };
 

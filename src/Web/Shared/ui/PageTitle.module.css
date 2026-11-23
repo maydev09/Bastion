@@ -1,0 +1,33 @@
+.title {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.text {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: var(--space-1) var(--space-3);
+  min-width: 0;
+
+  & h1 {
+    font-size: var(--font-size-title);
+    line-height: 1.25;
+    overflow-wrap: anywhere;
+  }
+}
+
+.aside {
+  color: var(--color-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* At the right end of the title, before the shell's own buttons. */
+.actions {
+  display: flex;
+  flex: none;
+  gap: var(--space-1);
+  margin-left: auto;
+}

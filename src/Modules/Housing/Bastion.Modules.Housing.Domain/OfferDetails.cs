@@ -19,4 +19,5 @@ public sealed record OfferDetails(
     int? LocationRadiusM = null,
     string? Description = null,
     IReadOnlyList<Feature>? Features = null,
+    Answer? Furnished = null,
     IReadOnlyDictionary<string, string>? RejectedValues = null);

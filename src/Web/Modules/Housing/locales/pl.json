@@ -1,5 +1,13 @@
 {
   "title": "Nieruchomości",
+  "nav": {
+    "offers": "Oferty",
+    "collection": "Pobieranie danych"
+  },
+  "collection": {
+    "title": "Pobieranie danych",
+    "hint": "Import z OtoDom, ponowne przetwarzanie zapisanych stron i słownik miejscowości. Wszystko działa też samo według harmonogramu; tu uruchamiasz to ręcznie."
+  },
   "import": {
     "description": "Pobiera najnowszą stronę ogłoszeń z OtoDom, zapisuje nowe oferty i aktualizuje zmienione.",
     "run": "Importuj z OtoDom",
@@ -15,14 +23,16 @@
     "failed": "Nieudane strony: {{count}}."
   },
   "places": {
-    "description": "Pobiera z Wikidata słownik miejscowości (miasto czy wieś, liczba mieszkańców) i przypisuje oferty do miejscowości. Trwa minutę lub dwie.",
+    "description": "Pobiera z Wikidata słownik miejscowości: miasto czy wieś, liczba mieszkańców, najbliższe większe miasta. Oferty zostają bez zmian. Trwa minutę lub dwie.",
     "run": "Pobierz miejscowości",
     "running": "Pobieram miejscowości…",
-    "result": "Miejscowości: {{places}} (nowe {{added}}, zmienione {{updated}}). Oferty z miejscowością: {{linked}}, bez: {{unlinked}}."
+    "result": "Miejscowości: {{places}} (nowe {{added}}, zmienione {{updated}})."
   },
-  "tools": {
-    "title": "Pobieranie danych",
-    "hint": "Import z OtoDom, ponowne przetwarzanie, miejscowości. Działa też samo według harmonogramu."
+  "link": {
+    "description": "Przypisuje zapisane oferty do miejscowości ze słownika. Uruchom po pobraniu miejscowości albo po poprawce dopasowania; nowe oferty dostają miejscowość od razu przy imporcie.",
+    "run": "Przypisz oferty do miejscowości",
+    "running": "Przypisuję…",
+    "result": "Oferty z miejscowością: {{linked}}, bez: {{unlinked}}."
   },
   "list": {
     "title": "Oferty",
@@ -31,15 +41,81 @@
     "count_many": "{{count, number}} ofert",
     "count_other": "{{count, number}} oferty",
     "loading": "Wczytywanie ofert…",
-    "empty": "Nie ma jeszcze zapisanych ofert. Uruchom import w sekcji „Pobieranie danych” powyżej.",
+    "empty": "Nie ma jeszcze zapisanych ofert.",
+    "goToCollection": "Pobierz oferty",
     "offer": "Oferta",
     "place": "Miejscowość",
     "price": "Cena",
     "pricePerM2": "Cena za m²",
-    "area": "Powierzchnia",
+    "area": "Metraż",
     "rooms": "Pokoje",
     "firstSeen": "Dodano",
-    "pageEmpty": "Na tej stronie nie ma już ofert. Przejdź do ostatniej strony."
+    "pageEmpty": "Na tej stronie nie ma już ofert. Przejdź do ostatniej strony.",
+    "rent": "Czynsz",
+    "furnished": "Meble",
+    "previousPrice": "Wcześniej {{price}}"
+  },
+  "filters": {
+    "title": "Filtry",
+    "clear": "Wyczyść",
+    "hide": "Ukryj filtry",
+    "show": "Pokaż filtry",
+    "inUse_one": "{{count}} filtr w użyciu",
+    "inUse_few": "{{count}} filtry w użyciu",
+    "inUse_many": "{{count}} filtrów w użyciu",
+    "inUse_other": "{{count}} filtra w użyciu",
+    "location": "Lokalizacja",
+    "place": "Miejscowość",
+    "placePlaceholder": "Wpisz nazwę…",
+    "placeStart": "Wpisz początek nazwy miejscowości.",
+    "placeNone": "Nie ma miejscowości o takiej nazwie.",
+    "searching": "Szukam…",
+    "inCounty": "pow. {{county}}",
+    "voivodeship": "Województwo",
+    "voivodeshipPlaceholder": "Wpisz nazwę…",
+    "voivodeshipNone": "Nie ma takiego województwa.",
+    "remove": "Usuń: {{name}}",
+    "size": "Wielkość miejscowości",
+    "towns": "Miasta",
+    "villages": "Wsie",
+    "price": "Cena najmu (bez czynszu)",
+    "area": "Powierzchnia",
+    "rooms": "Pokoje",
+    "from": "{{what}}: od",
+    "to": "{{what}}: do",
+    "min": "od",
+    "max": "do",
+    "features": "Udogodnienia",
+    "history": "Historia zmian",
+    "priceCut": "Cena obniżona",
+    "priceCutHint": "Zmiany zapisane, odkąd Bastion śledzi ofertę; obniżka to spadek ceny.",
+    "noMatch": "Żadna oferta nie pasuje do wybranych filtrów.",
+    "any": "Wszystkie",
+    "furnishedHint": "Bez ofert, w których ogłoszeniodawca tego nie podał.",
+    "changed": "Zmiany oferty",
+    "changedAny": "Wszystkie oferty",
+    "changedYes": "Zmienione",
+    "changedNo": "Bez zmian",
+    "anyOf": "dowolne z zaznaczonych",
+    "allOf": "wszystkie zaznaczone",
+    "match": "Oferta ma",
+    "matchAll": "wszystkie",
+    "matchAny": "dowolne",
+    "orMore": "{{count}}+",
+    "withCount": "{{label}} ({{count, number}})",
+    "inUseList": "Filtry w użyciu",
+    "chipValue": "{{what}}: {{value}}",
+    "chipRange": "{{what}}: {{from}}–{{to}}",
+    "chipFrom": "{{what}}: od {{value}}",
+    "chipTo": "{{what}}: do {{value}}",
+    "newOffers": "Nowe oferty",
+    "lastDay": "Ostatnie 24 h",
+    "sinceVisit": "Od ostatniej wizyty",
+    "addedSince": "Nowe od",
+    "histogram": "{{what}}: ile ofert od {{from}} do {{to}}",
+    "bar": "{{from}}–{{to}}: {{count, number}}",
+    "barFrom": "od {{from}}: {{count, number}}",
+    "withoutPlace": "Bez przypisanej miejscowości"
   },
   "detail": {
     "back": "Wszystkie oferty",
@@ -91,9 +167,21 @@
       "Basement": "piwnica",
       "Parking": "parking",
       "AirConditioning": "klimatyzacja",
-      "Furnished": "umeblowane",
       "Dishwasher": "zmywarka",
-      "WashingMachine": "pralka"
+      "WashingMachine": "pralka",
+      "Fridge": "lodówka",
+      "Stove": "kuchenka",
+      "Oven": "piekarnik",
+      "SeparateKitchen": "oddzielna kuchnia",
+      "UsableRoom": "pomieszczenie użytkowe",
+      "TwoStorey": "dwupoziomowe",
+      "Internet": "internet",
+      "CableTelevision": "telewizja kablowa",
+      "Entryphone": "domofon",
+      "Monitoring": "monitoring",
+      "ClosedArea": "teren zamknięty",
+      "AntiBurglaryDoor": "drzwi antywłamaniowe",
+      "NonSmokersOnly": "tylko dla niepalących"
     },
     "description": "Opis",
     "noDescription": "Ogłoszeniodawca nie dodał opisu.",
@@ -111,7 +199,14 @@
     "updatedOnPortal": "Zmieniono na portalu",
     "firstFetched": "Pierwszy raz pobrano",
     "detailsFetched": "Szczegóły pobrano",
-    "point": "Punkt na mapie"
+    "point": "Punkt na mapie",
+    "noFeatures": "Ogłoszenie nie wymienia udogodnień.",
+    "title": "Oferta",
+    "noData": "brak danych",
+    "urbanMunicipality": "gmina miejska",
+    "cityWithCountyRights": "miasto na prawach powiatu",
+    "previous": "Poprzednia oferta (←)",
+    "next": "Następna oferta (→)"
   },
   "changes": {
     "title": "Historia zmian",
@@ -125,7 +220,11 @@
       "before": "Było",
       "after": "Jest",
       "difference": "Różnica"
-    }
+    },
+    "count_one": "{{count}} zmiana",
+    "count_few": "{{count}} zmiany",
+    "count_many": "{{count}} zmian",
+    "count_other": "{{count}} zmiany"
   },
   "field": {
     "title": "Tytuł",
@@ -151,7 +250,8 @@
     "locationRadiusM": "Dokładność lokalizacji",
     "description": "Opis",
     "features": "Udogodnienia",
-    "pricePerM2": "Cena za m²"
+    "pricePerM2": "Cena za m²",
+    "furnished": "Umeblowane"
   },
   "place": {
     "name": "{{name}}, {{voivodeship}}",
@@ -176,6 +276,11 @@
       "VoivodeshipCapital": "stolica województwa",
       "CountySeat": "siedziba powiatu",
       "MunicipalitySeat": "siedziba gminy"
+    },
+    "roleShort": {
+      "VoivodeshipCapital": "stolica woj.",
+      "CountySeat": "siedziba pow.",
+      "MunicipalitySeat": "siedziba gm."
     },
     "nearestCity": "{{city}} – {{km}} km",
     "population": "{{population}} mieszk. ({{year}}, {{source}})",
@@ -202,11 +307,96 @@
   "units": {
     "area": "{{value}} m²",
     "km": "{{value}} km",
-    "m": "{{value}} m"
+    "m": "{{value}} m",
+    "pln": "zł",
+    "m2": "m²"
   },
   "errors": {
     "parseFailed": "OtoDom zmienił wygląd strony, nie udało się odczytać ofert.",
     "placesUnavailable": "Wikidata nie odpowiedziała. Spróbuj ponownie za kilka minut.",
     "placesIncomplete": "Wikidata zwróciła niepełne dane, więc niczego nie zapisano. Spróbuj ponownie za kilka minut."
+  },
+  "answer": {
+    "Yes": "tak",
+    "No": "nie",
+    "NotStated": "nie podano"
+  },
+  "featureCategory": {
+    "Outdoor": "Na zewnątrz",
+    "Building": "Budynek",
+    "Appliances": "AGD",
+    "Comfort": "Komfort",
+    "Media": "Media",
+    "Security": "Bezpieczeństwo",
+    "Rules": "Zasady"
+  },
+  "summary": {
+    "price": "Typowa cena najmu",
+    "pricePerM2": "Typowo za m²",
+    "rent": "Typowy czynsz",
+    "area": "Typowy metraż",
+    "middle": "połowa ofert: {{low}}–{{high}}",
+    "from_one": "z {{count, number}} oferty",
+    "from_few": "z {{count, number}} ofert",
+    "from_many": "z {{count, number}} ofert",
+    "from_other": "z {{count, number}} oferty",
+    "few_one": "tylko {{count}} oferta",
+    "few_few": "tylko {{count}} oferty",
+    "few_many": "tylko {{count}} ofert",
+    "few_other": "tylko {{count}} oferty"
+  },
+  "shortcuts": {
+    "title": "Skróty klawiszowe",
+    "show": "Skróty klawiszowe (?)",
+    "list": "Lista ofert",
+    "card": "Karta oferty",
+    "everywhere": "Wszędzie",
+    "move": "zaznacz poprzednią / następną ofertę",
+    "open": "otwórz zaznaczoną ofertę",
+    "portal": "otwórz ofertę na portalu",
+    "page": "poprzednia / następna strona",
+    "search": "szukaj miejscowości",
+    "filters": "pokaż / ukryj filtry",
+    "neighbour": "poprzednia / następna oferta z listy",
+    "back": "wróć do listy",
+    "help": "ta ściąga"
+  },
+  "market": {
+    "title": "Na tle rynku",
+    "loading": "Wczytywanie porównania…",
+    "noPlace": "Oferta nie ma przypisanej miejscowości, więc nie ma z czym jej porównać.",
+    "pricePerM2": "Cena za m²",
+    "rent": "Czynsz",
+    "area": "Metraż",
+    "daysListed": "Na rynku od",
+    "same": "typowo",
+    "typical": "typowo {{value}}",
+    "days_one": "{{count}} dnia",
+    "days_few": "{{count}} dni",
+    "days_many": "{{count}} dni",
+    "days_other": "{{count}} dnia",
+    "rooms_one": "{{count}} pokój",
+    "rooms_few": "{{count}} pokoje",
+    "rooms_many": "{{count}} pokoi",
+    "rooms_other": "{{count}} pokoju",
+    "roomsOrMore": "{{count}} i więcej pokoi",
+    "group_one": "Porównanie z innymi: {{group}} ({{count, number}} oferta)",
+    "group_few": "Porównanie z innymi: {{group}} ({{count, number}} oferty)",
+    "group_many": "Porównanie z innymi: {{group}} ({{count, number}} ofert)",
+    "group_other": "Porównanie z innymi: {{group}} ({{count, number}} oferty)",
+    "fewOffers_one": "Porównanie z innymi: {{group}}, tylko {{count}} oferta – to orientacyjnie",
+    "fewOffers_few": "Porównanie z innymi: {{group}}, tylko {{count}} oferty – to orientacyjnie",
+    "fewOffers_many": "Porównanie z innymi: {{group}}, tylko {{count}} ofert – to orientacyjnie",
+    "fewOffers_other": "Porównanie z innymi: {{group}}, tylko {{count}} oferty – to orientacyjnie"
+  },
+  "filtersHelp": {
+    "show": "Jak działają filtry",
+    "title": "Jak działają filtry",
+    "sections": "Oferta musi pasować do wszystkich sekcji, w których coś ustawisz: np. do lokalizacji i do ceny, i do liczby pokoi.",
+    "choices": "W jednej sekcji wystarczy jedna z zaznaczonych opcji: Gdańsk lub Gdynia, 2 lub 3 pokoje, metropolia lub duże miasto. W Lokalizacji dotyczy to miejscowości, województw i ofert bez przypisanej miejscowości.",
+    "features": "Udogodnienia muszą być wszystkie naraz; przełącznikiem „dowolne” wystarczy jedno z nich.",
+    "ranges": "Cena i metraż to zakres od–do; kliknięcie słupka na wykresie ustawia jego zakres, a drugie kliknięcie innego słupka go rozszerza.",
+    "history": "W Historii zmian „Zmiany oferty” i „Cena obniżona” muszą być spełnione naraz.",
+    "counts": "Liczba przy opcji mówi, ile ofert pokaże lista po jej zaznaczeniu, przy pozostałych filtrach bez zmian."
   }
 }

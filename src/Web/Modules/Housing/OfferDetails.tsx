@@ -1,4 +1,3 @@
-import { Fragment } from "react";
 import { useTranslation } from "react-i18next";
 import type { components } from "@shared/api/schema";
 import { Panel } from "@shared/ui/Panel";
@@ -17,14 +16,6 @@ export function OfferDetails({ offer: o }: { offer: Offer }) {
     floorName && o.buildingFloors
       ? t("detail.floorOf", { floor: floorName, floors: o.buildingFloors })
       : floorName;
-  // Each feature is its own element, separated by commas.
-  const features = (o.features ?? []).map((f, index) => (
-    <Fragment key={f}>
-      {index > 0 && ", "}
-      <span>{t(`detail.feature.${f}`)}</span>
-    </Fragment>
-  ));
-
   return (
     <Panel title={t("detail.apartment")} flush>
       <PropertyList
@@ -34,6 +25,8 @@ export function OfferDetails({ offer: o }: { offer: Offer }) {
             label: t("field.availableFrom"),
             value: o.availableFrom && format.day(o.availableFrom),
           },
+          // Empty (a dash) while the detail page is not fetched; "not stated" when the page says nothing.
+          { label: t("field.furnished"), value: o.furnished && t(`answer.${o.furnished}`) },
           {
             label: t("field.buildingType"),
             value: o.buildingType && t(`detail.buildingType.${o.buildingType}`),
@@ -44,7 +37,6 @@ export function OfferDetails({ offer: o }: { offer: Offer }) {
             label: t("field.condition"),
             value: o.condition && t(`detail.condition.${o.condition}`),
           },
-          { label: t("field.features"), value: features.length > 0 ? features : null },
         ]}
       />
     </Panel>

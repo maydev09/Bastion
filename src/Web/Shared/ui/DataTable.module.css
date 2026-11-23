@@ -1,9 +1,16 @@
 .frame {
+  position: relative;
   max-height: 72vh;
   overflow: auto;
   border: 1px solid var(--color-border);
   border-radius: var(--radius);
   background: var(--color-surface);
+}
+
+.fill {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
 }
 
 .table {
@@ -13,13 +20,15 @@
   font-variant-numeric: tabular-nums;
   transition: opacity 0.15s ease;
 
+  /* Dims only when the answer takes a moment (see .progress); comes back at once. */
   &[data-busy="true"] {
     opacity: 0.55;
+    transition-delay: 0.3s;
   }
 
   & th,
   & td {
-    padding: var(--space-2) var(--space-3);
+    padding: var(--space-2);
     border-bottom: 1px solid var(--color-border);
     text-align: left;
     vertical-align: top;
@@ -39,6 +48,8 @@
     font-size: var(--font-size-sm);
     font-weight: 600;
     white-space: nowrap;
+    /* Sortable headers are buttons with their own padding; all header texts sit on one line. */
+    vertical-align: middle;
   }
 
   & tbody tr:last-child td {
@@ -47,6 +58,15 @@
 
   & tbody tr:hover td {
     background: var(--color-surface-hover);
+  }
+
+  /* A marked row (e.g. the offer opened last) keeps a tint and an accent bar on its left edge. */
+  & tbody tr[data-marked] td {
+    background: var(--color-accent-soft);
+  }
+
+  & tbody tr[data-marked] td:first-child {
+    box-shadow: inset 3px 0 0 var(--color-accent);
   }
 
   & tbody tr[data-clickable="true"] {
@@ -58,8 +78,8 @@
   display: inline-flex;
   align-items: center;
   gap: var(--space-1);
-  margin: 0 calc(-1 * var(--space-1));
-  padding: 2px var(--space-1);
+  margin: 0 calc(-1 * var(--space-2));
+  padding: var(--space-1) var(--space-2);
   border: none;
   border-radius: var(--radius-sm);
   background: none;
@@ -87,5 +107,77 @@
       opacity: 1;
       color: var(--color-accent);
     }
+  }
+}
+
+/* A bar running along the top of the table while new rows load; it shows only after 0.3 s. */
+.progress {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  height: 3px;
+  margin-bottom: -3px;
+  overflow: hidden;
+  opacity: 0;
+  animation: appear 0s linear 0.3s forwards;
+
+  &::after {
+    content: "";
+    position: absolute;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    width: 30%;
+    background: var(--color-accent);
+    animation: run 1.2s ease-in-out infinite;
+  }
+}
+
+/* A grey bar in each cell of a placeholder row. */
+.placeholder {
+  display: block;
+  width: 70%;
+  height: 0.875em;
+  margin: 0.3em 0;
+  border-radius: var(--radius-sm);
+  background: var(--color-border);
+  animation: pulse 1.4s ease-in-out infinite;
+
+  [data-align="end"] > & {
+    width: 60%;
+    margin-left: auto;
+  }
+}
+
+@keyframes appear {
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes run {
+  from {
+    transform: translateX(-100%);
+  }
+
+  to {
+    transform: translateX(340%);
+  }
+}
+
+@keyframes pulse {
+  50% {
+    opacity: 0.45;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .progress::after {
+    width: 100%;
+    animation: none;
+  }
+
+  .placeholder {
+    animation: none;
   }
 }

@@ -97,8 +97,93 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Returns stored offers, by default newest first; offers without the sorted value come last. */
+        /** Returns stored offers that match all given filters, by default newest first; offers without the sorted value come last. Prices are in PLN; place and voivodeship together match offers in any of them, and so do rooms and roomsMin; amenities match all of them unless featureMatch is Any. */
         get: operations["ListHousingOffers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/housing/offers/facets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns how many offers each filter choice would show with the other given filters, the spread of prices and areas without the price and area bounds, and the offers first seen since each countAddedSince. */
+        get: operations["CountHousingOfferFacets"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/housing/offers/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns the typical price, price per m², rent and area of the offers that match the filters: the median, the middle half and how many offers have the value. Money is in PLN. */
+        get: operations["SummarizeHousingOffers"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/housing/features": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns every amenity with its category, in display order: the same groups for every portal. */
+        get: operations["ListHousingFeatures"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/housing/places": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns up to 20 places whose name or a word of it starts with the search, most listed offers first, also places without offers. */
+        get: operations["SearchHousingPlaces"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/housing/places/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns one place with the number of its listed offers, also a place without offers. */
+        get: operations["GetHousingPlace"];
         put?: never;
         post?: never;
         delete?: never;
@@ -223,6 +308,8 @@ export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
         /** @enum {unknown} */
+        Answer: "Yes" | "No" | "NotStated" | null;
+        /** @enum {unknown} */
         BuildingType: "Block" | "Tenement" | "Apartment" | "House" | "Loft" | null;
         /** @enum {unknown} */
         Condition: "ReadyToUse" | "ToRenovate" | "ToFinish" | null;
@@ -235,7 +322,15 @@ export interface components {
             migrations: components["schemas"]["SchemaMigration"][];
         };
         /** @enum {unknown} */
-        Feature: "Balcony" | "Terrace" | "Garden" | "Lift" | "Basement" | "Parking" | "AirConditioning" | "Furnished" | "Dishwasher" | "WashingMachine";
+        Feature: "Balcony" | "Terrace" | "Garden" | "Lift" | "Basement" | "Parking" | "AirConditioning" | "Dishwasher" | "WashingMachine" | "Fridge" | "Stove" | "Oven" | "SeparateKitchen" | "UsableRoom" | "TwoStorey" | "Internet" | "CableTelevision" | "Entryphone" | "Monitoring" | "ClosedArea" | "AntiBurglaryDoor" | "NonSmokersOnly";
+        /** @enum {unknown} */
+        FeatureCategory: "Outdoor" | "Building" | "Appliances" | "Comfort" | "Media" | "Security" | "Rules";
+        FeatureListItem: {
+            feature: components["schemas"]["Feature"];
+            category: components["schemas"]["FeatureCategory"];
+        };
+        /** @enum {unknown} */
+        FeatureMatch: "All" | "Any" | null;
         FieldChange: {
             field: string;
             before: unknown;
@@ -243,6 +338,13 @@ export interface components {
         };
         /** @enum {unknown} */
         Heating: "District" | "Gas" | "Electric" | "BoilerRoom" | "TiledStove" | null;
+        Histogram: {
+            /** Format: double */
+            from: number;
+            /** Format: double */
+            width: number;
+            counts: number[];
+        };
         ImportResult: {
             source: components["schemas"]["Source"];
             /** Format: int32 */
@@ -308,6 +410,31 @@ export interface components {
             changedAt: string;
             changes: components["schemas"]["FieldChange"][];
         };
+        OfferFacets: {
+            voivodeships: {
+                [key: string]: number;
+            };
+            /** Format: int32 */
+            withoutPlace: number;
+            placeSizes: {
+                [key: string]: number;
+            };
+            furnished: {
+                [key: string]: number;
+            };
+            features: {
+                [key: string]: number;
+            };
+            /** Format: int32 */
+            changed: number;
+            /** Format: int32 */
+            unchanged: number;
+            /** Format: int32 */
+            priceCut: number;
+            addedSince: number[];
+            price?: null | components["schemas"]["Histogram"];
+            areaM2?: null | components["schemas"]["Histogram"];
+        };
         OfferListItem: {
             /** Format: int32 */
             id: number;
@@ -319,6 +446,8 @@ export interface components {
             /** Format: double */
             price?: null | number;
             priceCurrency?: null | components["schemas"]["Currency"];
+            /** Format: double */
+            previousPrice?: null | number;
             /** Format: double */
             areaM2?: null | number;
             /** Format: double */
@@ -336,6 +465,7 @@ export interface components {
             /** Format: double */
             rent?: null | number;
             rentCurrency?: null | components["schemas"]["Currency"];
+            furnished?: null | components["schemas"]["Answer"];
             /** Format: double */
             deposit?: null | number;
             depositCurrency?: null | components["schemas"]["Currency"];
@@ -360,6 +490,8 @@ export interface components {
             features?: components["schemas"]["Feature"][];
             /** Format: date-time */
             detailsFetchedAt?: null | string;
+            /** Format: int32 */
+            placeId?: null | number;
             placeName?: null | string;
             placeKind?: null | components["schemas"]["PlaceKind"];
             placeSize?: null | components["schemas"]["PlaceSize"];
@@ -376,7 +508,16 @@ export interface components {
             changes?: components["schemas"]["OfferChange"][];
         };
         /** @enum {unknown} */
-        OfferSort: "FirstSeen" | "Price" | "PricePerM2" | "AreaM2" | "Rooms";
+        OfferSort: "FirstSeen" | "Price" | "PricePerM2" | "AreaM2" | "Rooms" | "Rent";
+        OfferSummary: {
+            /** Format: int32 */
+            count: number;
+            price?: null | components["schemas"]["Spread"];
+            pricePerM2?: null | components["schemas"]["Spread"];
+            rent?: null | components["schemas"]["Spread"];
+            areaM2?: null | components["schemas"]["Spread"];
+            daysListed?: null | components["schemas"]["Spread"];
+        };
         PagedResultOfOfferListItem: {
             items: components["schemas"]["OfferListItem"][];
             /** Format: int32 */
@@ -388,6 +529,17 @@ export interface components {
         };
         /** @enum {unknown} */
         PlaceKind: "Town" | "Village" | null;
+        PlaceListItem: {
+            /** Format: int32 */
+            id: number;
+            name: string;
+            voivodeship: components["schemas"]["Voivodeship"];
+            county: null | string;
+            municipality: null | string;
+            kind: null | components["schemas"]["PlaceKind"];
+            /** Format: int32 */
+            offerCount: number;
+        };
         /** @enum {unknown} */
         PlaceRole: "VoivodeshipCapital" | "CountySeat" | "MunicipalitySeat" | null;
         /** @enum {unknown} */
@@ -428,6 +580,16 @@ export interface components {
         SortDirection: "Ascending" | "Descending";
         /** @enum {unknown} */
         Source: "OtoDom";
+        Spread: {
+            /** Format: double */
+            low: number;
+            /** Format: double */
+            median: number;
+            /** Format: double */
+            high: number;
+            /** Format: int32 */
+            count: number;
+        };
         /** @enum {unknown} */
         Transaction: "Rent";
         /** @enum {unknown} */
@@ -542,6 +704,23 @@ export interface operations {
     ListHousingOffers: {
         parameters: {
             query?: {
+                voivodeship?: components["schemas"]["Voivodeship"][];
+                place?: number[];
+                withoutPlace?: boolean;
+                size?: components["schemas"]["PlaceSize"][];
+                feature?: components["schemas"]["Feature"][];
+                featureMatch?: components["schemas"]["FeatureMatch"];
+                priceMin?: number;
+                priceMax?: number;
+                areaMin?: number;
+                areaMax?: number;
+                rooms?: number[];
+                roomsMin?: number;
+                furnished?: components["schemas"]["Answer"];
+                addedSince?: string;
+                changed?: boolean;
+                priceCut?: boolean;
+                excludeOffer?: number;
                 page?: number;
                 pageSize?: number;
                 sort?: components["schemas"]["OfferSort"];
@@ -561,6 +740,154 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["PagedResultOfOfferListItem"];
                 };
+            };
+        };
+    };
+    CountHousingOfferFacets: {
+        parameters: {
+            query?: {
+                voivodeship?: components["schemas"]["Voivodeship"][];
+                place?: number[];
+                withoutPlace?: boolean;
+                size?: components["schemas"]["PlaceSize"][];
+                feature?: components["schemas"]["Feature"][];
+                featureMatch?: components["schemas"]["FeatureMatch"];
+                priceMin?: number;
+                priceMax?: number;
+                areaMin?: number;
+                areaMax?: number;
+                rooms?: number[];
+                roomsMin?: number;
+                furnished?: components["schemas"]["Answer"];
+                addedSince?: string;
+                changed?: boolean;
+                priceCut?: boolean;
+                excludeOffer?: number;
+                countAddedSince?: string[];
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfferFacets"];
+                };
+            };
+        };
+    };
+    SummarizeHousingOffers: {
+        parameters: {
+            query?: {
+                voivodeship?: components["schemas"]["Voivodeship"][];
+                place?: number[];
+                withoutPlace?: boolean;
+                size?: components["schemas"]["PlaceSize"][];
+                feature?: components["schemas"]["Feature"][];
+                featureMatch?: components["schemas"]["FeatureMatch"];
+                priceMin?: number;
+                priceMax?: number;
+                areaMin?: number;
+                areaMax?: number;
+                rooms?: number[];
+                roomsMin?: number;
+                furnished?: components["schemas"]["Answer"];
+                addedSince?: string;
+                changed?: boolean;
+                priceCut?: boolean;
+                excludeOffer?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OfferSummary"];
+                };
+            };
+        };
+    };
+    ListHousingFeatures: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FeatureListItem"][];
+                };
+            };
+        };
+    };
+    SearchHousingPlaces: {
+        parameters: {
+            query: {
+                search: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaceListItem"][];
+                };
+            };
+        };
+    };
+    GetHousingPlace: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlaceListItem"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

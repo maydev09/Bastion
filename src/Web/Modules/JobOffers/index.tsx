@@ -6,6 +6,7 @@ import pl from "./locales/pl.json";
 export const jobOffersModule = defineModule({
   name: "JobOffers",
   routePrefix: "job-offers",
+  icon: "briefcase",
   namespace: "jobOffers",
   locales: { pl, en },
   routes: [{ path: "", element: <JobOffersPage /> }],

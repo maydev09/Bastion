@@ -56,6 +56,11 @@ export function OfferPlace({ offer: o }: { offer: Offer }) {
     </>
   );
 
+  // A town without a county and a municipality is a city with county rights (Gdańsk, Zabrze): it is its own
+  // county and municipality. Elsewhere an empty field is missing data, and says so.
+  const ownCounty = o.placeKind === "Town" && !o.county && !o.municipality;
+  const missing = o.placeName ? t("detail.noData") : null;
+
   return (
     <>
       <Panel title={t("detail.location")} flush>
@@ -63,8 +68,14 @@ export function OfferPlace({ offer: o }: { offer: Offer }) {
         <PropertyList
           items={[
             { label: t("detail.place"), value: o.placeName },
-            { label: t("detail.municipality"), value: o.municipality },
-            { label: t("detail.county"), value: o.county },
+            {
+              label: t("detail.municipality"),
+              value: o.municipality ?? (ownCounty ? t("detail.urbanMunicipality") : missing),
+            },
+            {
+              label: t("detail.county"),
+              value: o.county ?? (ownCounty ? t("detail.cityWithCountyRights") : missing),
+            },
             {
               label: t("detail.voivodeship"),
               value: o.voivodeship && t(`voivodeship.${o.voivodeship}`),

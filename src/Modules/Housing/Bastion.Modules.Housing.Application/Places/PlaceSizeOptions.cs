@@ -29,6 +29,23 @@ public sealed class PlaceSizeOptions : IValidatableObject
         _ => null,
     };
 
+    // The populations Of maps to the size.
+    public PopulationRange RangeOf(PlaceSize size) => size switch
+    {
+        PlaceSize.SmallVillage => new(PlaceKind.Village, 0, Village.Medium),
+        PlaceSize.MediumVillage => new(PlaceKind.Village, Village.Medium, Village.Large),
+        PlaceSize.LargeVillage => new(PlaceKind.Village, Village.Large, Village.VeryLarge),
+        PlaceSize.VeryLargeVillage => new(PlaceKind.Village, Village.VeryLarge, null),
+        PlaceSize.VerySmallTown => new(PlaceKind.Town, 0, Town.Small),
+        PlaceSize.SmallTown => new(PlaceKind.Town, Town.Small, Town.Medium),
+        PlaceSize.MediumTown => new(PlaceKind.Town, Town.Medium, Town.Larger),
+        PlaceSize.LargerTown => new(PlaceKind.Town, Town.Larger, Town.Large),
+        PlaceSize.LargeCity => new(PlaceKind.Town, Town.Large, Town.VeryLarge),
+        PlaceSize.VeryLargeCity => new(PlaceKind.Town, Town.VeryLarge, Town.Metropolis),
+        PlaceSize.Metropolis => new(PlaceKind.Town, Town.Metropolis, null),
+        _ => throw new ArgumentOutOfRangeException(nameof(size), size, null),
+    };
+
     public IEnumerable<ValidationResult> Validate(ValidationContext validationContext)
     {
         if (!(0 < Village.Medium && Village.Medium < Village.Large && Village.Large < Village.VeryLarge))

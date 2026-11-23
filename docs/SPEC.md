@@ -96,8 +96,17 @@ Replaces the legacy flat offers scraper.
 - **Duplicates across portals:** offers that are probably the same flat on different
   portals (or posted twice on one) are grouped, so the list shows one entry with links
   to every source. A grouping is a suggestion: the user can confirm or split it.
-- Triage: browse, filter and sort offers (the view, e.g. page and sort order, is part of the
-  link, so a copied link opens the same view); change status (e.g. not interested,
+- Triage: browse, filter and sort offers (the view, e.g. page, sort order and filters, is part of the
+  link, so a copied link opens the same view). Filters: place and voivodeship (or offers whose location
+  matched no place; the place search also finds places without offers and shows them greyed out), size of the place,
+  price, area, rooms, furnished, amenities by category (all or any of the picked) and a price cut seen in
+  the changelog. Filters join with AND, the choices inside one filter with OR; each choice shows how many
+  offers it would leave, and the filters in use show above the list, removable one by one. Above the list,
+  the typical price, price per m², rent and area of the filtered offers (median and the middle half), and
+  quick picks for offers found in the last 24 hours or since the last visit; the price and area filters show
+  how the offers spread over the values. The offer card shows where the offer stands among similar ones
+  (the same room count in the same place, or in the voivodeship when the place has too few): price per m²,
+  rent, area and days listed against their median and middle half. Change status (e.g. not interested,
   waiting, visit scheduled, still interested after visit), bookmark, add notes.
   Every manual change is recorded in the changelog.
 

@@ -1,0 +1,7 @@
+.rules {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding-left: var(--space-4);
+  line-height: 1.5;
+}

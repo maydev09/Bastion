@@ -1,0 +1,147 @@
+import { Combobox } from "@base-ui/react/combobox";
+import { useState } from "react";
+import styles from "./MultiSelect.module.css";
+import { Icon } from "./Icon";
+
+type Props<Item> = {
+  label: string;
+  placeholder?: string;
+  // The items to choose from: all of them, or the results of the caller's search (see onSearch).
+  items: Item[];
+  value: Item[];
+  onChange: (value: Item[]) => void;
+  itemToKey: (item: Item) => string;
+  itemToLabel: (item: Item) => string;
+  // A muted second part of an item in the list, e.g. its county.
+  itemToHint?: (item: Item) => string;
+  // A number at the right end of an item, e.g. how many offers it has; the numbers line up.
+  itemToCount?: (item: Item) => string;
+  // An item shown greyed out, e.g. a place without offers: it can still be picked.
+  isItemMuted?: (item: Item) => boolean;
+  // Given when the caller searches itself (e.g. on the server); the typed text is passed on and items are not filtered here.
+  onSearch?: (text: string) => void;
+  // Shown when no item matches, or before anything is typed into a search.
+  emptyText: string;
+  // The accessible name of a chip's remove button, e.g. "Remove Gdańsk".
+  removeLabel: (itemLabel: string) => string;
+};
+
+// A text field that picks several items; the picked ones show as chips inside it.
+export function MultiSelect<Item>({
+  label,
+  placeholder,
+  items,
+  value,
+  onChange,
+  itemToKey,
+  itemToLabel,
+  itemToHint,
+  itemToCount,
+  isItemMuted,
+  onSearch,
+  emptyText,
+  removeLabel,
+}: Props<Item>) {
+  const [open, setOpen] = useState(false);
+  const isPicked = (item: Item) => value.some((v) => itemToKey(v) === itemToKey(item));
+  // Picked items stay known to the combobox even when a new search does not return them.
+  const known = onSearch
+    ? [...items, ...value.filter((v) => !items.some((i) => itemToKey(i) === itemToKey(v)))]
+    : items;
+
+  return (
+    <Combobox.Root
+      multiple
+      // Closes after every pick, like a plain select; the field shows the picks as chips.
+      open={open}
+      onOpenChange={setOpen}
+      items={known}
+      filteredItems={onSearch ? items : undefined}
+      value={value}
+      onValueChange={(next) => {
+        onChange(next);
+        setOpen(false);
+      }}
+      itemToStringLabel={itemToLabel}
+      isItemEqualToValue={(item, picked) => itemToKey(item) === itemToKey(picked)}
+      filter={onSearch ? null : (item, query) => fold(itemToLabel(item)).includes(fold(query))}
+      onInputValueChange={(text, { reason }) => {
+        if (onSearch && reason !== "item-press") {
+          onSearch(text);
+        }
+      }}
+    >
+      {/* The label and the field are one block with its own spacing, the same wherever it stands. */}
+      <div className={styles.field}>
+        {/* Combobox.Label names only a trigger button, and the input takes no id of ours, so the name is set on the input. */}
+        <div className={styles.label} aria-hidden="true">
+          {label}
+        </div>
+        <Combobox.InputGroup className={styles.group}>
+          <Combobox.Chips className={styles.chips}>
+            {value.map((item) => (
+              <Combobox.Chip
+                key={itemToKey(item)}
+                className={styles.chip}
+                aria-label={itemToLabel(item)}
+              >
+                {itemToLabel(item)}
+                <Combobox.ChipRemove
+                  className={styles.remove}
+                  aria-label={removeLabel(itemToLabel(item))}
+                >
+                  <Icon name="close" size={14} />
+                </Combobox.ChipRemove>
+              </Combobox.Chip>
+            ))}
+            <Combobox.Input
+              aria-label={label}
+              className={styles.input}
+              placeholder={value.length > 0 ? undefined : placeholder}
+            />
+          </Combobox.Chips>
+        </Combobox.InputGroup>
+      </div>
+      <Combobox.Portal>
+        {/* Always below the field: it gets shorter and scrolls instead of jumping above it. */}
+        <Combobox.Positioner
+          className={styles.positioner}
+          sideOffset={4}
+          align="start"
+          collisionAvoidance={{ side: "none", align: "shift", fallbackAxisSide: "none" }}
+        >
+          <Combobox.Popup className={styles.popup}>
+            <Combobox.Empty className={styles.empty}>{emptyText}</Combobox.Empty>
+            <Combobox.List className={styles.list}>
+              {(item: Item) => (
+                <Combobox.Item
+                  key={itemToKey(item)}
+                  value={item}
+                  className={styles.item}
+                  data-muted={isItemMuted?.(item) || undefined}
+                  // A picked item stands out by its color, without a mark taking room on the side.
+                  data-picked={isPicked(item) || undefined}
+                >
+                  <span>
+                    {itemToLabel(item)}
+                    {itemToHint && <span className={styles.hint}> {itemToHint(item)}</span>}
+                  </span>
+                  <span className={styles.count}>{itemToCount?.(item)}</span>
+                </Combobox.Item>
+              )}
+            </Combobox.List>
+          </Combobox.Popup>
+        </Combobox.Positioner>
+      </Combobox.Portal>
+    </Combobox.Root>
+  );
+}
+
+// Typed without Polish letters still matches: "slask" finds "śląskie", "lodz" finds "łódzkie".
+function fold(text: string) {
+  return text
+    .toLowerCase()
+    .replaceAll("ł", "l")
+    .normalize("NFD")
+    .replace(/\p{Mn}/gu, "");
+}

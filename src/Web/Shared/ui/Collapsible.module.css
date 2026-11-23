@@ -44,3 +44,44 @@
   padding: var(--space-3);
   border-top: 1px solid var(--color-border);
 }
+
+.flush {
+  padding: 0;
+}
+
+/* A section of a panel: no frame, a line between it and the next one. */
+.plain {
+  & + & {
+    border-top: 1px solid var(--color-border);
+  }
+
+  /* Room to breathe: around the header, between it and the fields, and under the fields. */
+  & > .trigger {
+    padding: var(--space-3);
+    border-radius: 0;
+  }
+
+  & > .panel {
+    padding: var(--space-2) var(--space-3) var(--space-4);
+    border-top: none;
+  }
+
+  & .hint {
+    margin-left: auto;
+    font-size: var(--font-size-sm);
+    line-height: 1.2;
+    text-align: right;
+  }
+}
+
+.count {
+  min-width: 22px;
+  padding: 0 6px;
+  border-radius: 11px;
+  background: var(--color-accent);
+  color: var(--color-on-accent);
+  font-size: 0.8125rem;
+  line-height: 22px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}

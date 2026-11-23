@@ -7,11 +7,25 @@ import {
   type RowData,
   type SortingState,
 } from "@tanstack/react-table";
-import { useEffect, useMemo, useRef, type MouseEvent, type ReactNode } from "react";
+import {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  type MouseEvent,
+  type ReactNode,
+} from "react";
 import styles from "./DataTable.module.css";
 import { Icon } from "./Icon";
+import { VisuallyHidden } from "./VisuallyHidden";
 
 const features = tableFeatures({ rowSortingFeature });
+
+// About a screen of rows, so the table has its shape before the first rows arrive.
+const placeholderRows = Array.from({ length: 12 }, (_, index) => `placeholder-${index}`);
+
+// How far each view (scrollKey) was scrolled, for as long as the app is open.
+const scrollPositions = new Map<string, number>();
 
 export type DataTableColumn<Row> = {
   id: string;
@@ -35,8 +49,19 @@ type Props<Row extends RowData> = {
   sort: DataTableSort;
   onSortChange: (sort: DataTableSort) => void;
   onRowClick?: (row: Row) => void;
-  // The rows shown are stale while the next ones load.
+  // The rows shown are stale while the next ones load: after a moment the table dims and a bar
+  // runs along its top. A quick answer shows nothing, so the table does not blink on every click.
   busy?: boolean;
+  // Given while there are no rows yet (the first load): placeholder rows stand in for them,
+  // and this text (e.g. "Loading offers…") is read out by screen readers.
+  loading?: string;
+  // The table takes the height its flex container gives it and scrolls inside, e.g. to keep the paging
+  // below it at the bottom of the page; otherwise it grows up to most of the window.
+  fill?: boolean;
+  // Names the view (e.g. the history entry of the page); coming back to it restores how far it was scrolled.
+  scrollKey?: string;
+  // The row to mark, e.g. the one the user opened last.
+  markedRowId?: string;
 };
 
 export function DataTable<Row extends RowData>({
@@ -47,6 +72,10 @@ export function DataTable<Row extends RowData>({
   onSortChange,
   onRowClick,
   busy = false,
+  loading,
+  fill = false,
+  scrollKey,
+  markedRowId,
 }: Props<Row>) {
   const tableColumns = useMemo(
     () =>
@@ -64,12 +93,27 @@ export function DataTable<Row extends RowData>({
   const byId = new Map(columns.map((c) => [c.id, c]));
   const frame = useRef<HTMLDivElement>(null);
 
-  // New rows (another page or order) start at the top.
-  useEffect(() => {
-    if (frame.current) {
-      frame.current.scrollTop = 0;
+  // New rows (another page or order) start at the top, unless this view was scrolled before:
+  // then the user comes back to where they were (e.g. with the browser's back button).
+  // The position is saved when the view is left, i.e. on new rows, another key or leaving the page.
+  useLayoutEffect(() => {
+    const element = frame.current;
+    if (!element) {
+      return;
     }
-  }, [rows]);
+    element.scrollTop = (scrollKey && scrollPositions.get(scrollKey)) || 0;
+    return () => {
+      if (scrollKey) {
+        scrollPositions.set(scrollKey, element.scrollTop);
+      }
+    };
+  }, [rows, scrollKey]);
+  // A marked row moved out of view (e.g. with the arrow keys) is scrolled back into it.
+  useEffect(() => {
+    if (markedRowId !== undefined) {
+      frame.current?.querySelector("tr[data-marked]")?.scrollIntoView({ block: "nearest" });
+    }
+  }, [markedRowId]);
   const sorting: SortingState = [{ id: sort.column, desc: sort.descending }];
 
   const table = useTable({
@@ -99,8 +143,10 @@ export function DataTable<Row extends RowData>({
   };
 
   return (
-    <div ref={frame} className={styles.frame}>
-      <table className={styles.table} aria-busy={busy} data-busy={busy}>
+    <div ref={frame} className={fill ? `${styles.frame} ${styles.fill}` : styles.frame}>
+      {busy && <div className={styles.progress} aria-hidden="true" />}
+      {loading && <VisuallyHidden role="status">{loading}</VisuallyHidden>}
+      <table className={styles.table} aria-busy={busy || loading !== undefined} data-busy={busy}>
         <thead>
           {table.getHeaderGroups().map((group) => (
             <tr key={group.id}>
@@ -137,7 +183,7 @@ export function DataTable<Row extends RowData>({
                                 ? "sortDescending"
                                 : "sortable"
                           }
-                          size={14}
+                          size={16}
                         />
                       </button>
                     ) : (
@@ -150,10 +196,21 @@ export function DataTable<Row extends RowData>({
           ))}
         </thead>
         <tbody>
+          {loading &&
+            placeholderRows.map((key) => (
+              <tr key={key} aria-hidden="true">
+                {columns.map((column) => (
+                  <td key={column.id} data-align={column.align ?? "start"}>
+                    <span className={styles.placeholder} />
+                  </td>
+                ))}
+              </tr>
+            ))}
           {table.getRowModel().rows.map((row) => (
             <tr
               key={row.id}
               data-clickable={onRowClick !== undefined}
+              data-marked={row.id === markedRowId || undefined}
               onClick={(event) => handleRowClick(event, row.original)}
             >
               {row.getAllCells().map((cell) => (
