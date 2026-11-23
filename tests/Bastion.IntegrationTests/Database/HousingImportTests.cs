@@ -592,6 +592,30 @@ public class HousingImportTests
     }
 
     [Test]
+    public async Task The_first_detail_page_is_no_change_but_a_later_new_value_is()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small]];
+        _source.Details["1"] = new OfferDetails(Heating: Heating.Gas, BuildYear: 1950, Features: [Feature.Lift]);
+        await RunImport(client);
+        await RunDetails(client);
+        var afterFirstPage = await Scalar<long>("SELECT count(*) FROM housing.offer_change");
+
+        _source.Pages = [[Small with { Price = new Money(2000m, Currency.Pln) }]];
+        _source.Details["1"] = new OfferDetails(Heating: Heating.Gas, BuildYear: 1950, Condition: Condition.ReadyToUse, Features: [Feature.Lift]);
+        await RunImport(client);
+        await RunDetails(client);
+        var logged = await Scalar<string>("SELECT string_agg(key, ',' ORDER BY id, key) FROM housing.offer_change, jsonb_object_keys(changes) AS key");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(afterFirstPage, Is.Zero);
+            Assert.That(logged, Is.EqualTo("price,condition"));
+        });
+    }
+
+    [Test]
     public async Task Listing_fields_are_kept_and_details_complete_them()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
