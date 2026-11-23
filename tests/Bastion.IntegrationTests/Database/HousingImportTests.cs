@@ -347,6 +347,27 @@ public class HousingImportTests
     }
 
     [Test]
+    public async Task A_price_per_m2_halfway_between_two_values_is_shown_and_filtered_alike()
+    {
+        await using var factory = App(WithFakes);
+        using var client = factory.CreateClient();
+        // 2261.80 zł for 40 m² is exactly 56.545 zł/m².
+        _source.Pages = [[Medium with { Price = new Money(2261.80m, Currency.Pln), AreaM2 = 40m }]];
+        await RunImport(client);
+
+        var shown = (await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json))!.Items.Single().PricePerM2;
+        var upToShown = await ListedTitles(client, $"?pricePerM2Max={shown}");
+        var belowShown = await ListedTitles(client, "?pricePerM2Max=56.54");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(shown, Is.EqualTo(56.55m));
+            Assert.That(upToShown, Is.EqualTo(new[] { "Medium flat" }));
+            Assert.That(belowShown, Is.Empty);
+        });
+    }
+
+    [Test]
     public async Task Place_sizes_show_the_configured_thresholds()
     {
         await using var factory = App(WithFakes, ("Modules:Housing:PlaceSizes:Town:Metropolis", "2000000"));

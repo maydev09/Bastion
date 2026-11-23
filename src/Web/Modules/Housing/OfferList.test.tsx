@@ -156,23 +156,26 @@ describe("OfferList", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: t("filters.size") }));
 
-    const size = (name: string, population: string) => `${t(name)} ${population}`;
+    const size = (name: string, population: string) => `${name} ${population}`;
     expect(
       await screen.findByRole("checkbox", {
-        name: size("place.size.SmallVillage", t("filters.populationBelow", { to: number(300) })),
+        name: size(t("place.size.SmallVillage"), t("filters.populationBelow", { to: number(300) })),
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("checkbox", {
         name: size(
-          "place.size.SmallTown",
+          t("place.size.SmallTown"),
           t("filters.populationRange", { from: number(5000), to: number(20000) }),
         ),
       }),
     ).toBeInTheDocument();
     expect(
       screen.getByRole("checkbox", {
-        name: size("place.size.Metropolis", t("filters.populationFrom", { from: number(250000) })),
+        name: size(
+          t("place.size.Metropolis"),
+          t("filters.populationFrom", { from: number(250000) }),
+        ),
       }),
     ).toBeInTheDocument();
   });

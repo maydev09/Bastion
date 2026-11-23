@@ -70,7 +70,7 @@ export function FilterChips({ filter, onChange }: Props) {
     chips.push({
       key: "pricePerM2",
       label: range(t("filters.pricePerM2"), filter.pricePerM2Min, filter.pricePerM2Max, (value) =>
-        t("units.perM2", { value: format.money(value, "PLN") }),
+        format.perM2(value, "PLN"),
       ),
       remove: { pricePerM2Min: null, pricePerM2Max: null },
     });

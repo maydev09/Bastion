@@ -92,7 +92,6 @@ export function OfferFilters({ filter, onChange, onHide, previousVisit, searchRe
       ? t("filters.populationBelow", { to })
       : t("filters.populationRange", { from, to });
   };
-  const perM2 = (value: number) => t("units.perM2", { value: format.money(value, "PLN") });
   const voivodeshipItems = voivodeships.map((v) => ({ value: v, label: t(`voivodeship.${v}`) }));
 
   const counts: Record<SectionId, number> = {
@@ -202,23 +201,26 @@ export function OfferFilters({ filter, onChange, onHide, previousVisit, searchRe
         ].map((group) => (
           <div key={group.title} className={styles.group}>
             <span className={styles.groupTitle}>{group.title}</span>
-            {group.sizes.map((size) => (
-              <Checkbox
-                key={size}
-                checked={filter.size.includes(size)}
-                onChange={(on) => set({ size: toggle(filter.size, size, on) })}
-                hint={shownCount(facets?.placeSizes, size)}
-              >
-                {t(`place.size.${size}`)}
-                {/* The space keeps the name and the populations apart for a screen reader too. */}
-                {populationOf(size) && (
-                  <>
-                    {" "}
-                    <span className={styles.population}>{populationOf(size)}</span>
-                  </>
-                )}
-              </Checkbox>
-            ))}
+            {group.sizes.map((size) => {
+              const population = populationOf(size);
+              return (
+                <Checkbox
+                  key={size}
+                  checked={filter.size.includes(size)}
+                  onChange={(on) => set({ size: toggle(filter.size, size, on) })}
+                  hint={shownCount(facets?.placeSizes, size)}
+                >
+                  {t(`place.size.${size}`)}
+                  {/* The space keeps the name and the populations apart for a screen reader too. */}
+                  {population && (
+                    <>
+                      {" "}
+                      <span className={styles.population}>{population}</span>
+                    </>
+                  )}
+                </Checkbox>
+              );
+            })}
           </div>
         )),
         anyOf(counts.size),
@@ -264,7 +266,7 @@ export function OfferFilters({ filter, onChange, onHide, previousVisit, searchRe
           max={filter.pricePerM2Max}
           onChange={(pricePerM2Min, pricePerM2Max) => set({ pricePerM2Min, pricePerM2Max })}
           histogram={facets?.pricePerM2}
-          show={perM2}
+          show={(value) => format.perM2(value, "PLN")}
         />,
       )}
 
