@@ -213,8 +213,10 @@ Update the matching file in the same change that makes it outdated:
   - an unknown value in a key field skips the offer; in an optional field it leaves the field
     empty. The raw capture is kept, so re-parsing fills it once the parser knows the value;
   - a number a seller types by hand (e.g. build year) is checked for a plausible range in the parser;
-    an implausible one leaves the field empty and goes, as written, to the offer's `rejected_values`
-    under the column name (`{"build_year": "195014"}`). The parser never guesses a corrected value.
+    an implausible one goes, as written, to the offer's `rejected_values` under the column name
+    (`{"build_year": "195014"}`) and clears the field, also a value stored from an earlier page (unlike
+    a missing value, which never clears). An empty value is missing, not implausible. The parser never
+    guesses a corrected value.
 - Never hardcode user-specific preferences (search criteria, cities, price ranges,
   filters) in code or configuration files. They are data, managed by the user through the UI.
   Code and configuration only hold technical settings (e.g. delays, timeouts, URLs).
