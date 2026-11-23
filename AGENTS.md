@@ -59,9 +59,10 @@ Spend effort only on what solves a real problem the maintainer has today
   Modules build screens from the components in `src/Web/Shared/ui/` and never import Base UI or
   TanStack Table themselves; colors and spacing are only the tokens in `src/Web/App/global.css`
   (Noctalia palette, each color a `light-dark()` pair; the theme follows the system unless the
-  user picks one in the top bar). A list keeps its view (page, page size, sort order, filters) in the URL
-  query, so a copied link opens the same view; the URL keys are the API's query parameters, and sorting,
-  paging and filtering happen in the backend.
+  user picks one in the top bar). A shared component lays out its own parts (e.g. a label above its
+  field) and never relies on its parent's gap; a page only spaces whole components. A list keeps its
+  view (page, page size, sort order, filters) in the URL query, so a copied link opens the same view;
+  the URL keys are the API's query parameters, and sorting, paging and filtering happen in the backend.
 - Audit and logs: log only through `ILogger<T>` (Serilog is configured in the Host only);
   run events via `JobContext`. Every fetched page is stored
   as a raw capture before parsing, through the module's `RawCaptureService`; each portal is an

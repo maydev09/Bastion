@@ -1,4 +1,5 @@
 import { Combobox } from "@base-ui/react/combobox";
+import { useState } from "react";
 import styles from "./MultiSelect.module.css";
 import { Icon } from "./Icon";
 
@@ -13,6 +14,8 @@ type Props<Item> = {
   itemToLabel: (item: Item) => string;
   // A muted second part of an item in the list, e.g. its county.
   itemToHint?: (item: Item) => string;
+  // A number at the right end of an item, e.g. how many offers it has; the numbers line up.
+  itemToCount?: (item: Item) => string;
   // An item shown greyed out, e.g. a place without offers: it can still be picked.
   isItemMuted?: (item: Item) => boolean;
   // Given when the caller searches itself (e.g. on the server); the typed text is passed on and items are not filtered here.
@@ -33,11 +36,13 @@ export function MultiSelect<Item>({
   itemToKey,
   itemToLabel,
   itemToHint,
+  itemToCount,
   isItemMuted,
   onSearch,
   emptyText,
   removeLabel,
 }: Props<Item>) {
+  const [open, setOpen] = useState(false);
   const isPicked = (item: Item) => value.some((v) => itemToKey(v) === itemToKey(item));
   // Picked items stay known to the combobox even when a new search does not return them.
   const known = onSearch
@@ -47,10 +52,16 @@ export function MultiSelect<Item>({
   return (
     <Combobox.Root
       multiple
+      // Closes after every pick, like a plain select; the field shows the picks as chips.
+      open={open}
+      onOpenChange={setOpen}
       items={known}
       filteredItems={onSearch ? items : undefined}
       value={value}
-      onValueChange={onChange}
+      onValueChange={(next) => {
+        onChange(next);
+        setOpen(false);
+      }}
       itemToStringLabel={itemToLabel}
       isItemEqualToValue={(item, picked) => itemToKey(item) === itemToKey(picked)}
       filter={onSearch ? null : (item, query) => fold(itemToLabel(item)).includes(fold(query))}
@@ -60,36 +71,45 @@ export function MultiSelect<Item>({
         }
       }}
     >
-      {/* Combobox.Label names only a trigger button, and the input takes no id of ours, so the name is set on the input. */}
-      <div className={styles.label} aria-hidden="true">
-        {label}
-      </div>
-      <Combobox.InputGroup className={styles.group}>
-        <Combobox.Chips className={styles.chips}>
-          {value.map((item) => (
-            <Combobox.Chip
-              key={itemToKey(item)}
-              className={styles.chip}
-              aria-label={itemToLabel(item)}
-            >
-              {itemToLabel(item)}
-              <Combobox.ChipRemove
-                className={styles.remove}
-                aria-label={removeLabel(itemToLabel(item))}
+      {/* The label and the field are one block with its own spacing, the same wherever it stands. */}
+      <div className={styles.field}>
+        {/* Combobox.Label names only a trigger button, and the input takes no id of ours, so the name is set on the input. */}
+        <div className={styles.label} aria-hidden="true">
+          {label}
+        </div>
+        <Combobox.InputGroup className={styles.group}>
+          <Combobox.Chips className={styles.chips}>
+            {value.map((item) => (
+              <Combobox.Chip
+                key={itemToKey(item)}
+                className={styles.chip}
+                aria-label={itemToLabel(item)}
               >
-                <Icon name="close" size={14} />
-              </Combobox.ChipRemove>
-            </Combobox.Chip>
-          ))}
-          <Combobox.Input
-            aria-label={label}
-            className={styles.input}
-            placeholder={value.length > 0 ? undefined : placeholder}
-          />
-        </Combobox.Chips>
-      </Combobox.InputGroup>
+                {itemToLabel(item)}
+                <Combobox.ChipRemove
+                  className={styles.remove}
+                  aria-label={removeLabel(itemToLabel(item))}
+                >
+                  <Icon name="close" size={14} />
+                </Combobox.ChipRemove>
+              </Combobox.Chip>
+            ))}
+            <Combobox.Input
+              aria-label={label}
+              className={styles.input}
+              placeholder={value.length > 0 ? undefined : placeholder}
+            />
+          </Combobox.Chips>
+        </Combobox.InputGroup>
+      </div>
       <Combobox.Portal>
-        <Combobox.Positioner className={styles.positioner} sideOffset={4} align="start">
+        {/* Always below the field: it gets shorter and scrolls instead of jumping above it. */}
+        <Combobox.Positioner
+          className={styles.positioner}
+          sideOffset={4}
+          align="start"
+          collisionAvoidance={{ side: "none", align: "shift", fallbackAxisSide: "none" }}
+        >
           <Combobox.Popup className={styles.popup}>
             <Combobox.Empty className={styles.empty}>{emptyText}</Combobox.Empty>
             <Combobox.List className={styles.list}>
@@ -99,14 +119,14 @@ export function MultiSelect<Item>({
                   value={item}
                   className={styles.item}
                   data-muted={isItemMuted?.(item) || undefined}
+                  // A picked item stands out by its color, without a mark taking room on the side.
+                  data-picked={isPicked(item) || undefined}
                 >
-                  <span className={styles.indicator}>
-                    {isPicked(item) && <Icon name="check" size={16} />}
-                  </span>
                   <span>
                     {itemToLabel(item)}
                     {itemToHint && <span className={styles.hint}> {itemToHint(item)}</span>}
                   </span>
+                  <span className={styles.count}>{itemToCount?.(item)}</span>
                 </Combobox.Item>
               )}
             </Combobox.List>
