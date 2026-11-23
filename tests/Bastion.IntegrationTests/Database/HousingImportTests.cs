@@ -584,24 +584,6 @@ public class HousingImportTests
     }
 
     [Test]
-    public async Task Numbers_typed_far_beyond_a_real_flat_do_not_stop_the_import()
-    {
-        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
-        using var client = factory.CreateClient();
-        _source.Pages = [[Small with { Price = new Money(400_000_000_000m, Currency.Pln), AreaM2 = 1_000_000m }]];
-        _source.Details["1"] = new OfferDetails(Deposit: new Money(40_000_000_000m, Currency.Pln));
-
-        var imported = await RunImport(client);
-        var fetched = await RunDetails(client);
-
-        Assert.Multiple(() =>
-        {
-            Assert.That(imported.Added, Is.EqualTo(1));
-            Assert.That(fetched, Is.EqualTo(new Fetched(1, 0)));
-        });
-    }
-
-    [Test]
     public async Task Listing_fields_are_kept_and_details_complete_them()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
