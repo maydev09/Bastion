@@ -42,7 +42,8 @@ public interface IOfferRepository
     // Newest offers first; removed offers and offers that failed maxFailedAttempts times for their content are left out,
     // and so are failures since runStartedAt, so one run does not retry the same offer.
     Task<IReadOnlyList<PendingDetails>> ListPendingDetailsAsync(
-        Source source, int limit, int maxFailedAttempts, DateTimeOffset runStartedAt, CancellationToken cancellationToken);
+        Source source, int limit, int maxFailedAttempts, DateTimeOffset runStartedAt, DateTimeOffset retryGivenUpBefore,
+        CancellationToken cancellationToken);
 
     // Returns false when there is no offer with the external id. recordChanges as in SaveAsync.
     Task<bool> SaveDetailsAsync(RawCapture capture, string externalId, OfferDetails details, bool recordChanges, CancellationToken cancellationToken);

@@ -1277,6 +1277,31 @@ public class HousingImportTests
     }
 
     [Test]
+    public async Task An_offer_that_used_up_its_attempts_is_tried_again_a_day_later()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small]];
+
+        await RunImport(client);
+        for (var run = 0; run < 3; run++)
+        {
+            await RunDetails(client);
+        }
+
+        _source.Details["1"] = new OfferDetails(Floor: 2);
+        var sameDay = await RunDetails(client);
+        await Sql("UPDATE housing.offer_detail_fetch SET attempted_at = attempted_at - interval '25 hours'");
+        var dayLater = await RunDetails(client);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(sameDay, Is.EqualTo(new Fetched(0, 0)));
+            Assert.That(dayLater, Is.EqualTo(new Fetched(1, 0)));
+        });
+    }
+
+    [Test]
     public async Task Reparse_restores_details_from_raw_pages()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));

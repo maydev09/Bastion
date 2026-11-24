@@ -50,9 +50,14 @@ ad is no longer available (the property may have a new owner or tenant) and simi
 Offers listed in the nightly scan answered so the same day. The listing never showed an offer
 again after its page answered `410` (checked 2026-11-22), so `410` is final.
 
+Except once: one offer answered `410` to three attempts (2026-11-21 and 22), yet stayed in the
+listing and opened normally on 2026-11-24. So `410` is almost always final, but not always.
+An offer it hides like this is marked removed and listed again by the next import or scan that sees it.
+
 A `404` was seen once (2026-11-21), for an offer that stayed in the listing: three attempts within
 a few hours answered `404`, and the next day the page answered `200` with the active offer. So a
 `404` can be temporary (perhaps while the ad is edited or moderated) and is not a removal.
+That is why an offer whose attempts ran out is tried again a day later (`RetryAfterHours`).
 
 ## Amenities
 

@@ -176,6 +176,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
 
     // Newest first, like the listing, so new offers get their details before the backlog.
     // An offer stored before content_hash existed waits until an import fills it.
+    // An offer that used up its attempts comes back once its last attempt is older than RetryGivenUpBefore.
     private const string PendingDetailsSql = """
         SELECT o.id AS offer_id, o.external_id, o.url, o.content_hash
         FROM housing.offer o
@@ -183,7 +184,8 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         WHERE o.source_id = @SourceId AND o.removed_at IS NULL AND o.content_hash IS NOT NULL
           AND (f.offer_id IS NULL
                OR f.content_hash <> o.content_hash
-               OR (f.failed_attempts BETWEEN 1 AND @MaxFailedAttempts - 1 AND f.attempted_at < @RunStartedAt))
+               OR (f.failed_attempts BETWEEN 1 AND @MaxFailedAttempts - 1 AND f.attempted_at < @RunStartedAt)
+               OR (f.failed_attempts >= @MaxFailedAttempts AND f.attempted_at < @RetryGivenUpBefore))
         ORDER BY o.external_created_at DESC NULLS LAST, o.id DESC
         LIMIT @Limit
         """;
@@ -918,12 +920,13 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
     }
 
     public async Task<IReadOnlyList<PendingDetails>> ListPendingDetailsAsync(
-        Source source, int limit, int maxFailedAttempts, DateTimeOffset runStartedAt, CancellationToken cancellationToken)
+        Source source, int limit, int maxFailedAttempts, DateTimeOffset runStartedAt, DateTimeOffset retryGivenUpBefore,
+        CancellationToken cancellationToken)
     {
         await using var connection = await db.OpenConnectionAsync(cancellationToken);
         var rows = await connection.QueryAsync<(int OfferId, string ExternalId, string Url, string ContentHash)>(new CommandDefinition(
             PendingDetailsSql,
-            new { SourceId = (int)source, Limit = limit, MaxFailedAttempts = maxFailedAttempts, RunStartedAt = runStartedAt },
+            new { SourceId = (int)source, Limit = limit, MaxFailedAttempts = maxFailedAttempts, RunStartedAt = runStartedAt, RetryGivenUpBefore = retryGivenUpBefore },
             cancellationToken: cancellationToken));
         return rows.Select(r => new PendingDetails(r.OfferId, r.ExternalId, new Uri(r.Url), r.ContentHash)).ToList();
     }
