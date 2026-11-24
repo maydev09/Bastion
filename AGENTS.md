@@ -74,6 +74,10 @@ Spend effort only on what solves a real problem the maintainer has today
   or an interval `Every`.
   An expected failure throws `JobFailedException` with a code that the UI translates and, when some work
   was done, its `Summary`, so a failed run keeps its counts.
+  A job that works through many items (pages, offers) never stops on one bad item: an odd value,
+  a 404/410, a 429/503 or a timeout of that item is handled or recorded and the job goes on; only a
+  failure that blocks all further work ends the run early. Its tests cover these failure paths
+  (one bad item, the portal gone midway, the time limit), not only the run where everything succeeds.
 - Data and API conventions: `int` identity keys,
   `timestamptz` + `DateTimeOffset` + `TimeProvider` (the UI shows times in the browser's time zone, whatever
   the language; the language picks only the format), money as `numeric`/`decimal` with a
