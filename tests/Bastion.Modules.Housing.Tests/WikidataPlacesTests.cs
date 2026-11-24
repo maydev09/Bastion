@@ -15,6 +15,7 @@ public class WikidataPlacesTests
         ["Q6"] = "województwo mazowieckie",
         ["Q7"] = "województwo olsztyńskie",
         ["Q8"] = "Gmina Raków",
+        ["Q9"] = "gmina Gościcino",
         ["Q10"] = "Gmina Raków (województwo kieleckie)",
     };
 
@@ -50,7 +51,7 @@ public class WikidataPlacesTests
             simcs: [("Q100", "0176503"), ("Q200", "0921510"), ("Q300", "0176444"), ("Q400", "0933016")],
             types: [("Q100", "Q3558970"), ("Q200", "Q515"), ("Q300", "Q3558970"), ("Q400", "Q515")],
             parents: [("Q100", "Q1"), ("Q1", "Q2"), ("Q2", "Q3"), ("Q200", "Q5"), ("Q5", "Q6"), ("Q300", "Q1"), ("Q400", "Q3")],
-            seats: [("Q100", "Gmina Biała (województwo opolskie)"), ("Q200", "powiat pruszkowski"), ("Q400", "województwo pomorskie")]));
+            seats: [("Q100", "Q11", "Gmina Biała (województwo opolskie)"), ("Q200", "Q5", "powiat pruszkowski"), ("Q400", "Q3", "województwo pomorskie")]));
 
         Assert.That(places.Select(p => (p.Name, p.Role)), Is.EquivalentTo(new (string, PlaceRole?)[]
         {
@@ -59,6 +60,45 @@ public class WikidataPlacesTests
             ("Wejherowo", PlaceRole.MunicipalitySeat),
             ("Gdańsk", PlaceRole.VoivodeshipCapital),
         }));
+    }
+
+    [Test]
+    public void Guesses_a_village_named_like_its_municipality_only_when_wikidata_names_no_seat()
+    {
+        var places = WikidataPlaces.Build(Rows(
+            simcs: [("Q100", "0176503"), ("Q300", "0176444"), ("Q500", "0176012")],
+            types: [("Q100", "Q3558970"), ("Q300", "Q3558970"), ("Q500", "Q3558970")],
+            parents: [("Q100", "Q9"), ("Q9", "Q2"), ("Q300", "Q1"), ("Q500", "Q1"), ("Q1", "Q2"), ("Q2", "Q3")],
+            seats: [("Q500", "Q1", "Wejherowo")]));
+
+        Assert.That(places.Select(p => (p.Name, p.Role)), Is.EquivalentTo(new (string, PlaceRole?)[]
+        {
+            ("Gościcino", PlaceRole.MunicipalitySeat),
+            ("Wejherowo", null),
+            ("Bolszewo", PlaceRole.MunicipalitySeat),
+        }));
+    }
+
+    [Test]
+    public void Guesses_no_village_seat_in_a_municipality_with_a_town()
+    {
+        var places = WikidataPlaces.Build(Rows(
+            simcs: [("Q100", "0176503"), ("Q300", "0176444")],
+            types: [("Q100", "Q515"), ("Q300", "Q3558970")],
+            parents: [("Q100", "Q1"), ("Q300", "Q1"), ("Q1", "Q2"), ("Q2", "Q3")]));
+
+        Assert.That(places.Single(p => p.Name == "Wejherowo").Role, Is.Null);
+    }
+
+    [Test]
+    public void Guesses_no_seat_when_several_places_bear_the_municipality_name()
+    {
+        var places = WikidataPlaces.Build(Rows(
+            simcs: [("Q300", "0176444"), ("Q301", "0176450")],
+            types: [("Q300", "Q3558970"), ("Q301", "Q3558970")],
+            parents: [("Q300", "Q1"), ("Q301", "Q1"), ("Q1", "Q2"), ("Q2", "Q3")]));
+
+        Assert.That(places.Select(p => p.Role), Is.All.Null);
     }
 
     [Test]
@@ -86,9 +126,9 @@ public class WikidataPlacesTests
         IReadOnlyList<(string, string)>? types = null,
         IReadOnlyList<(string, string)>? parents = null,
         IReadOnlyList<(string, decimal, DateTimeOffset?)>? populations = null,
-        IReadOnlyList<(string, string)>? seats = null) =>
+        IReadOnlyList<(string, string, string)>? seats = null) =>
         new(simcs,
-            new Dictionary<string, string> { ["Q100"] = "Gościcino", ["Q200"] = "Pruszków", ["Q300"] = "Wejherowo", ["Q400"] = "Gdańsk" },
+            new Dictionary<string, string> { ["Q100"] = "Gościcino", ["Q200"] = "Pruszków", ["Q300"] = "Wejherowo", ["Q400"] = "Gdańsk", ["Q500"] = "Bolszewo", ["Q301"] = "Wejherowo" },
             types ?? [],
             parents ?? [],
             Units,

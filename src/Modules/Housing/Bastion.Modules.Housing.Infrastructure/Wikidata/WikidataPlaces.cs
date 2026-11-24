@@ -23,6 +23,8 @@ public static class WikidataPlaces
         var populations = rows.Populations.ToLookup(p => p.Item);
         var coordinates = rows.Coordinates.ToLookup(c => c.Item);
         var seats = rows.Seats.ToLookup(s => s.Item, s => s.UnitName);
+        var municipalities = rows.Simcs.Select(s => s.Item).Distinct().ToDictionary(i => i, i => MunicipalityUnit(parents[i], rows.UnitNames));
+        var guessedSeats = GuessSeats(rows, types, municipalities);
 
         var places = new List<Place>();
         foreach (var (item, simc) in rows.Simcs.DistinctBy(s => s.Simc))
@@ -38,10 +40,9 @@ public static class WikidataPlaces
                 continue;
             }
 
-            var ownUnits = parents[item].Order().Where(rows.UnitNames.ContainsKey).Select(u => rows.UnitNames[u]).Where(IsCurrent);
-            var municipality = Municipality(ownUnits);
+            var municipality = municipalities[item] is { } unit ? MunicipalityName(rows.UnitNames[unit]) : null;
             var kind = KindOf(types[item]);
-            var role = RoleOf(seats[item], types[item], kind, name, municipality);
+            var role = RoleOf(seats[item], types[item], kind, guessedSeats.Contains(item));
             var place = new Place(simc, name, voivodeship, County(chain), municipality, kind, role);
 
             // The newest count wins; a count without a date is the oldest.
@@ -95,23 +96,43 @@ public static class WikidataPlaces
     // Former units are named with a parenthesis, e.g. "Gmina Biała (województwo opolskie)"; some lack an end date.
     private static bool IsCurrent(string unit) => !unit.Contains('(', StringComparison.Ordinal);
 
-    // Labels are "powiat złotowski", and "gmina Wejherowo" or "Gmina Raków"; only the name is kept.
+    // A label starts with "powiat " or "gmina " (any case); only the name is kept.
     private static string? County(IEnumerable<string> chain) =>
         chain.FirstOrDefault(u => u.StartsWith("powiat ", StringComparison.OrdinalIgnoreCase))?["powiat ".Length..];
 
-    // The municipality is the item's own unit when that is neither a county nor a voivodeship.
-    private static string? Municipality(IEnumerable<string> units)
+    // The municipality is the item's own current unit when that is neither a county nor a voivodeship.
+    private static string? MunicipalityUnit(IEnumerable<string> ownUnits, IReadOnlyDictionary<string, string> unitNames) =>
+        ownUnits.Order()
+            .FirstOrDefault(u => unitNames.TryGetValue(u, out var name) && IsCurrent(name) && !IsCountyOrVoivodeship(name) && name != "Polska");
+
+    private static string MunicipalityName(string unit) =>
+        unit.StartsWith("gmina ", StringComparison.OrdinalIgnoreCase) ? unit["gmina ".Length..] : unit;
+
+    private static bool IsCountyOrVoivodeship(string unit) =>
+        unit.StartsWith("powiat ", StringComparison.OrdinalIgnoreCase) || unit.StartsWith("województwo ", StringComparison.OrdinalIgnoreCase);
+
+    // Wikidata names the seat of only about a third of municipalities. A municipality with a town has its seat in a
+    // town (towns count as seats anyway); for any other one without a named seat, the place named like the
+    // municipality is taken, but only when there is exactly one (e.g. two villages "Dłutów" give no guess).
+    private static HashSet<string> GuessSeats(
+        WikidataRows rows, ILookup<string, string> types, IReadOnlyDictionary<string, string?> municipalities)
     {
-        var unit = units.FirstOrDefault(u => !u.StartsWith("powiat ", StringComparison.OrdinalIgnoreCase)
-            && !u.StartsWith("województwo ", StringComparison.OrdinalIgnoreCase)
-            && u != "Polska");
-        return unit is not null && unit.StartsWith("gmina ", StringComparison.OrdinalIgnoreCase) ? unit["gmina ".Length..] : unit;
+        var seated = rows.Seats.Where(s => !IsCountyOrVoivodeship(s.UnitName)).Select(s => s.Unit).ToHashSet();
+        var withTown = municipalities.Where(m => KindOf(types[m.Key]) == PlaceKind.Town).Select(m => m.Value).ToHashSet();
+        return municipalities
+            .Where(m => m.Value is { } unit
+                && !seated.Contains(unit)
+                && !withTown.Contains(unit)
+                && rows.Names.TryGetValue(m.Key, out var name)
+                && PlaceNames.Normalize(name) == PlaceNames.Normalize(MunicipalityName(rows.UnitNames[unit])))
+            .GroupBy(m => m.Value)
+            .Where(g => g.Count() == 1)
+            .Select(g => g.Single().Key)
+            .ToHashSet();
     }
 
-    // The highest seat.
-    // Wikidata names only about two thirds of municipality seats, so a town (always the seat of its municipality)
-    // and a village named like its municipality count as seats too.
-    private static PlaceRole? RoleOf(IEnumerable<string> seatOf, IEnumerable<string> types, PlaceKind? kind, string name, string? municipality)
+    // The highest seat; a town is almost always the seat of its municipality.
+    private static PlaceRole? RoleOf(IEnumerable<string> seatOf, IEnumerable<string> types, PlaceKind? kind, bool guessedSeat)
     {
         var units = seatOf.Where(IsCurrent).ToList();
         if (units.Any(u => VoivodeshipOf(u) is not null))
@@ -124,9 +145,9 @@ public static class WikidataPlaces
             return PlaceRole.CountySeat;
         }
 
-        return units.Any(u => u.StartsWith("gmina ", StringComparison.OrdinalIgnoreCase))
+        return units.Any(u => !IsCountyOrVoivodeship(u))
                || kind == PlaceKind.Town
-               || (municipality is not null && PlaceNames.Normalize(municipality) == PlaceNames.Normalize(name))
+               || guessedSeat
             ? PlaceRole.MunicipalitySeat
             : null;
     }

@@ -49,14 +49,18 @@ public sealed class WikidataPlaceSource(WikidataClient client) : IPlaceSource
 
     // Units whose current seat the place is: "capital of" (P1376) on the place or "capital" (P36) on the unit.
     // Only municipalities, counties and voivodeships; former ones (end date, dissolved) are skipped.
+    // A municipality is told by its type (municipality, urban, urban-rural, rural), not by its label: a former
+    // municipality of 1945-1954 is also labelled "Gmina Owiesno" and has no end date, and a current one is
+    // often labelled with the bare name ("Dzierżoniów").
     private const string SeatsQuery = """
-        SELECT DISTINCT ?item ?name WHERE {
+        SELECT DISTINCT ?item ?unit ?name WHERE {
           { ?item wdt:P4046 []; p:P1376 ?statement. ?statement ps:P1376 ?unit. }
           UNION { ?unit p:P36 ?statement. ?statement ps:P36 ?item. ?item wdt:P4046 []. }
           FILTER NOT EXISTS { ?statement pq:P582 [] }
           FILTER NOT EXISTS { ?unit wdt:P576 [] }
           ?unit rdfs:label ?name FILTER(LANG(?name) = "pl")
-          FILTER(STRSTARTS(LCASE(?name), "gmina ") || STRSTARTS(?name, "powiat ") || STRSTARTS(?name, "województwo "))
+          FILTER(STRSTARTS(?name, "powiat ") || STRSTARTS(?name, "województwo ")
+            || EXISTS { VALUES ?type { wd:Q15334 wd:Q2616791 wd:Q3491915 wd:Q3504085 } ?unit wdt:P31 ?type })
         }
         """;
 
@@ -137,7 +141,7 @@ public sealed class WikidataPlaceSource(WikidataClient client) : IPlaceSource
                 .Select(p => (p.Item, p.Population!.Value, p.Date))
                 .ToList(),
             coordinates.Select(r => Point(r["item"], r["point"])).Where(p => p is not null).Select(p => p!.Value).ToList(),
-            seats.Select(r => (r["item"], r["name"])).ToList());
+            seats.Select(r => (r["item"], r["unit"], r["name"])).ToList());
     }
 
     private async Task<Dictionary<string, string>> NamesAsync(IEnumerable<string> items, CancellationToken cancellationToken)
