@@ -22,7 +22,8 @@ FullScanMaxPages = 1000  # safety limit only; the whole listing had 360 pages in
 # work through the whole backlog (about 26 000 offers).
 [Modules.Housing.Details]
 MaxMinutes = 55          # per run, which starts every hour; the rest waits for the next run
-MaxFailedAttempts = 3    # then the offer waits until its content changes
+MaxFailedAttempts = 3    # then the offer waits until its content changes or RetryAfterHours pass
+RetryAfterHours = 24     # one more attempt per day: the portal may answer 404 or 410 only for a while
 Retries = 4              # when the portal is out of reach (timeout, network, VPN; not 429): wait 30 s, 1, 2, 4 min
 FirstRetrySeconds = 30
 

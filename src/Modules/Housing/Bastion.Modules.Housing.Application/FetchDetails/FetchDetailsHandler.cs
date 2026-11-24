@@ -40,6 +40,7 @@ public sealed class FetchDetailsHandler(
 
         var startedAt = time.GetUtcNow();
         var deadline = startedAt.AddMinutes(options.Value.MaxMinutes);
+        var retryGivenUpBefore = startedAt.AddHours(-options.Value.RetryAfterHours);
         int fetched = 0, failed = 0, removed = 0, retried = 0;
 
         // Failed fetches since the last success; blamed on their offers only when the streak ends without stopping the run.
@@ -48,7 +49,8 @@ public sealed class FetchDetailsHandler(
         {
             // Before the next batch, or these offers would come back in it.
             failed += await BlameAsync(streak, cancellationToken);
-            var pending = await repository.ListPendingDetailsAsync(source, BatchSize, options.Value.MaxFailedAttempts, startedAt, cancellationToken);
+            var pending = await repository.ListPendingDetailsAsync(
+                source, BatchSize, options.Value.MaxFailedAttempts, startedAt, retryGivenUpBefore, cancellationToken);
             if (pending.Count == 0)
             {
                 break;
