@@ -96,7 +96,7 @@ public static class WikidataPlaces
     // Former units are named with a parenthesis, e.g. "Gmina Biała (województwo opolskie)"; some lack an end date.
     private static bool IsCurrent(string unit) => !unit.Contains('(', StringComparison.Ordinal);
 
-    // Labels are "powiat złotowski", and "gmina Wejherowo" or "Gmina Raków"; only the name is kept.
+    // A label starts with "powiat " or "gmina " (any case); only the name is kept.
     private static string? County(IEnumerable<string> chain) =>
         chain.FirstOrDefault(u => u.StartsWith("powiat ", StringComparison.OrdinalIgnoreCase))?["powiat ".Length..];
 

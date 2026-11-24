@@ -1,7 +1,6 @@
 namespace Bastion.Modules.Housing.Infrastructure.Wikidata;
 
 // Query results about places with a SIMC id; items and units are Wikidata ids such as Q270.
-// Seats name the units whose seat the item is, e.g. (Q1792, Q1137392, "powiat złotowski").
 public sealed record WikidataRows(
     IReadOnlyList<(string Item, string Simc)> Simcs,
     IReadOnlyDictionary<string, string> Names,
