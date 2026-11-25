@@ -58,6 +58,27 @@
         }
       }
     },
+    "/api/platform/version": {
+      "get": {
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Returns the commit the running app was built from: its full hash, its date on master, the pull request it merged and a link to it in the repository. All are null in a local build, except perhaps the commit.",
+        "operationId": "GetAppVersion",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AppVersion"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/housing/import/{source}": {
       "post": {
         "tags": [
@@ -1108,6 +1129,44 @@
           "NotStated",
           null
         ]
+      },
+      "AppVersion": {
+        "required": [
+          "commit",
+          "commitDate",
+          "pullRequest",
+          "commitUrl"
+        ],
+        "type": "object",
+        "properties": {
+          "commit": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "commitDate": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "pullRequest": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "commitUrl": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "uri"
+          }
+        }
       },
       "BuildingType": {
         "enum": [
