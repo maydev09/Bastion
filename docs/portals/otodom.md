@@ -95,3 +95,14 @@ offer had `build_year` = `195014` (probably 1950); it did not fit the database c
 details fetch. The parser keeps only plausible numbers (build year 1000-2100, building floors 0-100,
 location radius 0-100000 m) and stores any other value as written in `housing.offer.rejected_values`, by
 column name.
+
+## Districts
+
+`location.reverseGeocoding.locations` lists the levels of an offer's location: `voivodeship`, sometimes `county`
+and `commune`, `city_or_village`, then `district` and `residential` (a neighborhood inside the district), each with an
+`id` (the path in OtoDom's URL spelling) and a `name`. Counted on the stored listing pages of 2026-11-25 (27 759
+listed offers): a district on 86%, a neighborhood on 62%. Every offer in the big cities has a district, but the
+levels differ by city: Warsaw and Kraków have their 18 official districts, Wrocław, Poznań and Łódź only the 5
+large historical ones (the neighborhoods are finer), Gdańsk about 35 smaller ones and no neighborhoods. Some towns
+(Grudziądz, Płock) and most villages have neither. One `id` always had the same name. A neighborhood never came
+without a district.

@@ -3,6 +3,7 @@ import { Button } from "@shared/ui/Button";
 import { Tag } from "@shared/ui/Tag";
 import styles from "./Housing.module.css";
 import { noFilter, type OfferFilter } from "./offerView";
+import { useDistricts } from "./useDistricts";
 import { usePlaces } from "./usePlaces";
 import { useFormat } from "./useFormat";
 
@@ -18,6 +19,8 @@ export function FilterChips({ filter, onChange }: Props) {
   const { t } = useTranslation("housing");
   const format = useFormat();
   const places = usePlaces(filter.place);
+  const districts = useDistricts(filter.place);
+  const districtOf = (id: number) => districts.find((d) => d.id === id);
 
   const range = (
     what: string,
@@ -38,7 +41,26 @@ export function FilterChips({ filter, onChange }: Props) {
       key: `place-${id}`,
       // A place still loading shows as an ellipsis.
       label: places[index]?.name ?? "…",
-      remove: { place: filter.place.filter((p) => p !== id) },
+      // A place takes its districts and neighborhoods with it.
+      remove: {
+        place: filter.place.filter((p) => p !== id),
+        district: filter.district.filter((d) => districtOf(d)?.placeId !== id),
+        neighborhood: filter.neighborhood.filter((e) => districtOf(e)?.placeId !== id),
+      },
+    })),
+    ...filter.district.map((id) => ({
+      key: `district-${id}`,
+      label: districtOf(id)?.name ?? "…",
+      // A district takes its neighborhoods with it.
+      remove: {
+        district: filter.district.filter((d) => d !== id),
+        neighborhood: filter.neighborhood.filter((e) => districtOf(e)?.parentId !== id),
+      },
+    })),
+    ...filter.neighborhood.map((id) => ({
+      key: `neighborhood-${id}`,
+      label: districtOf(id)?.name ?? "…",
+      remove: { neighborhood: filter.neighborhood.filter((e) => e !== id) },
     })),
     ...(filter.withoutPlace
       ? [{ key: "withoutPlace", label: t("filters.withoutPlace"), remove: { withoutPlace: false } }]

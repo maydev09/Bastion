@@ -98,7 +98,9 @@ Replaces the legacy flat offers scraper.
   to every source. A grouping is a suggestion: the user can confirm or split it.
 - Triage: browse, filter and sort offers (the view, e.g. page, sort order and filters, is part of the
   link, so a copied link opens the same view). Filters: place and voivodeship (or offers whose location
-  matched no place; the place search also finds places without offers and shows them grayed out), size of the place
+  matched no place; the place search also finds places without offers and shows them grayed out), the district
+  and the neighborhood of a picked place (named as the portal names them; a picked district narrows its place, a picked
+  neighborhood its district), size of the place
   (each size with the populations its configured thresholds cover), the highest seat it holds (voivodeship capital,
   county or municipality seat), price, price per m², area, rooms, furnished, amenities by category (all or any of
   the picked) and a price cut seen in the changelog. Filters join with AND, the choices inside one filter with OR; each choice shows how many

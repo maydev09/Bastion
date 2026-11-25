@@ -19,6 +19,13 @@ public interface IPlaceRepository
     // Also a place without listed offers; null when there is no place with the id.
     Task<PlaceListItem?> GetListItemAsync(int id, CancellationToken cancellationToken);
 
+    // Adds the district unless the place already has one of that name (see District.NameKey) under the same parent;
+    // returns its id either way.
+    Task<int> AddDistrictAsync(District district, CancellationToken cancellationToken);
+
+    // The districts and neighborhoods of a place, most listed offers first.
+    Task<IReadOnlyList<DistrictListItem>> ListDistrictsAsync(int placeId, CancellationToken cancellationToken);
+
     // Replaces all nearby places at once.
     Task ReplaceNearbyAsync(IReadOnlyList<PlaceNearby> nearby, CancellationToken cancellationToken);
 }

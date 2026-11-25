@@ -66,10 +66,10 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
     // The location is not part of the listing hash, so it is set here for new and unchanged offers alike.
     private const string LocationSql = """
         UPDATE housing.offer o
-        SET location_key = l.location_key, place_id = l.place_id
-        FROM unnest(@ExternalIds, @LocationKeys, @PlaceIds) AS l (external_id, location_key, place_id)
+        SET location_key = l.location_key, place_id = l.place_id, district_id = l.district_id
+        FROM unnest(@ExternalIds, @LocationKeys, @PlaceIds, @DistrictIds) AS l (external_id, location_key, place_id, district_id)
         WHERE o.source_id = @SourceId AND o.external_id = l.external_id
-          AND (o.location_key, o.place_id) IS DISTINCT FROM (l.location_key, l.place_id)
+          AND (o.location_key, o.place_id, o.district_id) IS DISTINCT FROM (l.location_key, l.place_id, l.district_id)
         """;
 
     // The right side of SET reads the values from before the update.
@@ -81,11 +81,13 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         RETURNING removed_at IS NOT NULL AS removed
         """;
 
+    // An offer points to its neighborhood when it has one; the neighborhood's parent is its district.
     private const string OfferColumns = """
         o.id, o.source_id AS source, o.title, o.url, o.property_type, o.transaction, o.price, o.price_currency,
         o.area_m2, o.rooms, o.created_at, o.updated_at, o.external_created_at, o.external_updated_at,
         o.place_id, p.name AS place_name, p.kind AS place_kind, p.role AS place_role, p.voivodeship, p.county, p.municipality,
         p.population, p.population_year, p.population_source, o.rent, o.rent_currency, o.furnished,
+        coalesce(dp.name, d.name) AS district, CASE WHEN dp.id IS NOT NULL THEN d.name END AS neighborhood,
         (SELECT (c.changes -> 'price' ->> 0)::numeric
          FROM housing.offer_change c
          WHERE c.offer_id = o.id AND c.changes ? 'price'
@@ -105,14 +107,30 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             LIMIT @PageSize OFFSET @Offset
         ) o
         LEFT JOIN housing.place p ON p.id = o.place_id
+        LEFT JOIN housing.district d ON d.id = o.district_id
+        LEFT JOIN housing.district dp ON dp.id = d.parent_id
         ORDER BY {{orderBy}};
 
         SELECT count(*)::int FROM housing.offer o WHERE {{where}};
         """;
 
     // A place filter picks places first: a few hundred of them have offers, so the offers are found by their place_id.
+    // A picked district or neighborhood narrows its own place: the place counts whole only while none of its districts or
+    // neighborhoods is picked. A district takes in its neighborhoods, unless one of them is picked: then it is narrowed the same way.
     private const string LocationCondition = """
-        o.place_id IN (SELECT id FROM housing.place WHERE voivodeship = ANY(@Voivodeships) OR id = ANY(@PlaceIds))
+        (o.place_id IN (
+            SELECT id
+            FROM housing.place
+            WHERE voivodeship = ANY(@Voivodeships)
+               OR id = ANY(@PlaceIds)
+                  AND id NOT IN (SELECT place_id FROM housing.district WHERE id = ANY(@DistrictIds) OR id = ANY(@NeighborhoodIds)))
+         OR o.district_id IN (
+            SELECT id
+            FROM housing.district
+            WHERE id = ANY(@NeighborhoodIds)
+               OR (id = ANY(@DistrictIds) OR parent_id = ANY(@DistrictIds))
+                  AND coalesce(parent_id, id) NOT IN (
+                      SELECT parent_id FROM housing.district WHERE id = ANY(@NeighborhoodIds) AND parent_id IS NOT NULL)))
         """;
 
     private const string PlaceSizeCondition = """
@@ -154,6 +172,8 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             o.description, f.fetched_at AS details_fetched_at
         FROM housing.offer o
         LEFT JOIN housing.place p ON p.id = o.place_id
+        LEFT JOIN housing.district d ON d.id = o.district_id
+        LEFT JOIN housing.district dp ON dp.id = d.parent_id
         LEFT JOIN housing.offer_detail_fetch f ON f.offer_id = o.id
         WHERE o.id = @Id;
 
@@ -283,9 +303,10 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         GROUP BY source_id, location_key
         """;
 
+    // A district belongs to the old place, so it is cleared; the next listing page of the offer sets it again.
     private const string SetPlacesSql = """
         UPDATE housing.offer o
-        SET place_id = l.place_id
+        SET place_id = l.place_id, district_id = NULL
         FROM unnest(@SourceIds, @LocationKeys, @PlaceIds) AS l (source_id, location_key, place_id)
         WHERE o.source_id = l.source_id AND o.location_key = l.location_key
           AND o.place_id IS DISTINCT FROM l.place_id
@@ -357,6 +378,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             ExternalIds = externalIds,
             LocationKeys = offers.Select(o => o.LocationKey).ToArray(),
             PlaceIds = offers.Select(o => o.PlaceId).ToArray(),
+            DistrictIds = offers.Select(o => o.DistrictId).ToArray(),
         }, transaction, cancellationToken: cancellationToken));
 
         if (recordChanges && updated > 0)
@@ -468,7 +490,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         IReadOnlyList<DateTimeOffset> countAddedSince,
         CancellationToken cancellationToken)
     {
-        var withoutLocation = BuildWhere(filter with { Voivodeships = [], PlaceIds = [], WithoutPlace = false }, placeSizes);
+        var withoutLocation = BuildWhere(filter with { Voivodeships = [], PlaceIds = [], DistrictIds = [], NeighborhoodIds = [], WithoutPlace = false }, placeSizes);
         var withoutSize = BuildWhere(filter, []);
         var withoutRole = BuildWhere(filter with { PlaceRoles = [] }, placeSizes);
         var withoutFurnished = BuildWhere(filter with { Furnished = null }, placeSizes);
@@ -717,6 +739,8 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         {
             Voivodeships = filter.Voivodeships.Select(v => (int)v).ToArray(),
             PlaceIds = filter.PlaceIds.ToArray(),
+            DistrictIds = filter.DistrictIds.ToArray(),
+            NeighborhoodIds = filter.NeighborhoodIds.ToArray(),
             SizeKinds = placeSizes.Select(s => (int)s.Kind).ToArray(),
             SizeMins = placeSizes.Select(s => s.Min).ToArray(),
             SizeMaxes = placeSizes.Select(s => s.Max).ToArray(),
@@ -742,7 +766,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
     private static string BuildWhere(OfferFilter filter, IReadOnlyList<PopulationRange> placeSizes)
     {
         var conditions = new List<string> { "o.removed_at IS NULL" };
-        var byPlace = filter.Voivodeships.Count > 0 || filter.PlaceIds.Count > 0;
+        var byPlace = filter.Voivodeships.Count > 0 || filter.PlaceIds.Count > 0 || filter.DistrictIds.Count > 0 || filter.NeighborhoodIds.Count > 0;
         if (byPlace && filter.WithoutPlace)
         {
             conditions.Add($"({LocationCondition.Trim()} OR o.place_id IS NULL)");

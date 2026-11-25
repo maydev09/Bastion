@@ -15,4 +15,7 @@ public sealed class ListPlacesHandler(IPlaceRepository repository)
     }
 
     public Task<PlaceListItem?> Get(int id, CancellationToken cancellationToken) => repository.GetListItemAsync(id, cancellationToken);
+
+    public Task<IReadOnlyList<DistrictListItem>> ListDistricts(int placeId, CancellationToken cancellationToken) =>
+        repository.ListDistrictsAsync(placeId, cancellationToken);
 }

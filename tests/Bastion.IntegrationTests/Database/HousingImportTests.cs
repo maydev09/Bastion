@@ -315,6 +315,60 @@ public class HousingImportTests
     }
 
     [Test]
+    public async Task Offers_get_their_district_and_neighborhood_and_are_filtered_by_them()
+    {
+        await using var factory = App(WithFakes);
+        using var client = factory.CreateClient();
+        await JobRuns.Run(client, ImportPlaces);
+        var wola = Small with { ExternalId = "4", Title = "Wola apartment", LocationKey = WarszawaKey, DistrictName = "Wola" };
+        _source.Pages = [[
+            Small with { LocationKey = WarszawaKey, DistrictName = "Mokotów", NeighborhoodName = "Stegny" },
+            Medium with { LocationKey = WarszawaKey, DistrictName = "Mokotów" },
+            Small with { ExternalId = "5", Title = "Sielce apartment", LocationKey = WarszawaKey, DistrictName = "Mokotów", NeighborhoodName = "Sielce" },
+            Large with { LocationKey = GoscicinoKey },
+            wola,
+        ]];
+        await RunImport(client);
+        // The same district spelled differently on a later page is the same district.
+        _source.Pages = [[wola with { DistrictName = "WOLA" }]];
+        await RunImport(client);
+        var warszawa = (await client.GetFromJsonAsync<PlaceListItem[]>("/api/housing/places?search=warszawa", Json))!.Single();
+        var goscicino = (await client.GetFromJsonAsync<PlaceListItem[]>("/api/housing/places?search=goscicino", Json))!.Single();
+
+        var districts = await client.GetFromJsonAsync<DistrictListItem[]>($"/api/housing/places/{warszawa.Id}/districts", Json);
+        var mokotow = districts!.Single(d => d.Name == "Mokotów");
+        var stegny = districts!.Single(d => d.Name == "Stegny");
+        var wolaId = districts!.Single(d => d.Name == "Wola").Id;
+        var list = await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json);
+
+        var inMokotow = await ListedTitles(client, $"?place={warszawa.Id}&district={mokotow.Id}");
+        var inStegny = await ListedTitles(client, $"?place={warszawa.Id}&neighborhood={stegny.Id}");
+        var inStegnyOrWola = await ListedTitles(client, $"?place={warszawa.Id}&district={mokotow.Id}&district={wolaId}&neighborhood={stegny.Id}");
+        var inStegnyOrGoscicino = await ListedTitles(client, $"?place={warszawa.Id}&place={goscicino.Id}&neighborhood={stegny.Id}");
+        var ofGoscicino = await client.GetFromJsonAsync<DistrictListItem[]>($"/api/housing/places/{goscicino.Id}/districts", Json);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(districts!.Select(d => (d.Name, d.ParentId, d.OfferCount)), Is.EqualTo(new[]
+            {
+                ("Mokotów", (int?)null, 3), ("Sielce", mokotow.Id, 1), ("Stegny", mokotow.Id, 1), ("Wola", null, 1),
+            }));
+            Assert.That(list!.Items.Select(o => (o.Title, o.District, o.Neighborhood)), Is.EquivalentTo(new[]
+            {
+                ("Small apartment", "Mokotów", "Stegny"), ("Medium apartment", "Mokotów", null), ("Sielce apartment", "Mokotów", "Sielce"),
+                ("Large apartment", null, null), ("Wola apartment", (string?)"Wola", (string?)null),
+            }));
+            Assert.That(inMokotow, Is.EquivalentTo(new[] { "Small apartment", "Medium apartment", "Sielce apartment" }));
+            Assert.That(inStegny, Is.EqualTo(new[] { "Small apartment" }));
+            // A neighborhood narrows its district; another picked district stays whole.
+            Assert.That(inStegnyOrWola, Is.EquivalentTo(new[] { "Small apartment", "Wola apartment" }));
+            // A neighborhood narrows only its own place; another picked place stays whole.
+            Assert.That(inStegnyOrGoscicino, Is.EquivalentTo(new[] { "Small apartment", "Large apartment" }));
+            Assert.That(ofGoscicino, Is.Empty);
+        });
+    }
+
+    [Test]
     public async Task List_is_filtered_by_the_seat_of_the_place_and_by_the_price_per_m2_as_shown()
     {
         await using var factory = App(WithFakes);

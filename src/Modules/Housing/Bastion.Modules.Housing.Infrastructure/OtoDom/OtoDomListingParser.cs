@@ -34,6 +34,7 @@ public static partial class OtoDomListingParser
                 && TransactionOf(item) is { } transaction
                 && Date(item, "createdAtFirst") is { } createdAt)
             {
+                var (district, neighborhood) = OtoDomLocation.DistrictOf(item);
                 offers.Add(new Offer(
                     Source.OtoDom,
                     id.GetRawText(),
@@ -49,7 +50,9 @@ public static partial class OtoDomListingParser
                     OtoDomLocation.KeyOf(item),
                     Rent: Plausible(MoneyOf(item, "rentPrice")),
                     Floor: Floor(item),
-                    Features: Features(item)));
+                    Features: Features(item),
+                    DistrictName: district,
+                    NeighborhoodName: neighborhood));
             }
             else
             {

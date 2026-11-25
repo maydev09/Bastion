@@ -7,7 +7,15 @@ type Props = {
   onOpenChange: (open: boolean) => void;
 };
 
-const rules = ["sections", "choices", "features", "ranges", "history", "counts"] as const;
+const rules = [
+  "sections",
+  "choices",
+  "districts",
+  "features",
+  "ranges",
+  "history",
+  "counts",
+] as const;
 
 // How the filters join: AND between sections, OR inside one, and the exceptions.
 export function FiltersHelp({ open, onOpenChange }: Props) {

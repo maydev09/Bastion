@@ -209,6 +209,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/housing/places/{id}/districts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns the districts of a place and the neighborhoods inside them (parentId is the district), most listed offers first; a district counts the offers of its neighborhoods too. Empty for a place without districts. */
+        get: operations["ListHousingDistricts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/housing/offers/{id}": {
         parameters: {
             query?: never;
@@ -337,6 +354,15 @@ export interface components {
             serverVersion: string;
             canChangeSchema: boolean;
             migrations: components["schemas"]["SchemaMigration"][];
+        };
+        DistrictListItem: {
+            /** Format: int32 */
+            id: number;
+            name: string;
+            /** Format: int32 */
+            parentId: null | number;
+            /** Format: int32 */
+            offerCount: number;
         };
         /** @enum {unknown} */
         Feature: "Balcony" | "Terrace" | "Garden" | "Lift" | "Basement" | "Parking" | "AirConditioning" | "Dishwasher" | "WashingMachine" | "Fridge" | "Stove" | "Oven" | "SeparateKitchen" | "UsableRoom" | "TwoStorey" | "Internet" | "CableTelevision" | "Entryphone" | "Monitoring" | "ClosedArea" | "AntiBurglaryDoor" | "NonSmokersOnly";
@@ -520,6 +546,8 @@ export interface components {
             voivodeship?: null | components["schemas"]["Voivodeship"];
             county?: null | string;
             municipality?: null | string;
+            district?: null | string;
+            neighborhood?: null | string;
             /** Format: int32 */
             population?: null | number;
             /** Format: int32 */
@@ -735,6 +763,8 @@ export interface operations {
             query?: {
                 voivodeship?: components["schemas"]["Voivodeship"][];
                 place?: number[];
+                district?: number[];
+                neighborhood?: number[];
                 withoutPlace?: boolean;
                 size?: components["schemas"]["PlaceSize"][];
                 role?: components["schemas"]["PlaceRole"][];
@@ -780,6 +810,8 @@ export interface operations {
             query?: {
                 voivodeship?: components["schemas"]["Voivodeship"][];
                 place?: number[];
+                district?: number[];
+                neighborhood?: number[];
                 withoutPlace?: boolean;
                 size?: components["schemas"]["PlaceSize"][];
                 role?: components["schemas"]["PlaceRole"][];
@@ -822,6 +854,8 @@ export interface operations {
             query?: {
                 voivodeship?: components["schemas"]["Voivodeship"][];
                 place?: number[];
+                district?: number[];
+                neighborhood?: number[];
                 withoutPlace?: boolean;
                 size?: components["schemas"]["PlaceSize"][];
                 role?: components["schemas"]["PlaceRole"][];
@@ -946,6 +980,28 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    ListHousingDistricts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DistrictListItem"][];
+                };
             };
         };
     };

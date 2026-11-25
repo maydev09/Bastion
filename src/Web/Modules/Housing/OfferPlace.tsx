@@ -68,6 +68,9 @@ export function OfferPlace({ offer: o }: { offer: Offer }) {
         <PropertyList
           items={[
             { label: t("detail.place"), value: o.placeName },
+            // Villages and many towns have no districts, so the rows show only when the portal names them.
+            ...(o.district ? [{ label: t("detail.district"), value: o.district }] : []),
+            ...(o.neighborhood ? [{ label: t("detail.neighborhood"), value: o.neighborhood }] : []),
             {
               label: t("detail.municipality"),
               value: o.municipality ?? (ownCounty ? t("detail.urbanMunicipality") : missing),

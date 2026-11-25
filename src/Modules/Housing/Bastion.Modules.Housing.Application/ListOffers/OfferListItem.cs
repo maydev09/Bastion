@@ -92,6 +92,11 @@ public sealed record OfferListItem
 
     public string? Municipality { get; init; }
 
+    // The district of the place and the neighborhood inside it, as the portal names them; both null when not known.
+    public string? District { get; init; }
+
+    public string? Neighborhood { get; init; }
+
     public int? Population { get; init; }
 
     public int? PopulationYear { get; init; }

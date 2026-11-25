@@ -54,6 +54,43 @@ public class OtoDomListingParserTests
     }
 
     [Test]
+    public void Reads_the_district_and_the_neighborhood_inside_it()
+    {
+        const string html = """
+            <script id="__NEXT_DATA__" type="application/json">
+            {"props":{"pageProps":{"data":{"searchAds":{"items":[
+              {"id":1,"title":"Both","slug":"both-ID1","estate":"FLAT","transaction":"RENT","createdAtFirst":"2026-11-19T10:00:00+00:00",
+               "location":{"reverseGeocoding":{"locations":[
+                 {"id":"mazowieckie/warszawa/warszawa/warszawa","locationLevel":"city_or_village","name":"Warszawa"},
+                 {"id":"mazowieckie/warszawa/warszawa/warszawa/mokotow","locationLevel":"district","name":"Mokotów"},
+                 {"id":"mazowieckie/warszawa/warszawa/warszawa/mokotow/stegny","locationLevel":"residential","name":"Stegny"}]}}},
+              {"id":2,"title":"District","slug":"district-ID2","estate":"FLAT","transaction":"RENT","createdAtFirst":"2026-11-19T10:00:00+00:00",
+               "location":{"reverseGeocoding":{"locations":[
+                 {"id":"pomorskie/gdansk/gdansk/gdansk","locationLevel":"city_or_village","name":"Gdańsk"},
+                 {"id":"pomorskie/gdansk/gdansk/gdansk/letnica","locationLevel":"district","name":" Letnica "}]}}},
+              {"id":3,"title":"Neighborhood alone","slug":"neighborhood-ID3","estate":"FLAT","transaction":"RENT","createdAtFirst":"2026-11-19T10:00:00+00:00",
+               "location":{"reverseGeocoding":{"locations":[
+                 {"id":"pomorskie/gdansk/gdansk/gdansk","locationLevel":"city_or_village","name":"Gdańsk"},
+                 {"id":"pomorskie/gdansk/gdansk/gdansk/x/y","locationLevel":"residential","name":"Osiedle"}]}}},
+              {"id":4,"title":"Village","slug":"village-ID4","estate":"FLAT","transaction":"RENT","createdAtFirst":"2026-11-19T10:00:00+00:00",
+               "location":{"reverseGeocoding":{"locations":[
+                 {"id":"pomorskie/wejherowski/gmina-wiejska--wejherowo/goscicino","locationLevel":"city_or_village","name":"Gościcino"}]}}}
+            ]}}}}}
+            </script>
+            """;
+
+        var (offers, _, _) = OtoDomListingParser.Parse(html, BaseUrl);
+
+        Assert.That(offers.Select(o => (o.ExternalId, o.DistrictName, o.NeighborhoodName)), Is.EquivalentTo(new[]
+        {
+            ("1", "Mokotów", "Stegny"),
+            ("2", "Letnica", null),
+            ("3", null, null),
+            ("4", (string?)null, (string?)null),
+        }));
+    }
+
+    [Test]
     public void Reads_rent_floor_and_features_of_the_listing()
     {
         const string html = """

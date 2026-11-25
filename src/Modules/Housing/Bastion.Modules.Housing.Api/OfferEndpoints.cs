@@ -107,6 +107,11 @@ public static class OfferEndpoints
         .WithName("GetHousingPlace")
         .WithSummary("Returns one place with the number of its listed offers, also a place without offers.");
 
+        app.MapGet("/places/{id:int}/districts", async (int id, ListPlacesHandler handler, CancellationToken cancellationToken) =>
+            TypedResults.Ok(await handler.ListDistricts(id, cancellationToken)))
+        .WithName("ListHousingDistricts")
+        .WithSummary("Returns the districts of a place and the neighborhoods inside them (parentId is the district), most listed offers first; a district counts the offers of its neighborhoods too. Empty for a place without districts.");
+
         app.MapGet("/offers/{id:int}", async Task<Results<Ok<OfferListItem>, NotFound>> (
             int id, ListOffersHandler handler, CancellationToken cancellationToken) =>
             await handler.Get(id, cancellationToken) is { } offer ? TypedResults.Ok(offer) : TypedResults.NotFound())

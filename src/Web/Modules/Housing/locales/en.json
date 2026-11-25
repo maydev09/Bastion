@@ -65,6 +65,11 @@
     "placePlaceholder": "Type a name…",
     "placeStart": "Type the start of a place name.",
     "placeNone": "No place has this name.",
+    "district": "District",
+    "districtPlaceholder": "All",
+    "districtNone": "No district has this name.",
+    "neighborhood": "Neighborhood",
+    "neighborhoodNone": "No neighborhood has this name.",
     "searching": "Searching…",
     "inCounty": "{{county}} county",
     "voivodeship": "Voivodeship",
@@ -124,6 +129,8 @@
     "notFound": "There is no such offer.",
     "portal": "Open on {{source}}",
     "place": "Place",
+    "district": "District",
+    "neighborhood": "Neighborhood",
     "unknownPlace": "The place of this offer could not be found.",
     "nearby": "Surroundings",
     "nearbyHint": "The nearest town, county seat, voivodeship capital and metropolis, and big cities within 50 km. Straight-line distance; by road it is usually farther.",
@@ -287,7 +294,8 @@
     },
     "nearestCity": "{{city}} – {{km}} km",
     "population": "{{population}} residents ({{year}}, {{source}})",
-    "populationNoYear": "{{population}} residents ({{source}})"
+    "populationNoYear": "{{population}} residents ({{source}})",
+    "withDistrict": "{{place}}, {{district}}"
   },
   "voivodeship": {
     "Dolnoslaskie": "Lower Silesian",
@@ -387,6 +395,7 @@
     "title": "How the filters work",
     "sections": "An offer must match every section where you set something: e.g. the location, and the price, and the room count.",
     "choices": "Within one section any of the ticked choices is enough: Gdańsk or Gdynia, 2 or 3 rooms, metropolis or large city. In Location this covers places, voivodeships and offers without a matched place.",
+    "districts": "A district narrows its own place: Warsaw with Mokotów is only Mokotów, while another ticked place stays whole. A neighborhood narrows its district the same way. The neighborhood list shows the neighborhoods of the ticked districts, or all of them when no district is ticked. District and neighborhood names come from the portal, and many places have none.",
     "features": "Amenities must all be there; with the “any” switch one of them is enough.",
     "ranges": "Price, price per m² and area are a from–to range; a click on a bar of the chart sets its range, a click on another bar widens it.",
     "history": "In Change history, “Offer changes” and “Price cut” must both hold.",
