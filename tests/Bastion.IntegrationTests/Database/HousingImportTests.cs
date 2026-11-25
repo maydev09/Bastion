@@ -320,17 +320,22 @@ public class HousingImportTests
         await using var factory = App(WithFakes);
         using var client = factory.CreateClient();
         await JobRuns.Run(client, ImportPlaces);
-        var wola = Small with { ExternalId = "4", Title = "Wola apartment", LocationKey = WarszawaKey, DistrictName = "Wola" };
+        var wola = Small with { ExternalId = "4", Title = "Wola apartment", LocationKey = WarszawaKey };
+        _source.Districts["1"] = ("Mokotów", "Stegny");
+        _source.Districts["3"] = ("Mokotów", null);
+        _source.Districts["5"] = ("Mokotów", "Sielce");
+        _source.Districts["4"] = ("Wola", null);
         _source.Pages = [[
-            Small with { LocationKey = WarszawaKey, DistrictName = "Mokotów", NeighborhoodName = "Stegny" },
-            Medium with { LocationKey = WarszawaKey, DistrictName = "Mokotów" },
-            Small with { ExternalId = "5", Title = "Sielce apartment", LocationKey = WarszawaKey, DistrictName = "Mokotów", NeighborhoodName = "Sielce" },
+            Small with { LocationKey = WarszawaKey },
+            Medium with { LocationKey = WarszawaKey },
+            Small with { ExternalId = "5", Title = "Sielce apartment", LocationKey = WarszawaKey },
             Large with { LocationKey = GoscicinoKey },
             wola,
         ]];
         await RunImport(client);
         // The same district spelled differently on a later page is the same district.
-        _source.Pages = [[wola with { DistrictName = "WOLA" }]];
+        _source.Districts["4"] = ("WOLA", null);
+        _source.Pages = [[wola]];
         await RunImport(client);
         var warszawa = (await client.GetFromJsonAsync<PlaceListItem[]>("/api/housing/places?search=warszawa", Json))!.Single();
         var goscicino = (await client.GetFromJsonAsync<PlaceListItem[]>("/api/housing/places?search=goscicino", Json))!.Single();
@@ -1547,6 +1552,9 @@ public class HousingImportTests
         // Each inner list is one results page, newest offers first.
         public IReadOnlyList<IReadOnlyList<Offer>> Pages { get; set; } = [[]];
 
+        // The district and neighborhood names a listing page gives for an offer, by external id.
+        public Dictionary<string, (string District, string? Neighborhood)> Districts { get; } = [];
+
         public Failure? ParseFailure { get; set; }
 
         public Source Source => Source.OtoDom;
@@ -1570,7 +1578,12 @@ public class HousingImportTests
             }
 
             var parsed = JsonSerializer.Deserialize<FakePage>(page.Content, Json)!;
-            return new ParseResult(parsed.Offers, 0, parsed.IsLast);
+            var offers = parsed.Offers
+                .Select(o => Districts.TryGetValue(o.ExternalId, out var names)
+                    ? new ParsedOffer(o, names.District, names.Neighborhood)
+                    : new ParsedOffer(o))
+                .ToList();
+            return new ParseResult(offers, 0, parsed.IsLast);
         }
 
         public LocationHint? LocationHintOf(string locationKey) => OtoDomLocation.HintOf(locationKey);

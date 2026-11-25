@@ -95,6 +95,6 @@ public class OtoDomAnonymizerTests
         var masked = OtoDomListingParser.Parse(OtoDomAnonymizer.Anonymize(html, "***"), BaseUrl);
 
         // Features is a list, so offers are compared by their stored fields (the listing hash).
-        Assert.That(masked.Offers.Select(o => o.ListingHash()), Is.EqualTo(original.Offers.Select(o => o.ListingHash())));
+        Assert.That(masked.Offers.Select(o => o.Offer.ListingHash()), Is.EqualTo(original.Offers.Select(o => o.Offer.ListingHash())));
     }
 }

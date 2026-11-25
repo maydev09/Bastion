@@ -137,6 +137,10 @@ Spend effort only on what solves a real problem the maintainer has today
 - A domain entity has the same name as its table, and its properties the same names as the
   columns (`housing.offer` -> `Offer`, `area_m2` -> `AreaM2`). A different name or shape needs
   a really good reason; explain it to the maintainer before writing it.
+- The domain is only what the module stores. Data that crosses a layer and is not a column (what a parser
+  reads for a later step, what an endpoint returns) is a DTO record in Application (`ParsedOffer`,
+  `OfferListItem`), never an extra property on an entity, and an endpoint never returns an entity.
+  Domain enums may appear in DTOs.
 - Handlers are plain classes called by endpoints. No MediatR, CQRS frameworks or AutoMapper.
 - No project name in identifiers (`UseConfigurationSources`, not `UseBastionConfiguration`); the
   `Bastion.*` namespaces already give the context.

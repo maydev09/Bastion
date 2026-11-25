@@ -1,13 +1,14 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Bastion.Modules.Housing.Application.Abstractions;
 using Bastion.Modules.Housing.Domain;
 
 namespace Bastion.Modules.Housing.Infrastructure.OtoDom;
 
 public static partial class OtoDomListingParser
 {
-    public static (IReadOnlyList<Offer> Offers, int SkippedCount, bool IsLastPage) Parse(string html, Uri baseUrl)
+    public static (IReadOnlyList<ParsedOffer> Offers, int SkippedCount, bool IsLastPage) Parse(string html, Uri baseUrl)
     {
         var script = NextDataRegex().Match(html);
         if (!script.Success)
@@ -23,7 +24,7 @@ public static partial class OtoDomListingParser
             throw new OtoDomParseException("__NEXT_DATA__ has no props.pageProps.data.searchAds.items array.");
         }
 
-        var offers = new List<Offer>();
+        var offers = new List<ParsedOffer>();
         var skipped = 0;
         foreach (var item in items.EnumerateArray())
         {
@@ -35,7 +36,7 @@ public static partial class OtoDomListingParser
                 && Date(item, "createdAtFirst") is { } createdAt)
             {
                 var (district, neighborhood) = OtoDomLocation.ReadDistrict(item);
-                offers.Add(new Offer(
+                var offer = new Offer(
                     Source.OtoDom,
                     id.GetRawText(),
                     title.GetString()!,
@@ -50,9 +51,8 @@ public static partial class OtoDomListingParser
                     OtoDomLocation.KeyOf(item),
                     Rent: Plausible(MoneyOf(item, "rentPrice")),
                     Floor: Floor(item),
-                    Features: Features(item),
-                    DistrictName: district,
-                    NeighborhoodName: neighborhood));
+                    Features: Features(item));
+                offers.Add(new ParsedOffer(offer, district, neighborhood));
             }
             else
             {
@@ -62,7 +62,7 @@ public static partial class OtoDomListingParser
 
         // Promoted offers can appear twice on one page, and the page lists the newest offer first.
         // Saving them oldest first gives newer offers higher ids, which orders offers of one import by age.
-        return (offers.DistinctBy(o => o.ExternalId).Reverse().ToList(), skipped, IsLastPage(document.RootElement));
+        return (offers.DistinctBy(o => o.Offer.ExternalId).Reverse().ToList(), skipped, IsLastPage(document.RootElement));
     }
 
     // Without page numbers there is nothing to read next.
