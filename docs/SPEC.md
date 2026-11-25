@@ -186,7 +186,8 @@ and is extracted into the library when the job offers module needs it.
   checksum of key fields, or a similarity score over address, price, area, rooms,
   title), and is a group stored or derived from the data? Decide before the
   second portal of a module is added.
-- AI support (later phase): e.g. "find the offers that fit me best" over the collected data.
-  Options: an MCP server over the database used from an existing Claude subscription
-  (no API cost), or Claude API calls on offers pre-filtered with SQL (pay per token).
-  Preferred direction: MCP (read-only access to the data). Not needed soon.
+- AI support: the maintainer asks Claude (an existing subscription, no API cost) about the market instead of
+  writing SQL or clicking. Direction (2026-11-25): a read-only MCP server over the app's own statistics
+  handlers, the same ones the HTTP API calls, not over the database; wanted soon (Phase 10, with the market
+  view). Open: transport (HTTP on the Host or stdio), how a module registers its tools without the platform
+  knowing module code, and access on the home network without a login. Decide in an ADR before it is built.

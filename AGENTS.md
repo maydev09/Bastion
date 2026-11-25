@@ -83,6 +83,11 @@ Spend effort only on what solves a real problem the maintainer has today
   the language; the language picks only the format), money as `numeric`/`decimal` with a
   currency column, enums as `integer` (explicit C# values) without `CHECK` and as JSON strings, `ProblemDetails` with a
   `code`, paging via `PageRequest`/`PagedResult<T>`, expected errors as `TypedResults`.
+- API results are readable without the UI, by a person or an LLM (MCP is planned over the same handlers): every
+  endpoint and parameter has an OpenAPI summary or description (what it returns, units, the filter keys it takes);
+  keys are plain English with the unit in the name (`medianPricePerM2Pln`); a statistic states its method, sample
+  size, what it left out and why, and which values are estimated. A statistic is an Application handler, never
+  computed only in SQL behind one endpoint or in the UI.
 - UI texts only from i18next dictionaries by key; no hardcoded texts. Every new or
   changed text goes to both `pl` (default) and `en` in the same change
  .
