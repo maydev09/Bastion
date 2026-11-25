@@ -11,6 +11,11 @@
   "home": {
     "title": "Moduły"
   },
+  "version": {
+    "dev": "wersja deweloperska",
+    "withPullRequest": "{{date}} · #{{pullRequest}}",
+    "commit": "Commit {{commit}}: otwórz na GitHubie"
+  },
   "language": {
     "label": "Język"
   },

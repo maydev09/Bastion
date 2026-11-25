@@ -22,6 +22,12 @@
     <ProjectReference Include="../../Modules/Housing/Bastion.Modules.Housing/Bastion.Modules.Housing.csproj" />
     <ProjectReference Include="../../Modules/JobOffers/Bastion.Modules.JobOffers/Bastion.Modules.JobOffers.csproj" />
   </ItemGroup>
+  <!-- The version shown in the UI (AppVersionEndpoint): CI passes them to the image build (Dockerfile). -->
+  <ItemGroup>
+    <AssemblyMetadata Include="SourceRevisionDate" Value="$(SourceRevisionDate)" Condition="'$(SourceRevisionDate)' != ''" />
+    <AssemblyMetadata Include="PullRequestNumber" Value="$(PullRequestNumber)" Condition="'$(PullRequestNumber)' != ''" />
+    <AssemblyMetadata Include="RepositoryUrl" Value="$(RepositoryUrl)" Condition="'$(RepositoryUrl)' != ''" />
+  </ItemGroup>
   <ItemGroup>
     <Content Include="bastion*.toml" CopyToOutputDirectory="PreserveNewest" />
     <InternalsVisibleTo Include="Bastion.IntegrationTests" />

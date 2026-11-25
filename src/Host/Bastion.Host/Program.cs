@@ -90,6 +90,7 @@ if (app.Environment.IsDevelopment())
 app.MapGet("/api/platform/modules", () => TypedResults.Ok(modules.Select(m => new ModuleInfo(m.Name, m.RoutePrefix))))
     .WithTags("Platform");
 app.MapDatabaseStatus();
+app.MapAppVersion();
 app.MapModuleEndpoints(modules);
 app.MapFallback("/api/{**path}", () => TypedResults.NotFound());
 app.MapFallbackToFile("index.html");

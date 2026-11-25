@@ -54,6 +54,8 @@
 }
 
 .sidebar {
+  display: flex;
+  flex-direction: column;
   position: sticky;
   top: 0;
   height: 100vh;
@@ -143,6 +145,21 @@
   margin-left: 20px;
   padding-left: var(--space-2);
   border-left: 1px solid var(--color-border);
+}
+
+/* At the bottom of the open menu, quiet: it matters only when checking what runs. */
+.version {
+  margin-top: auto;
+  padding: var(--space-3) var(--space-4);
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+}
+
+a.version:hover {
+  color: var(--color-text);
+  text-decoration: underline;
 }
 
 /* The window never scrolls: the top bar stays, and the page below it scrolls (or fills it, see .main). */

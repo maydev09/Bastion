@@ -9,6 +9,7 @@ import { PageTitleSlot } from "@shared/pageTitleSlot";
 import { Icon, type IconName } from "@shared/ui/Icon";
 import { IconButton } from "@shared/ui/IconButton";
 import { Select } from "@shared/ui/Select";
+import { AppVersion } from "./AppVersion";
 import { HomePage } from "./HomePage";
 import { languages } from "./i18n";
 import { allModules } from "./modules";
@@ -109,6 +110,7 @@ export function Shell() {
                 </span>
               ))}
         </nav>
+        {sidebarOpen && <AppVersion />}
       </aside>
       <div className={styles.page}>
         <header className={styles.topbar}>

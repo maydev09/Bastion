@@ -12,9 +12,16 @@ FROM mcr.microsoft.com/dotnet/sdk:10.0.404-noble AS backend
 WORKDIR /src
 COPY . .
 COPY --from=web /src/src/Host/Bastion.Host/wwwroot src/Host/Bastion.Host/wwwroot
+# The commit the image is built from, its date on master, its pull request and the repository: the version
+# the UI shows. CI passes them; .git is not copied into the image.
+ARG SOURCE_REVISION=""
+ARG SOURCE_REVISION_DATE=""
+ARG PULL_REQUEST_NUMBER=""
+ARG REPOSITORY_URL=""
 # The OpenAPI document is generated and checked in CI, not needed here.
 RUN dotnet publish src/Host/Bastion.Host --configuration Release --runtime linux-x64 --self-contained false \
-    -p:OpenApiGenerateDocuments=false --output /app \
+    -p:OpenApiGenerateDocuments=false -p:SourceRevisionId="$SOURCE_REVISION" -p:SourceRevisionDate="$SOURCE_REVISION_DATE" \
+    -p:PullRequestNumber="$PULL_REQUEST_NUMBER" -p:RepositoryUrl="$REPOSITORY_URL" --output /app \
     && mv /app/.playwright /playwright
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0.15-noble

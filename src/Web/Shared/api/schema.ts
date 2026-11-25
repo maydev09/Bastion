@@ -56,6 +56,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/platform/version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns the commit the running app was built from: its full hash, its date on master, the pull request it merged and a link to it in the repository. All are null in a local build, except perhaps the commit. */
+        get: operations["GetAppVersion"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/housing/import/{source}": {
         parameters: {
             query?: never;
@@ -343,6 +360,15 @@ export interface components {
     schemas: {
         /** @enum {unknown} */
         Answer: "Yes" | "No" | "NotStated" | null;
+        AppVersion: {
+            commit: null | string;
+            /** Format: date-time */
+            commitDate: null | string;
+            /** Format: int32 */
+            pullRequest: null | number;
+            /** Format: uri */
+            commitUrl: null | string;
+        };
         /** @enum {unknown} */
         BuildingType: "Block" | "Tenement" | "Apartment" | "House" | "Loft" | "Terraced" | "Infill" | "Other" | null;
         /** @enum {unknown} */
@@ -688,6 +714,26 @@ export interface operations {
                 };
                 content: {
                     "application/problem+json": components["schemas"]["ProblemDetails"];
+                };
+            };
+        };
+    };
+    GetAppVersion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppVersion"];
                 };
             };
         };
