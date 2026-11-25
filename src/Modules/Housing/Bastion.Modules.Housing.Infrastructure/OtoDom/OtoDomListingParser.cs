@@ -36,23 +36,27 @@ public static partial class OtoDomListingParser
                 && Date(item, "createdAtFirst") is { } createdAt)
             {
                 var (district, neighborhood) = OtoDomLocation.ReadDistrict(item);
-                var offer = new Offer(
-                    Source.OtoDom,
+                var price = MoneyOf(item, "totalPrice");
+                var rent = Plausible(MoneyOf(item, "rentPrice"));
+                offers.Add(new ParsedOffer(
                     id.GetRawText(),
                     title.GetString()!,
                     new Uri(baseUrl, $"/pl/oferta/{slug.GetString()}"),
                     propertyType,
                     transaction,
                     createdAt,
-                    MoneyOf(item, "totalPrice"),
+                    price?.Amount,
+                    price?.Currency,
                     Number(item, "areaInSquareMeters"),
                     Rooms(item),
                     Date(item, "pushedUpAt"),
                     OtoDomLocation.KeyOf(item),
-                    Rent: Plausible(MoneyOf(item, "rentPrice")),
-                    Floor: Floor(item),
-                    Features: Features(item));
-                offers.Add(new ParsedOffer(offer, district, neighborhood));
+                    rent?.Amount,
+                    rent?.Currency,
+                    Floor(item),
+                    Features(item),
+                    district,
+                    neighborhood));
             }
             else
             {
@@ -62,7 +66,7 @@ public static partial class OtoDomListingParser
 
         // Promoted offers can appear twice on one page, and the page lists the newest offer first.
         // Saving them oldest first gives newer offers higher ids, which orders offers of one import by age.
-        return (offers.DistinctBy(o => o.Offer.ExternalId).Reverse().ToList(), skipped, IsLastPage(document.RootElement));
+        return (offers.DistinctBy(o => o.ExternalId).Reverse().ToList(), skipped, IsLastPage(document.RootElement));
     }
 
     // Without page numbers there is nothing to read next.

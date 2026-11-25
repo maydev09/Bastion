@@ -35,7 +35,8 @@ public class OtoDomDetailParserTests
         Assert.Multiple(() =>
         {
             Assert.That(externalId, Is.EqualTo("68656528"));
-            Assert.That((details.Rent, details.Deposit), Is.EqualTo((new Money(830m, Currency.Pln), new Money(4000m, Currency.Pln))));
+            Assert.That((details.RentAmount, details.RentCurrency, details.DepositAmount, details.DepositCurrency),
+                Is.EqualTo(((decimal?)830m, (Currency?)Currency.Pln, (decimal?)4000m, (Currency?)Currency.Pln)));
             Assert.That((details.Floor, details.BuildingFloors, details.BuildYear), Is.EqualTo((5, 5, 2008)));
             Assert.That((details.BuildingType, details.Heating, details.Condition),
                 Is.EqualTo((BuildingType.Block, Heating.District, Condition.ReadyToUse)));
@@ -69,8 +70,8 @@ public class OtoDomDetailParserTests
         Assert.Multiple(() =>
         {
             Assert.That(details.Floor, Is.Zero);
-            Assert.That((details.BuildingType, details.Heating, details.Rent, details.Latitude, details.Description),
-                Is.EqualTo(((BuildingType?)null, (Heating?)null, (Money?)null, (decimal?)null, (string?)null)));
+            Assert.That((details.BuildingType, details.Heating, details.RentAmount, details.Latitude, details.Description),
+                Is.EqualTo(((BuildingType?)null, (Heating?)null, (decimal?)null, (decimal?)null, (string?)null)));
             Assert.That(details.Features, Is.Null);
             Assert.That(details.Furnished, Is.Null);
             Assert.That((details.BuildYear, details.RejectedValues), Is.EqualTo(((int?)null, (IReadOnlyDictionary<string, string>?)null)));

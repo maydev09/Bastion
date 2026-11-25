@@ -13,7 +13,7 @@ public class OtoDomListingParserTests
         var html = File.ReadAllText(Path.Combine(AppContext.BaseDirectory, "Samples", "otodom-listing.html"));
 
         var (offers, skipped, _) = OtoDomListingParser.Parse(html, BaseUrl);
-        var offer = offers.Single(o => o.Offer.ExternalId == "10000001").Offer;
+        var offer = offers.Single(o => o.ExternalId == "10000001");
 
         Assert.Multiple(() =>
         {
@@ -21,7 +21,7 @@ public class OtoDomListingParserTests
             Assert.That(skipped, Is.Zero);
             Assert.That(offer.Title, Is.EqualTo("Sample flat 30 m2, first rental"));
             Assert.That(offer.Url, Is.EqualTo(new Uri("https://www.otodom.pl/pl/oferta/sample-flat-1-ID0SAMPLE1")));
-            Assert.That(offer.Price, Is.EqualTo(new Money(2200m, Currency.Pln)));
+            Assert.That((offer.PriceAmount, offer.PriceCurrency), Is.EqualTo(((decimal?)2200m, (Currency?)Currency.Pln)));
             Assert.That(offer.AreaM2, Is.EqualTo(30m));
             Assert.That(offer.Rooms, Is.EqualTo(1));
             Assert.That((offer.PropertyType, offer.Transaction), Is.EqualTo((PropertyType.Apartment, Transaction.Rent)));
@@ -46,7 +46,7 @@ public class OtoDomListingParserTests
 
         var (offers, _, _) = OtoDomListingParser.Parse(html, BaseUrl);
 
-        Assert.That(offers.Select(o => (o.Offer.ExternalId, o.Offer.LocationKey)), Is.EquivalentTo(new[]
+        Assert.That(offers.Select(o => (o.ExternalId, o.LocationKey)), Is.EquivalentTo(new[]
         {
             ("1", "pomorskie/wejherowski/gmina-wiejska--wejherowo/goscicino"),
             ("2", (string?)null),
@@ -81,7 +81,7 @@ public class OtoDomListingParserTests
 
         var (offers, _, _) = OtoDomListingParser.Parse(html, BaseUrl);
 
-        Assert.That(offers.Select(o => (o.Offer.ExternalId, o.DistrictName, o.NeighborhoodName)), Is.EquivalentTo(new[]
+        Assert.That(offers.Select(o => (o.ExternalId, o.DistrictName, o.NeighborhoodName)), Is.EquivalentTo(new[]
         {
             ("1", "Mokotów", "Stegny"),
             ("2", "Letnica", null),
@@ -106,14 +106,14 @@ public class OtoDomListingParserTests
             """;
 
         var (offers, _, _) = OtoDomListingParser.Parse(html, BaseUrl);
-        var apartment = offers.Single(o => o.Offer.ExternalId == "1").Offer;
-        var high = offers.Single(o => o.Offer.ExternalId == "2").Offer;
+        var apartment = offers.Single(o => o.ExternalId == "1");
+        var high = offers.Single(o => o.ExternalId == "2");
 
         Assert.Multiple(() =>
         {
-            Assert.That((apartment.Rent, apartment.Floor), Is.EqualTo((new Money(750m, Currency.Pln), 0)));
+            Assert.That((apartment.RentAmount, apartment.RentCurrency, apartment.Floor), Is.EqualTo(((decimal?)750m, (Currency?)Currency.Pln, 0)));
             Assert.That(apartment.Features, Is.EquivalentTo(new[] { Feature.Balcony, Feature.Parking }));
-            Assert.That((high.Rent, high.Floor), Is.EqualTo(((Money?)null, (int?)null)));
+            Assert.That((high.RentAmount, high.Floor), Is.EqualTo(((decimal?)null, (int?)null)));
             Assert.That(high.Features, Is.Empty);
         });
     }
@@ -136,7 +136,7 @@ public class OtoDomListingParserTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(offers.Select(o => o.Offer.ExternalId), Is.EqualTo(new[] { "1" }));
+            Assert.That(offers.Select(o => o.ExternalId), Is.EqualTo(new[] { "1" }));
             Assert.That(skipped, Is.EqualTo(3));
         });
     }
@@ -157,7 +157,7 @@ public class OtoDomListingParserTests
 
         var (offers, _, _) = OtoDomListingParser.Parse(html, BaseUrl);
 
-        Assert.That(offers.Select(o => o.Offer.ExternalId), Is.EqualTo(new[] { "1", "2", "3" }));
+        Assert.That(offers.Select(o => o.ExternalId), Is.EqualTo(new[] { "1", "2", "3" }));
     }
 
     [Test]
@@ -177,8 +177,8 @@ public class OtoDomListingParserTests
         Assert.Multiple(() =>
         {
             Assert.That(skipped, Is.Zero);
-            Assert.That(offers.Single().Offer.Price, Is.Null);
-            Assert.That(offers.Single().Offer.AreaM2, Is.EqualTo(40m));
+            Assert.That(offers.Single().PriceAmount, Is.Null);
+            Assert.That(offers.Single().AreaM2, Is.EqualTo(40m));
         });
     }
 
@@ -195,7 +195,7 @@ public class OtoDomListingParserTests
             """;
 
         var (offers, _, _) = OtoDomListingParser.Parse(html, BaseUrl);
-        var offer = offers.Single().Offer;
+        var offer = offers.Single();
 
         Assert.Multiple(() =>
         {

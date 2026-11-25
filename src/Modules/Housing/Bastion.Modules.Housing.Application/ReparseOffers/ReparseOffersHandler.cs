@@ -29,7 +29,7 @@ public sealed class ReparseOffersHandler(
             {
                 var details = offerSource.ParseDetails(page);
                 if (details.Failure is not null
-                    || !await repository.SaveDetailsAsync(capture, details.ExternalId!, details.Details!, recordChanges: false, cancellationToken))
+                    || !await repository.SaveDetailsAsync(capture, details.ExternalId!, details.Details!.ToDomain(), recordChanges: false, cancellationToken))
                 {
                     failed++;
                     continue;
@@ -46,7 +46,7 @@ public sealed class ReparseOffersHandler(
                 continue;
             }
 
-            var offers = await resolver.LinkAsync(parsed.Offers, cancellationToken);
+            var offers = await resolver.LinkAsync(capture.SourceId, parsed.Offers, cancellationToken);
             statistics.Add(await repository.SaveAsync(offers, capture, recordChanges: false, cancellationToken), parsed.SkippedCount);
         }
 

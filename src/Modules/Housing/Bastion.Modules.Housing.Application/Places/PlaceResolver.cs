@@ -27,13 +27,14 @@ public sealed class PlaceResolver(OfferSources sources, IPlaceRepository places)
         return placeId;
     }
 
-    public async Task<IReadOnlyList<Offer>> LinkAsync(IEnumerable<ParsedOffer> offers, CancellationToken cancellationToken)
+    // Builds the offers of a listing page with their place and district.
+    public async Task<IReadOnlyList<Offer>> LinkAsync(Source source, IEnumerable<ParsedOffer> offers, CancellationToken cancellationToken)
     {
         var linked = new List<Offer>();
         foreach (var parsed in offers)
         {
-            var placeId = await PlaceIdOfAsync(parsed.Offer.SourceId, parsed.Offer.LocationKey, cancellationToken);
-            linked.Add(parsed.Offer with
+            var placeId = await PlaceIdOfAsync(source, parsed.LocationKey, cancellationToken);
+            linked.Add(parsed.ToDomain(source) with
             {
                 PlaceId = placeId,
                 DistrictId = await ResolveDistrictIdAsync(placeId, parsed.DistrictName, parsed.NeighborhoodName, cancellationToken),

@@ -52,7 +52,7 @@ public sealed class ImportOffersHandler(
             }
 
             // New offers posted during the import push offers of a read page onto the next one; they are not saved twice.
-            var offers = await resolver.LinkAsync(parsed.Offers.Where(o => seen.Add(o.Offer.ExternalId)), cancellationToken);
+            var offers = await resolver.LinkAsync(source, parsed.Offers.Where(o => seen.Add(o.ExternalId)), cancellationToken);
             var saved = await repository.SaveAsync(offers, capture, recordChanges: true, cancellationToken);
             statistics.Add(saved, parsed.SkippedCount);
             pageCount++;

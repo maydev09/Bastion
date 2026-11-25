@@ -140,7 +140,8 @@ Spend effort only on what solves a real problem the maintainer has today
 - The domain is only what the module stores. Data that crosses a layer and is not a column (what a parser
   reads for a later step, what an endpoint returns) is a DTO record in Application (`ParsedOffer`,
   `OfferListItem`), never an extra property on an entity, and an endpoint never returns an entity.
-  Domain enums may appear in DTOs.
+  Domain enums may appear in DTOs. A DTO converts with a plain method on itself (`ToDomain()`, like
+  `OfferFilterQuery.ToFilter()`), not with a mapper class.
 - Handlers are plain classes called by endpoints. No MediatR, CQRS frameworks or AutoMapper.
 - No project name in identifiers (`UseConfigurationSources`, not `UseBastionConfiguration`); the
   `Bastion.*` namespaces already give the context.
