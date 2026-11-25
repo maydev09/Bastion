@@ -5,8 +5,8 @@ import { useFormat } from "./useFormat";
 
 type Offer = components["schemas"]["OfferListItem"];
 
-// "Złotów" and below it "małe miasto · siedziba pow.". The voivodeship, population and the big cities
-// around show on hover and on the offer card.
+// "Złotów" (or "Warszawa, Mokotów") and below it "małe miasto · siedziba pow.". The neighborhood, the voivodeship,
+// population and the big cities around show on hover and on the offer card.
 export function PlaceCell({ offer }: { offer: Offer }) {
   const { t } = useTranslation("housing");
   const format = useFormat();
@@ -22,7 +22,11 @@ export function PlaceCell({ offer }: { offer: Offer }) {
   const kind = [size, offer.placeRole && t(`place.roleShort.${offer.placeRole}`)]
     .filter(Boolean)
     .join(" · ");
+  const name = offer.district
+    ? t("place.withDistrict", { place: offer.placeName, district: offer.district })
+    : offer.placeName;
   const details = [
+    [offer.district, offer.neighborhood].filter(Boolean).join(", "),
     offer.voivodeship
       ? t("place.name", {
           name: offer.placeName,
@@ -49,7 +53,7 @@ export function PlaceCell({ offer }: { offer: Offer }) {
 
   return (
     <span title={details.join("\n")}>
-      {offer.placeName}
+      {name}
       {kind && (
         <>
           <br />

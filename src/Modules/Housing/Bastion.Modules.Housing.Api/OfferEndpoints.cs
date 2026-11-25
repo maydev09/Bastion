@@ -63,6 +63,9 @@ public static class OfferEndpoints
         .WithName("ListHousingOffers")
         .WithSummary("Returns stored offers that match all given filters, by default newest first; offers without the sorted value come last. "
             + "Prices are in PLN; place and voivodeship together match offers in any of them, and so do rooms and roomsMin; "
+            + "district and neighborhood take ids from /places/{id}/districts (a neighborhood has a parentId): a picked district "
+            + "narrows its place to the picked districts and takes in its neighborhoods, a picked neighborhood narrows its district "
+            + "the same way, and other picked places and districts stay whole; "
             + "amenities match all of them unless featureMatch is Any.");
 
         app.MapGet("/offers/facets", async (
@@ -72,7 +75,8 @@ public static class OfferEndpoints
             [FromQuery] DateTimeOffset[]? countAddedSince) =>
             TypedResults.Ok(await handler.CountFacets(filter.ToFilter(), countAddedSince ?? [], cancellationToken)))
         .WithName("CountHousingOfferFacets")
-        .WithSummary("Returns how many offers each filter choice would show with the other given filters, "
+        .WithSummary("Returns how many offers each filter choice would show with the other given filters (districts: the districts "
+            + "and neighborhoods of the picked places by id, a district with its neighborhoods), "
             + "the spread of prices and areas without the price and area bounds, and the offers first seen since each countAddedSince.");
 
         app.MapGet("/offers/summary", async (
@@ -106,6 +110,11 @@ public static class OfferEndpoints
             await handler.Get(id, cancellationToken) is { } place ? TypedResults.Ok(place) : TypedResults.NotFound())
         .WithName("GetHousingPlace")
         .WithSummary("Returns one place with the number of its listed offers, also a place without offers.");
+
+        app.MapGet("/places/{id:int}/districts", async (int id, ListPlacesHandler handler, CancellationToken cancellationToken) =>
+            TypedResults.Ok(await handler.ListDistricts(id, cancellationToken)))
+        .WithName("ListHousingDistricts")
+        .WithSummary("Returns the districts of a place and the neighborhoods inside them (parentId is the district), most listed offers first; a district counts the offers of its neighborhoods too. Empty for a place without districts.");
 
         app.MapGet("/offers/{id:int}", async Task<Results<Ok<OfferListItem>, NotFound>> (
             int id, ListOffersHandler handler, CancellationToken cancellationToken) =>

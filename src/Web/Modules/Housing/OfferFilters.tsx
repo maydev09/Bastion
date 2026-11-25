@@ -25,12 +25,15 @@ import {
 } from "./offerView";
 import { FiltersHelp } from "./FiltersHelp";
 import { NewOffers } from "./NewOffers";
+import { DistrictFilter } from "./DistrictFilter";
 import { PlaceFilter } from "./PlaceFilter";
 import { useDayAgo } from "./useDayAgo";
+import { useDistricts } from "./useDistricts";
 import { useFacets } from "./useFacets";
 import { useFeatureGroups } from "./useFeatures";
 import { useFormat } from "./useFormat";
 import { usePlaceSizes } from "./usePlaceSizes";
+import { usePlaces } from "./usePlaces";
 
 type Histogram = components["schemas"]["Histogram"];
 
@@ -92,11 +95,32 @@ export function OfferFilters({ filter, onChange, onHide, previousVisit, searchRe
       ? t("filters.populationBelow", { to })
       : t("filters.populationRange", { from, to });
   };
+  const districts = useDistricts(filter.place);
+  const pickedPlaces = usePlaces(filter.place);
+  const placeNames = new Map(
+    filter.place.map((id, index) => [id, pickedPlaces[index]?.name ?? `#${id}`]),
+  );
+  // A place taken out of the filter takes its districts and neighborhoods with it.
+  const isKept = (id: number, place: number[]) => {
+    const district = districts.find((d) => d.id === id);
+    return !district || place.includes(district.placeId);
+  };
+  const setPlaces = (place: number[]) =>
+    set({
+      place,
+      district: filter.district.filter((id) => isKept(id, place)),
+      neighborhood: filter.neighborhood.filter((id) => isKept(id, place)),
+    });
   const voivodeshipItems = voivodeships.map((v) => ({ value: v, label: t(`voivodeship.${v}`) }));
 
   const counts: Record<SectionId, number> = {
     new: filter.addedSince ? 1 : 0,
-    location: filter.place.length + filter.voivodeship.length + (filter.withoutPlace ? 1 : 0),
+    location:
+      filter.place.length +
+      filter.district.length +
+      filter.neighborhood.length +
+      filter.voivodeship.length +
+      (filter.withoutPlace ? 1 : 0),
     size: filter.size.length,
     role: filter.role.length,
     price: [filter.priceMin, filter.priceMax].filter((v) => v != null).length,
@@ -167,8 +191,16 @@ export function OfferFilters({ filter, onChange, onHide, previousVisit, searchRe
         t("filters.location"),
         <>
           <div ref={searchRef}>
-            <PlaceFilter value={filter.place} onChange={(place) => set({ place })} />
+            <PlaceFilter value={filter.place} onChange={setPlaces} />
           </div>
+          <DistrictFilter
+            districts={districts}
+            placeNames={placeNames}
+            district={filter.district}
+            neighborhood={filter.neighborhood}
+            counts={facets?.districts}
+            onChange={set}
+          />
           <MultiSelect
             label={t("filters.voivodeship")}
             placeholder={t("filters.voivodeshipPlaceholder")}

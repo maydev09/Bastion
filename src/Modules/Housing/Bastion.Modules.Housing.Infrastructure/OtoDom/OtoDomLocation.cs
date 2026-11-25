@@ -9,7 +9,20 @@ public static class OtoDomLocation
     // location.reverseGeocoding.locations lists the levels of the offer's location; the city_or_village level
     // has the id voivodeship/county/municipality/place in OtoDom's URL spelling, e.g.
     // "pomorskie/wejherowski/gmina-wiejska--wejherowo/goscicino" or "mazowieckie/warszawa/warszawa/warszawa".
-    public static string? KeyOf(JsonElement item)
+    public static string? KeyOf(JsonElement item) =>
+        FindLevel(item, "city_or_village") is { } level && level.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.String
+            ? id.GetString()
+            : null;
+
+    // The levels below the place: "district" (e.g. "Mokotów") and "residential", a neighborhood inside the district
+    // ("Stegny"). Big cities have both, many towns only a district, villages and some towns neither.
+    public static (string? District, string? Neighborhood) ReadDistrict(JsonElement item)
+    {
+        var district = ReadName(FindLevel(item, "district"));
+        return district is null ? (null, null) : (district, ReadName(FindLevel(item, "residential")));
+    }
+
+    private static JsonElement? FindLevel(JsonElement item, string levelName)
     {
         if (!item.TryGetProperty("location", out var location) || location.ValueKind != JsonValueKind.Object
             || !location.TryGetProperty("reverseGeocoding", out var geocoding) || geocoding.ValueKind != JsonValueKind.Object
@@ -22,15 +35,20 @@ public static class OtoDomLocation
         {
             if (level.ValueKind == JsonValueKind.Object
                 && level.TryGetProperty("locationLevel", out var name) && name.ValueKind == JsonValueKind.String
-                && name.GetString() == "city_or_village"
-                && level.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.String)
+                && name.GetString() == levelName)
             {
-                return id.GetString();
+                return level;
             }
         }
 
         return null;
     }
+
+    private static string? ReadName(JsonElement? level) =>
+        level is { } found && found.TryGetProperty("name", out var name) && name.ValueKind == JsonValueKind.String
+        && !string.IsNullOrWhiteSpace(name.GetString())
+            ? name.GetString()!.Trim()
+            : null;
 
     // A '-' in a name is "--" in the key. A municipality named like its town is prefixed "gmina-wiejska--"
     // (rural) or "gmina-miejska--" (urban); a town and a village of the same name are prefixed "miasto--"/"wies--".

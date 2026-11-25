@@ -145,7 +145,7 @@
         "tags": [
           "Housing"
         ],
-        "summary": "Returns stored offers that match all given filters, by default newest first; offers without the sorted value come last. Prices are in PLN; place and voivodeship together match offers in any of them, and so do rooms and roomsMin; amenities match all of them unless featureMatch is Any.",
+        "summary": "Returns stored offers that match all given filters, by default newest first; offers without the sorted value come last. Prices are in PLN; place and voivodeship together match offers in any of them, and so do rooms and roomsMin; district and neighborhood take ids from /places/{id}/districts (a neighborhood has a parentId): a picked district narrows its place to the picked districts and takes in its neighborhoods, a picked neighborhood narrows its district the same way, and other picked places and districts stay whole; amenities match all of them unless featureMatch is Any.",
         "operationId": "ListHousingOffers",
         "parameters": [
           {
@@ -160,6 +160,28 @@
           },
           {
             "name": "place",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "int32"
+              }
+            }
+          },
+          {
+            "name": "district",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "int32"
+              }
+            }
+          },
+          {
+            "name": "neighborhood",
             "in": "query",
             "schema": {
               "type": "array",
@@ -375,7 +397,7 @@
         "tags": [
           "Housing"
         ],
-        "summary": "Returns how many offers each filter choice would show with the other given filters, the spread of prices and areas without the price and area bounds, and the offers first seen since each countAddedSince.",
+        "summary": "Returns how many offers each filter choice would show with the other given filters (districts: the districts and neighborhoods of the picked places by id, a district with its neighborhoods), the spread of prices and areas without the price and area bounds, and the offers first seen since each countAddedSince.",
         "operationId": "CountHousingOfferFacets",
         "parameters": [
           {
@@ -390,6 +412,28 @@
           },
           {
             "name": "place",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "int32"
+              }
+            }
+          },
+          {
+            "name": "district",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "int32"
+              }
+            }
+          },
+          {
+            "name": "neighborhood",
             "in": "query",
             "schema": {
               "type": "array",
@@ -593,6 +637,28 @@
           },
           {
             "name": "place",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "int32"
+              }
+            }
+          },
+          {
+            "name": "district",
+            "in": "query",
+            "schema": {
+              "type": "array",
+              "items": {
+                "type": "integer",
+                "format": "int32"
+              }
+            }
+          },
+          {
+            "name": "neighborhood",
             "in": "query",
             "schema": {
               "type": "array",
@@ -882,6 +948,41 @@
         }
       }
     },
+    "/api/housing/places/{id}/districts": {
+      "get": {
+        "tags": [
+          "Housing"
+        ],
+        "summary": "Returns the districts of a place and the neighborhoods inside them (parentId is the district), most listed offers first; a district counts the offers of its neighborhoods too. Empty for a place without districts.",
+        "operationId": "ListHousingDistricts",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DistrictListItem"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/housing/offers/{id}": {
       "get": {
         "tags": [
@@ -1058,6 +1159,35 @@
             "items": {
               "$ref": "#/components/schemas/SchemaMigration"
             }
+          }
+        }
+      },
+      "DistrictListItem": {
+        "required": [
+          "id",
+          "name",
+          "parentId",
+          "offerCount"
+        ],
+        "type": "object",
+        "properties": {
+          "id": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "name": {
+            "type": "string"
+          },
+          "parentId": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "offerCount": {
+            "type": "integer",
+            "format": "int32"
           }
         }
       },
@@ -1286,7 +1416,7 @@
           "Running",
           "Succeeded",
           "Failed",
-          "Cancelled",
+          "Canceled",
           "Interrupted"
         ]
       },
@@ -1406,6 +1536,7 @@
         "required": [
           "voivodeships",
           "withoutPlace",
+          "districts",
           "placeSizes",
           "placeRoles",
           "furnished",
@@ -1427,6 +1558,13 @@
           "withoutPlace": {
             "type": "integer",
             "format": "int32"
+          },
+          "districts": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
           },
           "placeSizes": {
             "type": "object",
@@ -1813,6 +1951,18 @@
               "string"
             ]
           },
+          "district": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "neighborhood": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
           "population": {
             "type": [
               "null",
@@ -2105,7 +2255,7 @@
       },
       "PropertyType": {
         "enum": [
-          "Flat"
+          "Apartment"
         ]
       },
       "ReparseResult": {

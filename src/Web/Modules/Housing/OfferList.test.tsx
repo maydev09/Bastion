@@ -29,8 +29,8 @@ const longList = {
       {
         id: 7,
         source: "OtoDom",
-        title: "Flat",
-        url: "https://www.otodom.pl/pl/oferta/flat-ID7",
+        title: "Apartment",
+        url: "https://www.otodom.pl/pl/oferta/apartment-ID7",
         createdAt: "2026-11-16T10:00:00+00:00",
         updatedAt: "2026-11-16T10:00:00+00:00",
       },
@@ -56,7 +56,7 @@ describe("OfferList", () => {
             {
               id: 1,
               source: "OtoDom",
-              title: "Small flat",
+              title: "Small apartment",
               url: "https://www.otodom.pl/pl/oferta/small-ID1",
               price: 2200,
               priceCurrency: "PLN",
@@ -76,7 +76,7 @@ describe("OfferList", () => {
 
     renderList("/housing/offers");
 
-    expect(await screen.findByRole("link", { name: "Small flat" })).toHaveAttribute(
+    expect(await screen.findByRole("link", { name: "Small apartment" })).toHaveAttribute(
       "href",
       "/housing/offers/1",
     );
@@ -119,7 +119,7 @@ describe("OfferList", () => {
       "/housing/offers?page=3&pageSize=25&sort=AreaM2&direction=Ascending&size=SmallTown&role=MunicipalitySeat&priceMax=3000&pricePerM2Max=55.5&feature=Balcony&priceCut=true",
     );
 
-    await screen.findByRole("link", { name: "Flat" });
+    await screen.findByRole("link", { name: "Apartment" });
     expect(lastQuery(requests)).toEqual({
       page: "3",
       pageSize: "25",
@@ -223,7 +223,7 @@ describe("OfferList", () => {
   it("opens the offer marked with the arrow keys on Enter", async () => {
     stubApi({ "/api/housing/offers": longList });
     renderList("/housing/offers");
-    await screen.findByRole("link", { name: "Flat" });
+    await screen.findByRole("link", { name: "Apartment" });
 
     await userEvent.keyboard("{ArrowDown}{Enter}");
 
@@ -269,8 +269,8 @@ describe("OfferList", () => {
             {
               id: 1,
               source: "OtoDom",
-              title: "Flat in Pruszków",
-              url: "https://www.otodom.pl/pl/oferta/flat-ID1",
+              title: "Apartment in Pruszków",
+              url: "https://www.otodom.pl/pl/oferta/apartment-ID1",
               createdAt: "2026-11-16T10:00:00+00:00",
               updatedAt: "2026-11-16T10:00:00+00:00",
               placeName: "Pruszków",
@@ -297,7 +297,7 @@ describe("OfferList", () => {
     renderList("/housing/offers");
 
     // Population and the cities around are on the offer card.
-    const row = (await screen.findByRole("link", { name: "Flat in Pruszków" })).closest("tr")!;
+    const row = (await screen.findByRole("link", { name: "Apartment in Pruszków" })).closest("tr")!;
     expect(row).toHaveTextContent("Pruszków");
     expect(row).toHaveTextContent(t("place.size.LargerTown"));
     expect(row).toHaveTextContent(t("place.roleShort.CountySeat"));

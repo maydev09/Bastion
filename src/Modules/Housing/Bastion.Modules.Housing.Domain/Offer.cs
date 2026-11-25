@@ -6,6 +6,7 @@ namespace Bastion.Modules.Housing.Domain;
 
 // Table housing.offer: the fields a listing page shows. A detail page adds OfferDetails.
 // Rent, Floor and Features come from both pages; a null never clears a stored value.
+// DistrictId points to the most precise district known: the neighborhood, else the district (housing.district).
 public sealed record Offer(
     Source SourceId,
     string ExternalId,
@@ -22,10 +23,11 @@ public sealed record Offer(
     int? PlaceId = null,
     Money? Rent = null,
     int? Floor = null,
-    IReadOnlyList<Feature>? Features = null)
+    IReadOnlyList<Feature>? Features = null,
+    int? DistrictId = null)
 {
     // An offer is updated only when the hash of the stored listing fields changes.
-    // The location (LocationKey, PlaceId) is not hashed: it is kept current without counting the offer as changed.
+    // The location (LocationKey, PlaceId, DistrictId) is not hashed: it is kept current without counting the offer as changed.
     public string ListingHash() => Hash($"{Content()}\n{ExternalCreatedAt:O}\n{ExternalUpdatedAt:O}");
 
     // The listing fields without the portal's dates: a bump (ExternalUpdatedAt) moves the offer up

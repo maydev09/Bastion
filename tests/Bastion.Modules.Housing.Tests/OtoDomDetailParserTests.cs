@@ -10,7 +10,7 @@ public class OtoDomDetailParserTests
     {
         const string html = """
             <script id="__NEXT_DATA__" type="application/json">
-            {"props":{"pageProps":{"ad":{"id":68656528,"description":"<p>Flat with a view.</p>",
+            {"props":{"pageProps":{"ad":{"id":68656528,"description":"<p>Apartment with a view.</p>",
               "characteristics":[
                 {"key":"price","value":"2200","currency":"PLN"},
                 {"key":"rent","value":"830","currency":"PLN"},
@@ -35,13 +35,14 @@ public class OtoDomDetailParserTests
         Assert.Multiple(() =>
         {
             Assert.That(externalId, Is.EqualTo("68656528"));
-            Assert.That((details.Rent, details.Deposit), Is.EqualTo((new Money(830m, Currency.Pln), new Money(4000m, Currency.Pln))));
+            Assert.That((details.RentAmount, details.RentCurrency, details.DepositAmount, details.DepositCurrency),
+                Is.EqualTo(((decimal?)830m, (Currency?)Currency.Pln, (decimal?)4000m, (Currency?)Currency.Pln)));
             Assert.That((details.Floor, details.BuildingFloors, details.BuildYear), Is.EqualTo((5, 5, 2008)));
             Assert.That((details.BuildingType, details.Heating, details.Condition),
                 Is.EqualTo((BuildingType.Block, Heating.District, Condition.ReadyToUse)));
             Assert.That(details.AvailableFrom, Is.EqualTo(new DateOnly(2026, 11, 23)));
             Assert.That((details.Latitude, details.Longitude, details.LocationRadiusM), Is.EqualTo((52.389378m, 16.912691m, 0)));
-            Assert.That(details.Description, Is.EqualTo("<p>Flat with a view.</p>"));
+            Assert.That(details.Description, Is.EqualTo("<p>Apartment with a view.</p>"));
             Assert.That(details.RejectedValues, Is.Null);
             Assert.That(details.Features, Is.EquivalentTo(new[]
             {
@@ -69,8 +70,8 @@ public class OtoDomDetailParserTests
         Assert.Multiple(() =>
         {
             Assert.That(details.Floor, Is.Zero);
-            Assert.That((details.BuildingType, details.Heating, details.Rent, details.Latitude, details.Description),
-                Is.EqualTo(((BuildingType?)null, (Heating?)null, (Money?)null, (decimal?)null, (string?)null)));
+            Assert.That((details.BuildingType, details.Heating, details.RentAmount, details.Latitude, details.Description),
+                Is.EqualTo(((BuildingType?)null, (Heating?)null, (decimal?)null, (decimal?)null, (string?)null)));
             Assert.That(details.Features, Is.Null);
             Assert.That(details.Furnished, Is.Null);
             Assert.That((details.BuildYear, details.RejectedValues), Is.EqualTo(((int?)null, (IReadOnlyDictionary<string, string>?)null)));

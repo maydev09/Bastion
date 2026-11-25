@@ -97,7 +97,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Returns stored offers that match all given filters, by default newest first; offers without the sorted value come last. Prices are in PLN; place and voivodeship together match offers in any of them, and so do rooms and roomsMin; amenities match all of them unless featureMatch is Any. */
+        /** Returns stored offers that match all given filters, by default newest first; offers without the sorted value come last. Prices are in PLN; place and voivodeship together match offers in any of them, and so do rooms and roomsMin; district and neighborhood take ids from /places/{id}/districts (a neighborhood has a parentId): a picked district narrows its place to the picked districts and takes in its neighborhoods, a picked neighborhood narrows its district the same way, and other picked places and districts stay whole; amenities match all of them unless featureMatch is Any. */
         get: operations["ListHousingOffers"];
         put?: never;
         post?: never;
@@ -114,7 +114,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Returns how many offers each filter choice would show with the other given filters, the spread of prices and areas without the price and area bounds, and the offers first seen since each countAddedSince. */
+        /** Returns how many offers each filter choice would show with the other given filters (districts: the districts and neighborhoods of the picked places by id, a district with its neighborhoods), the spread of prices and areas without the price and area bounds, and the offers first seen since each countAddedSince. */
         get: operations["CountHousingOfferFacets"];
         put?: never;
         post?: never;
@@ -201,6 +201,23 @@ export interface paths {
         };
         /** Returns one place with the number of its listed offers, also a place without offers. */
         get: operations["GetHousingPlace"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/housing/places/{id}/districts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns the districts of a place and the neighborhoods inside them (parentId is the district), most listed offers first; a district counts the offers of its neighborhoods too. Empty for a place without districts. */
+        get: operations["ListHousingDistricts"];
         put?: never;
         post?: never;
         delete?: never;
@@ -338,6 +355,15 @@ export interface components {
             canChangeSchema: boolean;
             migrations: components["schemas"]["SchemaMigration"][];
         };
+        DistrictListItem: {
+            /** Format: int32 */
+            id: number;
+            name: string;
+            /** Format: int32 */
+            parentId: null | number;
+            /** Format: int32 */
+            offerCount: number;
+        };
         /** @enum {unknown} */
         Feature: "Balcony" | "Terrace" | "Garden" | "Lift" | "Basement" | "Parking" | "AirConditioning" | "Dishwasher" | "WashingMachine" | "Fridge" | "Stove" | "Oven" | "SeparateKitchen" | "UsableRoom" | "TwoStorey" | "Internet" | "CableTelevision" | "Entryphone" | "Monitoring" | "ClosedArea" | "AntiBurglaryDoor" | "NonSmokersOnly";
         /** @enum {unknown} */
@@ -395,7 +421,7 @@ export interface components {
             summary: null | components["schemas"]["JobSummary"];
         };
         /** @enum {unknown} */
-        JobRunStatus: "Queued" | "Running" | "Succeeded" | "Failed" | "Cancelled" | "Interrupted";
+        JobRunStatus: "Queued" | "Running" | "Succeeded" | "Failed" | "Canceled" | "Interrupted";
         JobSummary: {
             counts: {
                 [key: string]: number;
@@ -433,6 +459,9 @@ export interface components {
             };
             /** Format: int32 */
             withoutPlace: number;
+            districts: {
+                [key: string]: number;
+            };
             placeSizes: {
                 [key: string]: number;
             };
@@ -520,6 +549,8 @@ export interface components {
             voivodeship?: null | components["schemas"]["Voivodeship"];
             county?: null | string;
             municipality?: null | string;
+            district?: null | string;
+            neighborhood?: null | string;
             /** Format: int32 */
             population?: null | number;
             /** Format: int32 */
@@ -584,7 +615,7 @@ export interface components {
             instance?: null | string;
         };
         /** @enum {unknown} */
-        PropertyType: "Flat";
+        PropertyType: "Apartment";
         ReparseResult: {
             /** Format: int32 */
             captureCount: number;
@@ -735,6 +766,8 @@ export interface operations {
             query?: {
                 voivodeship?: components["schemas"]["Voivodeship"][];
                 place?: number[];
+                district?: number[];
+                neighborhood?: number[];
                 withoutPlace?: boolean;
                 size?: components["schemas"]["PlaceSize"][];
                 role?: components["schemas"]["PlaceRole"][];
@@ -780,6 +813,8 @@ export interface operations {
             query?: {
                 voivodeship?: components["schemas"]["Voivodeship"][];
                 place?: number[];
+                district?: number[];
+                neighborhood?: number[];
                 withoutPlace?: boolean;
                 size?: components["schemas"]["PlaceSize"][];
                 role?: components["schemas"]["PlaceRole"][];
@@ -822,6 +857,8 @@ export interface operations {
             query?: {
                 voivodeship?: components["schemas"]["Voivodeship"][];
                 place?: number[];
+                district?: number[];
+                neighborhood?: number[];
                 withoutPlace?: boolean;
                 size?: components["schemas"]["PlaceSize"][];
                 role?: components["schemas"]["PlaceRole"][];
@@ -946,6 +983,28 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    ListHousingDistricts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                id: number;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DistrictListItem"][];
+                };
             };
         };
     };

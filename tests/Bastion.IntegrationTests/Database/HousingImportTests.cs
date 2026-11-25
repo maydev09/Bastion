@@ -41,9 +41,9 @@ public class HousingImportTests
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } };
 
-    private static readonly Offer Small = new(Source.OtoDom, "1", "Small flat", new Uri("https://www.otodom.pl/pl/oferta/small-ID1"), PropertyType.Flat, Transaction.Rent, At(12), new Money(2200m, Currency.Pln), 30m, 1);
-    private static readonly Offer Medium = new(Source.OtoDom, "3", "Medium flat", new Uri("https://www.otodom.pl/pl/oferta/medium-ID3"), PropertyType.Flat, Transaction.Rent, At(11), new Money(3000m, Currency.Pln), 50m, 2);
-    private static readonly Offer Large = new(Source.OtoDom, "2", "Large flat", new Uri("https://www.otodom.pl/pl/oferta/large-ID2"), PropertyType.Flat, Transaction.Rent, At(10), new Money(4100m, Currency.Pln), 72.5m, 3);
+    private static readonly ParsedOffer Small = new("1", "Small apartment", new Uri("https://www.otodom.pl/pl/oferta/small-ID1"), PropertyType.Apartment, Transaction.Rent, At(12), 2200m, Currency.Pln, 30m, 1);
+    private static readonly ParsedOffer Medium = new("3", "Medium apartment", new Uri("https://www.otodom.pl/pl/oferta/medium-ID3"), PropertyType.Apartment, Transaction.Rent, At(11), 3000m, Currency.Pln, 50m, 2);
+    private static readonly ParsedOffer Large = new("2", "Large apartment", new Uri("https://www.otodom.pl/pl/oferta/large-ID2"), PropertyType.Apartment, Transaction.Rent, At(10), 4100m, Currency.Pln, 72.5m, 3);
 
     private static readonly Place Warszawa = new("0918123", "Warszawa", Voivodeship.Mazowieckie, null, null, PlaceKind.Town, PlaceRole.VoivodeshipCapital, 1_863_056, 2021, PlaceSource.Wikidata, 52.2297m, 21.0122m);
     private static readonly Place Goscicino = new("0176503", "Gościcino", Voivodeship.Pomorskie, "wejherowski", "Wejherowo", PlaceKind.Village, null, 6_134, 2021, PlaceSource.Wikidata, 54.6011m, 18.2369m);
@@ -81,7 +81,7 @@ public class HousingImportTests
             Assert.That((first.Added, first.Updated, first.Unchanged), Is.EqualTo((2, 0, 0)));
             Assert.That((second.Added, second.Updated, second.Unchanged), Is.EqualTo((0, 0, 2)));
             Assert.That(list!.TotalCount, Is.EqualTo(2));
-            Assert.That(list.Items.Select(o => o.Title), Is.EquivalentTo(new[] { "Small flat", "Large flat" }));
+            Assert.That(list.Items.Select(o => o.Title), Is.EquivalentTo(new[] { "Small apartment", "Large apartment" }));
         });
     }
 
@@ -99,7 +99,7 @@ public class HousingImportTests
         var afterImport = await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json);
         var link = await JobRuns.Run(client, LinkPlaces);
         var list = await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json);
-        var small = list!.Items.Single(o => o.Title == "Small flat");
+        var small = list!.Items.Single(o => o.Title == "Small apartment");
 
         Assert.Multiple(() =>
         {
@@ -116,7 +116,7 @@ public class HousingImportTests
             Assert.That((second.Summary!.Counts["added"], second.Summary.Counts["updated"]), Is.EqualTo((0, 0)));
             Assert.That(list.Items.Select(o => (o.Title, o.PlaceName)), Is.EquivalentTo(new[]
             {
-                ("Small flat", "Warszawa"), ("Medium flat", null), ("Large flat", "Gościcino"),
+                ("Small apartment", "Warszawa"), ("Medium apartment", null), ("Large apartment", "Gościcino"),
             }));
             Assert.That((small.PlaceKind, small.PlaceSize, small.PlaceRole, small.Voivodeship, small.Population, small.PopulationYear),
                 Is.EqualTo(((PlaceKind?)PlaceKind.Town, (PlaceSize?)PlaceSize.Metropolis, (PlaceRole?)PlaceRole.VoivodeshipCapital,
@@ -198,14 +198,14 @@ public class HousingImportTests
         _source.Pages = [[Small, Large]];
         await RunImport(client);
 
-        _source.Pages = [[Small with { Price = new Money(2000m, Currency.Pln) }, Large]];
+        _source.Pages = [[Small with { PriceAmount = 2000m, PriceCurrency = Currency.Pln }, Large]];
         var result = await RunImport(client);
         var list = await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json);
 
         Assert.Multiple(() =>
         {
             Assert.That((result.Added, result.Updated, result.Unchanged), Is.EqualTo((0, 1, 1)));
-            Assert.That(list!.Items.Single(o => o.Title == "Small flat").Price, Is.EqualTo(2000m));
+            Assert.That(list!.Items.Single(o => o.Title == "Small apartment").Price, Is.EqualTo(2000m));
         });
     }
 
@@ -235,7 +235,7 @@ public class HousingImportTests
     {
         await using var factory = App(WithFakes);
         using var client = factory.CreateClient();
-        var noPrice = new Offer(Source.OtoDom, "4", "Flat without price", new Uri("https://www.otodom.pl/pl/oferta/none-ID4"), PropertyType.Flat, Transaction.Rent, At(13), AreaM2: 40m, Rooms: 2);
+        var noPrice = new ParsedOffer("4", "Apartment without price", new Uri("https://www.otodom.pl/pl/oferta/none-ID4"), PropertyType.Apartment, Transaction.Rent, At(13), AreaM2: 40m, Rooms: 2);
         _source.Pages = [[noPrice, Small, Medium, Large]];
         await RunImport(client);
 
@@ -245,11 +245,11 @@ public class HousingImportTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(cheapest, Is.EqualTo(new[] { "Small flat", "Medium flat", "Large flat", "Flat without price" }));
-            Assert.That(dearest, Is.EqualTo(new[] { "Large flat", "Medium flat", "Small flat", "Flat without price" }));
+            Assert.That(cheapest, Is.EqualTo(new[] { "Small apartment", "Medium apartment", "Large apartment", "Apartment without price" }));
+            Assert.That(dearest, Is.EqualTo(new[] { "Large apartment", "Medium apartment", "Small apartment", "Apartment without price" }));
             Assert.That(perM2!.Items.Select(o => (o.Title, o.PricePerM2)), Is.EqualTo(new[]
             {
-                ("Large flat", (decimal?)56.55m), ("Medium flat", 60m), ("Small flat", 73.33m), ("Flat without price", null),
+                ("Large apartment", (decimal?)56.55m), ("Medium apartment", 60m), ("Small apartment", 73.33m), ("Apartment without price", null),
             }));
         });
     }
@@ -259,7 +259,7 @@ public class HousingImportTests
     {
         await using var factory = App(WithFakes);
         using var client = factory.CreateClient();
-        var noPrice = new Offer(Source.OtoDom, "4", "Flat without price", new Uri("https://www.otodom.pl/pl/oferta/none-ID4"), PropertyType.Flat, Transaction.Rent, At(13), AreaM2: 50m, Rooms: 2);
+        var noPrice = new ParsedOffer("4", "Apartment without price", new Uri("https://www.otodom.pl/pl/oferta/none-ID4"), PropertyType.Apartment, Transaction.Rent, At(13), AreaM2: 50m, Rooms: 2);
         _source.Pages = [[
             noPrice,
             Small with { Features = [Feature.Balcony] },
@@ -277,11 +277,11 @@ public class HousingImportTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(byPrice, Is.EqualTo(new[] { "Medium flat", "Large flat" }));
-            Assert.That(byAreaAndRooms, Is.EquivalentTo(new[] { "Medium flat", "Flat without price" }));
-            Assert.That(oneOrThreeAndMore, Is.EquivalentTo(new[] { "Small flat", "Large flat" }));
-            Assert.That(byFeatures, Is.EqualTo(new[] { "Medium flat" }));
-            Assert.That(byAnyFeature, Is.EquivalentTo(new[] { "Small flat", "Medium flat", "Large flat" }));
+            Assert.That(byPrice, Is.EqualTo(new[] { "Medium apartment", "Large apartment" }));
+            Assert.That(byAreaAndRooms, Is.EquivalentTo(new[] { "Medium apartment", "Apartment without price" }));
+            Assert.That(oneOrThreeAndMore, Is.EquivalentTo(new[] { "Small apartment", "Large apartment" }));
+            Assert.That(byFeatures, Is.EqualTo(new[] { "Medium apartment" }));
+            Assert.That(byAnyFeature, Is.EquivalentTo(new[] { "Small apartment", "Medium apartment", "Large apartment" }));
             Assert.That((list!.Items.Count, list.TotalCount), Is.EqualTo((1, 2)));
         });
     }
@@ -305,12 +305,72 @@ public class HousingImportTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(inPomorskie, Is.EqualTo(new[] { "Large flat" }));
-            Assert.That(inPomorskieOrWarszawa, Is.EquivalentTo(new[] { "Small flat", "Large flat" }));
-            Assert.That(withoutPlace, Is.EqualTo(new[] { "Medium flat" }));
-            Assert.That(inPomorskieOrWithoutPlace, Is.EquivalentTo(new[] { "Medium flat", "Large flat" }));
+            Assert.That(inPomorskie, Is.EqualTo(new[] { "Large apartment" }));
+            Assert.That(inPomorskieOrWarszawa, Is.EquivalentTo(new[] { "Small apartment", "Large apartment" }));
+            Assert.That(withoutPlace, Is.EqualTo(new[] { "Medium apartment" }));
+            Assert.That(inPomorskieOrWithoutPlace, Is.EquivalentTo(new[] { "Medium apartment", "Large apartment" }));
             Assert.That(metropolis, Is.Empty);
-            Assert.That(bigCityOrVillage, Is.EquivalentTo(new[] { "Small flat", "Large flat" }));
+            Assert.That(bigCityOrVillage, Is.EquivalentTo(new[] { "Small apartment", "Large apartment" }));
+        });
+    }
+
+    [Test]
+    public async Task Offers_get_their_district_and_neighborhood_and_are_filtered_by_them()
+    {
+        await using var factory = App(WithFakes);
+        using var client = factory.CreateClient();
+        await JobRuns.Run(client, ImportPlaces);
+        var wola = Small with { ExternalId = "4", Title = "Wola apartment", LocationKey = WarszawaKey, DistrictName = "Wola" };
+        _source.Pages = [[
+            Small with { LocationKey = WarszawaKey, DistrictName = "Mokotów", NeighborhoodName = "Stegny" },
+            Medium with { LocationKey = WarszawaKey, DistrictName = "Mokotów" },
+            Small with { ExternalId = "5", Title = "Sielce apartment", LocationKey = WarszawaKey, DistrictName = "Mokotów", NeighborhoodName = "Sielce" },
+            Large with { LocationKey = GoscicinoKey },
+            wola,
+        ]];
+        await RunImport(client);
+        // The same district spelled differently on a later page is the same district.
+        _source.Pages = [[wola with { DistrictName = "WOLA" }]];
+        await RunImport(client);
+        var warszawa = (await client.GetFromJsonAsync<PlaceListItem[]>("/api/housing/places?search=warszawa", Json))!.Single();
+        var goscicino = (await client.GetFromJsonAsync<PlaceListItem[]>("/api/housing/places?search=goscicino", Json))!.Single();
+
+        var districts = await client.GetFromJsonAsync<DistrictListItem[]>($"/api/housing/places/{warszawa.Id}/districts", Json);
+        var mokotow = districts!.Single(d => d.Name == "Mokotów");
+        var stegny = districts!.Single(d => d.Name == "Stegny");
+        var wolaId = districts!.Single(d => d.Name == "Wola").Id;
+        var list = await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json);
+
+        var inMokotow = await ListedTitles(client, $"?place={warszawa.Id}&district={mokotow.Id}");
+        var inStegny = await ListedTitles(client, $"?place={warszawa.Id}&neighborhood={stegny.Id}");
+        var inStegnyOrWola = await ListedTitles(client, $"?place={warszawa.Id}&district={mokotow.Id}&district={wolaId}&neighborhood={stegny.Id}");
+        var inStegnyOrGoscicino = await ListedTitles(client, $"?place={warszawa.Id}&place={goscicino.Id}&neighborhood={stegny.Id}");
+        var ofGoscicino = await client.GetFromJsonAsync<DistrictListItem[]>($"/api/housing/places/{goscicino.Id}/districts", Json);
+        // Counted under the other filters (the 3000 zł apartment in Mokotów is too dear) and without the location ones.
+        var cheapFacets = await Facets(client, $"?place={warszawa.Id}&district={wolaId}&priceMax=2500");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(districts!.Select(d => (d.Name, d.ParentId, d.OfferCount)), Is.EqualTo(new[]
+            {
+                ("Mokotów", (int?)null, 3), ("Sielce", mokotow.Id, 1), ("Stegny", mokotow.Id, 1), ("Wola", null, 1),
+            }));
+            Assert.That(list!.Items.Select(o => (o.Title, o.District, o.Neighborhood)), Is.EquivalentTo(new[]
+            {
+                ("Small apartment", "Mokotów", "Stegny"), ("Medium apartment", "Mokotów", null), ("Sielce apartment", "Mokotów", "Sielce"),
+                ("Large apartment", null, null), ("Wola apartment", (string?)"Wola", (string?)null),
+            }));
+            Assert.That(inMokotow, Is.EquivalentTo(new[] { "Small apartment", "Medium apartment", "Sielce apartment" }));
+            Assert.That(inStegny, Is.EqualTo(new[] { "Small apartment" }));
+            // A neighborhood narrows its district; another picked district stays whole.
+            Assert.That(inStegnyOrWola, Is.EquivalentTo(new[] { "Small apartment", "Wola apartment" }));
+            // A neighborhood narrows only its own place; another picked place stays whole.
+            Assert.That(inStegnyOrGoscicino, Is.EquivalentTo(new[] { "Small apartment", "Large apartment" }));
+            Assert.That(ofGoscicino, Is.Empty);
+            Assert.That(cheapFacets.Districts, Is.EquivalentTo(new Dictionary<int, int>
+            {
+                [mokotow.Id] = 2, [stegny.Id] = 1, [districts!.Single(d => d.Name == "Sielce").Id] = 1, [wolaId] = 1,
+            }));
         });
     }
 
@@ -333,10 +393,10 @@ public class HousingImportTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(capitals, Is.EqualTo(new[] { "Small flat" }));
+            Assert.That(capitals, Is.EqualTo(new[] { "Small apartment" }));
             Assert.That(countyOrMunicipalitySeats, Is.Empty);
-            Assert.That(perM2, Is.EquivalentTo(new[] { "Small flat", "Medium flat", "Large flat" }));
-            Assert.That(cheapPerM2, Is.EquivalentTo(new[] { "Medium flat", "Large flat" }));
+            Assert.That(perM2, Is.EquivalentTo(new[] { "Small apartment", "Medium apartment", "Large apartment" }));
+            Assert.That(cheapPerM2, Is.EquivalentTo(new[] { "Medium apartment", "Large apartment" }));
             // Seats join with OR, so they are counted without the picked one, under the other filters.
             Assert.That(capitalAbove70.PlaceRoles, Is.EquivalentTo(new Dictionary<PlaceRole, int> { [PlaceRole.VoivodeshipCapital] = 1 }));
             Assert.That(upTo60.PlaceRoles, Is.Empty);
@@ -352,7 +412,7 @@ public class HousingImportTests
         await using var factory = App(WithFakes);
         using var client = factory.CreateClient();
         // 2261.80 zł for 40 m² is exactly 56.545 zł/m².
-        _source.Pages = [[Medium with { Price = new Money(2261.80m, Currency.Pln), AreaM2 = 40m }]];
+        _source.Pages = [[Medium with { PriceAmount = 2261.80m, PriceCurrency = Currency.Pln, AreaM2 = 40m }]];
         await RunImport(client);
 
         var shown = (await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json))!.Items.Single().PricePerM2;
@@ -362,7 +422,7 @@ public class HousingImportTests
         Assert.Multiple(() =>
         {
             Assert.That(shown, Is.EqualTo(56.55m));
-            Assert.That(upToShown, Is.EqualTo(new[] { "Medium flat" }));
+            Assert.That(upToShown, Is.EqualTo(new[] { "Medium apartment" }));
             Assert.That(belowShown, Is.Empty);
         });
     }
@@ -449,7 +509,7 @@ public class HousingImportTests
     {
         await using var factory = App(WithFakes);
         using var client = factory.CreateClient();
-        _source.Pages = [[Small, Medium, Large with { Price = new Money(90_000_000m, Currency.Pln) }]];
+        _source.Pages = [[Small, Medium, Large with { PriceAmount = 90_000_000m, PriceCurrency = Currency.Pln }]];
         await RunImport(client);
 
         var facets = await Facets(client, "");
@@ -474,7 +534,7 @@ public class HousingImportTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(added, Is.EqualTo(new[] { "Medium flat" }));
+            Assert.That(added, Is.EqualTo(new[] { "Medium apartment" }));
             Assert.That(counts.AddedSince, Is.EqualTo(new[] { 1, 2 }));
         });
     }
@@ -512,7 +572,7 @@ public class HousingImportTests
         using var client = factory.CreateClient();
         _source.Pages = [[Small, Medium, Large]];
         await RunImport(client);
-        _source.Pages = [[Small with { Price = new Money(2000m, Currency.Pln) }, Medium with { Price = new Money(3200m, Currency.Pln) }, Large]];
+        _source.Pages = [[Small with { PriceAmount = 2000m, PriceCurrency = Currency.Pln }, Medium with { PriceAmount = 3200m, PriceCurrency = Currency.Pln }, Large]];
         await RunImport(client);
 
         var cut = await ListedTitles(client, "?priceCut=true");
@@ -524,13 +584,13 @@ public class HousingImportTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(cut, Is.EqualTo(new[] { "Small flat" }));
-            Assert.That(changed, Is.EquivalentTo(new[] { "Small flat", "Medium flat" }));
-            Assert.That(unchanged, Is.EqualTo(new[] { "Large flat" }));
+            Assert.That(cut, Is.EqualTo(new[] { "Small apartment" }));
+            Assert.That(changed, Is.EquivalentTo(new[] { "Small apartment", "Medium apartment" }));
+            Assert.That(unchanged, Is.EqualTo(new[] { "Large apartment" }));
             Assert.That((facets.Changed, facets.Unchanged, facets.PriceCut), Is.EqualTo((2, 1, 1)));
             Assert.That(previous, Is.EqualTo(new[]
             {
-                ("Small flat", (decimal?)2000m, (decimal?)2200m), ("Medium flat", 3200m, 3000m), ("Large flat", 4100m, null),
+                ("Small apartment", (decimal?)2000m, (decimal?)2200m), ("Medium apartment", 3200m, 3000m), ("Large apartment", 4100m, null),
             }));
         });
     }
@@ -541,8 +601,8 @@ public class HousingImportTests
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
         using var client = factory.CreateClient();
         _source.Pages = [[Small, Medium, Large]];
-        _source.Details["1"] = new OfferDetails(Rent: new Money(500m, Currency.Pln), Furnished: Answer.Yes);
-        _source.Details["3"] = new OfferDetails(Rent: new Money(300m, Currency.Pln), Furnished: Answer.No);
+        _source.Details["1"] = new ParsedOfferDetails(RentAmount: 500m, RentCurrency: Currency.Pln, Furnished: Answer.Yes);
+        _source.Details["3"] = new ParsedOfferDetails(RentAmount: 300m, RentCurrency: Currency.Pln, Furnished: Answer.No);
         await RunImport(client);
         await RunDetails(client);
 
@@ -551,17 +611,17 @@ public class HousingImportTests
         var byRent = await ListedTitles(client, "?sort=Rent&direction=Ascending");
         var small = (await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers?furnished=Yes", Json))!.Items.Single();
 
-        _source.Pages = [[Small with { Price = new Money(2100m, Currency.Pln) }, Medium, Large]];
-        _source.Details["1"] = new OfferDetails(Furnished: Answer.No);
+        _source.Pages = [[Small with { PriceAmount = 2100m, PriceCurrency = Currency.Pln }, Medium, Large]];
+        _source.Details["1"] = new ParsedOfferDetails(Furnished: Answer.No);
         await RunImport(client);
         await RunDetails(client);
         var card = await client.GetFromJsonAsync<OfferListItem>($"/api/housing/offers/{small.Id}", Json);
 
         Assert.Multiple(() =>
         {
-            Assert.That(furnished, Is.EqualTo(new[] { "Small flat" }));
-            Assert.That(unfurnished, Is.EqualTo(new[] { "Medium flat" }));
-            Assert.That(byRent, Is.EqualTo(new[] { "Medium flat", "Small flat", "Large flat" }));
+            Assert.That(furnished, Is.EqualTo(new[] { "Small apartment" }));
+            Assert.That(unfurnished, Is.EqualTo(new[] { "Medium apartment" }));
+            Assert.That(byRent, Is.EqualTo(new[] { "Medium apartment", "Small apartment", "Large apartment" }));
             Assert.That((small.Rent, small.Furnished), Is.EqualTo(((decimal?)500m, (Answer?)Answer.Yes)));
             Assert.That(card!.Furnished, Is.EqualTo(Answer.No));
             var change = card.Changes.SelectMany(c => c.Changes).Single(c => c.Field == "furnished");
@@ -611,7 +671,7 @@ public class HousingImportTests
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
         using var client = factory.CreateClient();
-        _source.Pages = [[Small with { Title = "Flat of Jan Kowalski" }]];
+        _source.Pages = [[Small with { Title = "Apartment of Jan Kowalski" }]];
 
         await RunImport(client);
         var file = Directory.GetFiles(_rawPath, "*.zst", SearchOption.AllDirectories).Single();
@@ -622,7 +682,7 @@ public class HousingImportTests
         Assert.Multiple(() =>
         {
             Assert.That(stored, Does.Not.Contain("Kowalski"));
-            Assert.That(list!.Items.Single().Title, Is.EqualTo("Flat of Jan ***"));
+            Assert.That(list!.Items.Single().Title, Is.EqualTo("Apartment of Jan ***"));
         });
     }
 
@@ -661,7 +721,7 @@ public class HousingImportTests
         Assert.Multiple(() =>
         {
             Assert.That((result.Pages, result.Added, result.Unchanged), Is.EqualTo((1, 1, 1)));
-            Assert.That(list!.Items.Select(o => o.Title), Is.EquivalentTo(new[] { "Medium flat", "Large flat" }));
+            Assert.That(list!.Items.Select(o => o.Title), Is.EquivalentTo(new[] { "Medium apartment", "Large apartment" }));
         });
     }
 
@@ -690,7 +750,7 @@ public class HousingImportTests
         Assert.Multiple(() =>
         {
             Assert.That(result.Pages, Is.EqualTo(3));
-            Assert.That(list!.Items.Select(o => o.Title), Is.EqualTo(new[] { "Small flat", "Medium flat", "Large flat" }));
+            Assert.That(list!.Items.Select(o => o.Title), Is.EqualTo(new[] { "Small apartment", "Medium apartment", "Large apartment" }));
         });
     }
 
@@ -759,10 +819,10 @@ public class HousingImportTests
         Assert.Multiple(() =>
         {
             Assert.That((firstMiss.Missed, firstMiss.Removed), Is.EqualTo((1, 0)));
-            Assert.That(afterFirstMiss, Is.EquivalentTo(new[] { "Small flat", "Large flat" }));
+            Assert.That(afterFirstMiss, Is.EquivalentTo(new[] { "Small apartment", "Large apartment" }));
             Assert.That((secondMiss.Missed, secondMiss.Removed), Is.EqualTo((1, 1)));
-            Assert.That(afterSecondMiss, Is.EqualTo(new[] { "Small flat" }));
-            Assert.That(afterReturn, Is.EquivalentTo(new[] { "Small flat", "Large flat" }));
+            Assert.That(afterSecondMiss, Is.EqualTo(new[] { "Small apartment" }));
+            Assert.That(afterReturn, Is.EquivalentTo(new[] { "Small apartment", "Large apartment" }));
         });
     }
 
@@ -785,7 +845,7 @@ public class HousingImportTests
         {
             Assert.That(first.Status, Is.EqualTo(JobRunStatus.Failed));
             Assert.That(first.ErrorCode, Is.EqualTo("housing.pageLimitReached"));
-            Assert.That(listed, Is.EquivalentTo(new[] { "Small flat", "Large flat" }));
+            Assert.That(listed, Is.EquivalentTo(new[] { "Small apartment", "Large apartment" }));
             Assert.That(pagesRead, Is.EqualTo(3));
         });
     }
@@ -807,7 +867,7 @@ public class HousingImportTests
         Assert.Multiple(() =>
         {
             Assert.That((result!.CaptureCount, result.FailedCount, result.AddedCount), Is.EqualTo((1, 0, 2)));
-            Assert.That(list!.Items.Select(o => o.Title), Is.EquivalentTo(new[] { "Small flat", "Large flat" }));
+            Assert.That(list!.Items.Select(o => o.Title), Is.EquivalentTo(new[] { "Small apartment", "Large apartment" }));
         });
     }
 
@@ -818,7 +878,7 @@ public class HousingImportTests
         using var client = factory.CreateClient();
         _source.Pages = [[Small]];
         await RunImport(client);
-        _source.Pages = [[Small with { Price = new Money(2000m, Currency.Pln) }]];
+        _source.Pages = [[Small with { PriceAmount = 2000m, PriceCurrency = Currency.Pln }]];
         await RunImport(client);
 
         var response = await client.PostAsync(new Uri("/api/housing/reparse", UriKind.Relative), null);
@@ -838,17 +898,17 @@ public class HousingImportTests
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
         using var client = factory.CreateClient();
         _source.Pages = [[Small, Large]];
-        _source.Details["1"] = new OfferDetails(Rent: new Money(500m, Currency.Pln), Floor: 3, Latitude: 52.2297m, Longitude: 21.0122m,
+        _source.Details["1"] = new ParsedOfferDetails(RentAmount: 500m, RentCurrency: Currency.Pln, Floor: 3, Latitude: 52.2297m, Longitude: 21.0122m,
             LocationRadiusM: 0, Description: "<p>Small</p>", Features: [Feature.Balcony, Feature.Lift]);
-        _source.Details["2"] = new OfferDetails(Floor: 0);
+        _source.Details["2"] = new ParsedOfferDetails(Floor: 0);
 
         await RunImport(client);
         var first = await RunDetails(client);
         var second = await RunDetails(client);
-        _source.Pages = [[Small with { Price = new Money(2000m, Currency.Pln) }, Large]];
+        _source.Pages = [[Small with { PriceAmount = 2000m, PriceCurrency = Currency.Pln }, Large]];
         await RunImport(client);
         var changed = await RunDetails(client);
-        _source.Pages = [[Small with { Price = new Money(2000m, Currency.Pln), ExternalUpdatedAt = At(13) }, Large]];
+        _source.Pages = [[Small with { PriceAmount = 2000m, PriceCurrency = Currency.Pln, ExternalUpdatedAt = At(13) }, Large]];
         var bump = await RunImport(client);
         var bumped = await RunDetails(client);
 
@@ -876,12 +936,12 @@ public class HousingImportTests
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
         using var client = factory.CreateClient();
         _source.Pages = [[Small]];
-        _source.Details["1"] = new OfferDetails(Rent: new Money(500m, Currency.Pln), Floor: 3, Features: [Feature.Balcony]);
+        _source.Details["1"] = new ParsedOfferDetails(RentAmount: 500m, RentCurrency: Currency.Pln, Floor: 3, Features: [Feature.Balcony]);
         await RunImport(client);
         await RunDetails(client);
 
-        _source.Pages = [[Small with { Price = new Money(2000m, Currency.Pln) }]];
-        _source.Details["1"] = new OfferDetails(Floor: 4, Features: [Feature.Lift]);
+        _source.Pages = [[Small with { PriceAmount = 2000m, PriceCurrency = Currency.Pln }]];
+        _source.Details["1"] = new ParsedOfferDetails(Floor: 4, Features: [Feature.Lift]);
         await RunImport(client);
         await RunDetails(client);
 
@@ -901,18 +961,18 @@ public class HousingImportTests
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
         using var client = factory.CreateClient();
         _source.Pages = [[Small]];
-        _source.Details["1"] = new OfferDetails(BuildYear: 1950);
+        _source.Details["1"] = new ParsedOfferDetails(BuildYear: 1950);
         await RunImport(client);
         await RunDetails(client);
 
-        _source.Pages = [[Small with { Price = new Money(2000m, Currency.Pln) }]];
-        _source.Details["1"] = new OfferDetails(RejectedValues: new Dictionary<string, string> { ["build_year"] = "195014" });
+        _source.Pages = [[Small with { PriceAmount = 2000m, PriceCurrency = Currency.Pln }]];
+        _source.Details["1"] = new ParsedOfferDetails(RejectedValues: new Dictionary<string, string> { ["build_year"] = "195014" });
         await RunImport(client);
         var rejectedRun = await RunDetails(client);
         var rejected = await Scalar<string>("SELECT concat_ws('|', build_year, rejected_values->>'build_year') FROM housing.offer");
 
-        _source.Pages = [[Small with { Price = new Money(2100m, Currency.Pln) }]];
-        _source.Details["1"] = new OfferDetails(BuildYear: 1960);
+        _source.Pages = [[Small with { PriceAmount = 2100m, PriceCurrency = Currency.Pln }]];
+        _source.Details["1"] = new ParsedOfferDetails(BuildYear: 1960);
         await RunImport(client);
         await RunDetails(client);
         var corrected = await Scalar<string>("SELECT concat_ws('|', build_year, rejected_values) FROM housing.offer");
@@ -939,13 +999,13 @@ public class HousingImportTests
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
         using var client = factory.CreateClient();
         _source.Pages = [[Small]];
-        _source.Details["1"] = new OfferDetails(Heating: Heating.Gas, BuildYear: 1950, Features: [Feature.Lift]);
+        _source.Details["1"] = new ParsedOfferDetails(Heating: Heating.Gas, BuildYear: 1950, Features: [Feature.Lift]);
         await RunImport(client);
         await RunDetails(client);
         var afterFirstPage = await Scalar<long>("SELECT count(*) FROM housing.offer_change");
 
-        _source.Pages = [[Small with { Price = new Money(2000m, Currency.Pln) }]];
-        _source.Details["1"] = new OfferDetails(Heating: Heating.Gas, BuildYear: 1950, Condition: Condition.ReadyToUse, Features: [Feature.Lift]);
+        _source.Pages = [[Small with { PriceAmount = 2000m, PriceCurrency = Currency.Pln }]];
+        _source.Details["1"] = new ParsedOfferDetails(Heating: Heating.Gas, BuildYear: 1950, Condition: Condition.ReadyToUse, Features: [Feature.Lift]);
         await RunImport(client);
         await RunDetails(client);
         var logged = await Scalar<string>("SELECT string_agg(key, ',' ORDER BY id, key) FROM housing.offer_change, jsonb_object_keys(changes) AS key");
@@ -962,8 +1022,8 @@ public class HousingImportTests
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
         using var client = factory.CreateClient();
-        _source.Pages = [[Small with { Rent = new Money(400m, Currency.Pln), Floor = 2, Features = [Feature.Balcony] }]];
-        _source.Details["1"] = new OfferDetails(Deposit: new Money(3000m, Currency.Pln), Features: [Feature.Balcony, Feature.Dishwasher]);
+        _source.Pages = [[Small with { RentAmount = 400m, RentCurrency = Currency.Pln, Floor = 2, Features = [Feature.Balcony] }]];
+        _source.Details["1"] = new ParsedOfferDetails(DepositAmount: 3000m, DepositCurrency: Currency.Pln, Features: [Feature.Balcony, Feature.Dishwasher]);
 
         await RunImport(client);
         await RunDetails(client);
@@ -984,7 +1044,7 @@ public class HousingImportTests
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
         using var client = factory.CreateClient();
         _source.Pages = [[Small]];
-        _source.Details["1"] = new OfferDetails(Deposit: new Money(3000m, Currency.Pln), AvailableFrom: new DateOnly(2026, 12, 1),
+        _source.Details["1"] = new ParsedOfferDetails(DepositAmount: 3000m, DepositCurrency: Currency.Pln, AvailableFrom: new DateOnly(2026, 12, 1),
             Floor: 2, BuildingType: BuildingType.Block, Heating: Heating.Gas, Description: "<p>Quiet</p>", Features: [Feature.Lift]);
         await RunImport(client);
         var id = (await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json))!.Items.Single().Id;
@@ -1011,11 +1071,11 @@ public class HousingImportTests
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
         using var client = factory.CreateClient();
         _source.Pages = [[Small]];
-        _source.Details["1"] = new OfferDetails(Heating: Heating.Gas, Features: [Feature.Lift]);
+        _source.Details["1"] = new ParsedOfferDetails(Heating: Heating.Gas, Features: [Feature.Lift]);
         await RunImport(client);
         await RunDetails(client);
-        _source.Pages = [[Small with { Price = new Money(2000m, Currency.Pln) }]];
-        _source.Details["1"] = new OfferDetails(Heating: Heating.District, Features: [Feature.Lift, Feature.Balcony]);
+        _source.Pages = [[Small with { PriceAmount = 2000m, PriceCurrency = Currency.Pln }]];
+        _source.Details["1"] = new ParsedOfferDetails(Heating: Heating.District, Features: [Feature.Lift, Feature.Balcony]);
         await RunImport(client);
         await RunDetails(client);
         var id = (await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json))!.Items.Single().Id;
@@ -1040,8 +1100,8 @@ public class HousingImportTests
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)), QuickRetry);
         using var client = factory.CreateClient();
         _source.Pages = [[Small, Large]];
-        _source.Details["1"] = new OfferDetails(Floor: 1);
-        _source.Details["2"] = new OfferDetails(Floor: 2);
+        _source.Details["1"] = new ParsedOfferDetails(Floor: 1);
+        _source.Details["2"] = new ParsedOfferDetails(Floor: 2);
         await RunImport(client);
         _source.DetailTimeouts = 2;
 
@@ -1062,7 +1122,7 @@ public class HousingImportTests
             QuickRetry, ("Modules:Housing:Details:MaxMinutes", "1"));
         using var client = factory.CreateClient();
         _source.Pages = [[Small]];
-        _source.Details["1"] = new OfferDetails(Floor: 1);
+        _source.Details["1"] = new ParsedOfferDetails(Floor: 1);
         await RunImport(client);
         _source.DetailTimeouts = 1;
 
@@ -1085,7 +1145,7 @@ public class HousingImportTests
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)), QuickRetry);
         using var client = factory.CreateClient();
         _source.Pages = [[Small]];
-        _source.Details["1"] = new OfferDetails(Floor: 1);
+        _source.Details["1"] = new ParsedOfferDetails(Floor: 1);
         await RunImport(client);
         _source.DetailsRateLimited = true;
 
@@ -1104,8 +1164,8 @@ public class HousingImportTests
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
         using var client = factory.CreateClient();
         _source.Pages = [[Small, Large]];
-        _source.Details["1"] = new OfferDetails(Floor: 1);
-        _source.Details["2"] = new OfferDetails(Floor: 2);
+        _source.Details["1"] = new ParsedOfferDetails(Floor: 1);
+        _source.Details["2"] = new ParsedOfferDetails(Floor: 2);
         await RunImport(client);
         _source.DetailsBeforeRateLimit = 1;
 
@@ -1125,8 +1185,8 @@ public class HousingImportTests
             QuickRetry, ("Modules:Housing:Details:Retries", "1"));
         using var client = factory.CreateClient();
         _source.Pages = [[Small, Large]];
-        _source.Details["1"] = new OfferDetails(Floor: 1);
-        _source.Details["2"] = new OfferDetails(Floor: 2);
+        _source.Details["1"] = new ParsedOfferDetails(Floor: 1);
+        _source.Details["2"] = new ParsedOfferDetails(Floor: 2);
         await RunImport(client);
         _source.DetailsUnavailable = true;
 
@@ -1155,7 +1215,7 @@ public class HousingImportTests
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
         using var client = factory.CreateClient();
         _source.Pages = [Enumerable.Range(1, FetchDetailsHandler.MaxFetchFailuresInRow + 2)
-            .Select(i => Small with { ExternalId = $"{i}", Url = new Uri($"https://www.otodom.pl/pl/oferta/flat-ID{i}") })
+            .Select(i => Small with { ExternalId = $"{i}", Url = new Uri($"https://www.otodom.pl/pl/oferta/apartment-ID{i}") })
             .ToList()];
         await RunImport(client);
         _source.DetailsRefused = true;
@@ -1180,7 +1240,7 @@ public class HousingImportTests
             .Select(i => Small with { ExternalId = $"removed-{i}", Url = new Uri($"https://www.otodom.pl/pl/oferta/removed-ID{i}") })
             .ToList();
         _source.Pages = [[.. removed, Large]];
-        _source.Details["2"] = new OfferDetails(Floor: 2);
+        _source.Details["2"] = new ParsedOfferDetails(Floor: 2);
         _source.RemovedOffers.UnionWith(removed.Select(o => o.ExternalId));
         await RunImport(client);
 
@@ -1209,7 +1269,7 @@ public class HousingImportTests
             .Select(i => Small with { ExternalId = $"missing-{i}", Url = new Uri($"https://www.otodom.pl/pl/oferta/missing-ID{i}") })
             .ToList();
         _source.Pages = [[.. missing, Large]];
-        _source.Details["2"] = new OfferDetails(Floor: 2);
+        _source.Details["2"] = new ParsedOfferDetails(Floor: 2);
         await RunImport(client);
 
         var fetched = await RunDetails(client);
@@ -1224,7 +1284,7 @@ public class HousingImportTests
         using var client = factory.CreateClient();
         // No detail pages: every fetch answers 404, as after the portal changed its URLs.
         _source.Pages = [Enumerable.Range(1, FetchDetailsHandler.MaxMissingPagesInRow + 2)
-            .Select(i => Small with { ExternalId = $"{i}", Url = new Uri($"https://www.otodom.pl/pl/oferta/flat-ID{i}") })
+            .Select(i => Small with { ExternalId = $"{i}", Url = new Uri($"https://www.otodom.pl/pl/oferta/apartment-ID{i}") })
             .ToList()];
         await RunImport(client);
 
@@ -1244,7 +1304,7 @@ public class HousingImportTests
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
         using var client = factory.CreateClient();
         _source.Pages = [[Small with { Features = [Feature.Garden] }]];
-        _source.Details["1"] = new OfferDetails(Features: []);
+        _source.Details["1"] = new ParsedOfferDetails(Features: []);
         await RunImport(client);
         await RunDetails(client);
 
@@ -1289,7 +1349,7 @@ public class HousingImportTests
             await RunDetails(client);
         }
 
-        _source.Details["1"] = new OfferDetails(Floor: 2);
+        _source.Details["1"] = new ParsedOfferDetails(Floor: 2);
         var sameDay = await RunDetails(client);
         await Sql("UPDATE housing.offer_detail_fetch SET attempted_at = attempted_at - interval '25 hours'");
         var dayLater = await RunDetails(client);
@@ -1307,7 +1367,7 @@ public class HousingImportTests
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
         using var client = factory.CreateClient();
         _source.Pages = [[Small]];
-        _source.Details["1"] = new OfferDetails(Floor: 3, Features: [Feature.Garden]);
+        _source.Details["1"] = new ParsedOfferDetails(Floor: 3, Features: [Feature.Garden]);
         await RunImport(client);
         await RunDetails(client);
         await Sql("UPDATE housing.offer SET floor = NULL; DELETE FROM housing.offer_feature;");
@@ -1331,18 +1391,18 @@ public class HousingImportTests
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
         using var client = factory.CreateClient();
         _source.Pages = [[Small with { Features = [Feature.Garden] }]];
-        _source.Details["1"] = new OfferDetails(Floor: 3, AvailableFrom: new DateOnly(2026, 12, 1), Features: [Feature.Balcony]);
+        _source.Details["1"] = new ParsedOfferDetails(Floor: 3, AvailableFrom: new DateOnly(2026, 12, 1), Features: [Feature.Balcony]);
         await RunImport(client);
         await RunDetails(client);
 
-        var cheaper = Small with { Price = new Money(2000m, Currency.Pln), Rent = new Money(500m, Currency.Pln) };
+        var cheaper = Small with { PriceAmount = 2000m, PriceCurrency = Currency.Pln, RentAmount = 500m, RentCurrency = Currency.Pln };
         _source.Pages = [[cheaper]];
-        _source.Details["1"] = new OfferDetails(Floor: 4, AvailableFrom: new DateOnly(2027, 1, 1), Features: [Feature.Lift, Feature.Balcony]);
+        _source.Details["1"] = new ParsedOfferDetails(Floor: 4, AvailableFrom: new DateOnly(2027, 1, 1), Features: [Feature.Lift, Feature.Balcony]);
         await RunImport(client);
         await RunDetails(client);
         _source.Pages = [[cheaper with { ExternalUpdatedAt = At(13) }]];
         await RunImport(client);
-        _source.Pages = [[cheaper with { ExternalUpdatedAt = At(13), Price = null }]];
+        _source.Pages = [[cheaper with { ExternalUpdatedAt = At(13), PriceAmount = null, PriceCurrency = null }]];
         await RunImport(client);
 
         var logged = await Scalar<string>("""
@@ -1376,11 +1436,11 @@ public class HousingImportTests
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
         using var client = factory.CreateClient();
         _source.Pages = [[Small]];
-        _source.Details["1"] = new OfferDetails(Floor: 3);
+        _source.Details["1"] = new ParsedOfferDetails(Floor: 3);
         await RunImport(client);
         await RunDetails(client);
-        _source.Pages = [[Small with { Price = new Money(2000m, Currency.Pln) }]];
-        _source.Details["1"] = new OfferDetails(Floor: 4);
+        _source.Pages = [[Small with { PriceAmount = 2000m, PriceCurrency = Currency.Pln }]];
+        _source.Details["1"] = new ParsedOfferDetails(Floor: 4);
         await RunImport(client);
         await RunDetails(client);
         var before = await Scalar<long>("SELECT count(*) FROM housing.offer_change");
@@ -1478,14 +1538,14 @@ public class HousingImportTests
 
     private sealed record Fetched(int Count, int Failed);
 
-    private sealed record FakePage(IReadOnlyList<Offer> Offers, bool IsLast);
+    private sealed record FakePage(IReadOnlyList<ParsedOffer> Offers, bool IsLast);
 
-    private sealed record FakeDetailPage(string ExternalId, OfferDetails Details);
+    private sealed record FakeDetailPage(string ExternalId, ParsedOfferDetails Details);
 
     private sealed class FakeOfferSource : IOfferSource
     {
         // Each inner list is one results page, newest offers first.
-        public IReadOnlyList<IReadOnlyList<Offer>> Pages { get; set; } = [[]];
+        public IReadOnlyList<IReadOnlyList<ParsedOffer>> Pages { get; set; } = [[]];
 
         public Failure? ParseFailure { get; set; }
 
@@ -1516,7 +1576,7 @@ public class HousingImportTests
         public LocationHint? LocationHintOf(string locationKey) => OtoDomLocation.HintOf(locationKey);
 
         // Detail pages by external id; an offer without an entry, or no longer listed, returns HTTP 404.
-        public Dictionary<string, OfferDetails> Details { get; } = [];
+        public Dictionary<string, ParsedOfferDetails> Details { get; } = [];
 
         public List<string> DetailRequests { get; } = [];
 

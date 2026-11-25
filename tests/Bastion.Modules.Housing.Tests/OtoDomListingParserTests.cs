@@ -21,10 +21,10 @@ public class OtoDomListingParserTests
             Assert.That(skipped, Is.Zero);
             Assert.That(offer.Title, Is.EqualTo("Sample flat 30 m2, first rental"));
             Assert.That(offer.Url, Is.EqualTo(new Uri("https://www.otodom.pl/pl/oferta/sample-flat-1-ID0SAMPLE1")));
-            Assert.That(offer.Price, Is.EqualTo(new Money(2200m, Currency.Pln)));
+            Assert.That((offer.PriceAmount, offer.PriceCurrency), Is.EqualTo(((decimal?)2200m, (Currency?)Currency.Pln)));
             Assert.That(offer.AreaM2, Is.EqualTo(30m));
             Assert.That(offer.Rooms, Is.EqualTo(1));
-            Assert.That((offer.PropertyType, offer.Transaction), Is.EqualTo((PropertyType.Flat, Transaction.Rent)));
+            Assert.That((offer.PropertyType, offer.Transaction), Is.EqualTo((PropertyType.Apartment, Transaction.Rent)));
         });
     }
 
@@ -54,6 +54,43 @@ public class OtoDomListingParserTests
     }
 
     [Test]
+    public void Reads_the_district_and_the_neighborhood_inside_it()
+    {
+        const string html = """
+            <script id="__NEXT_DATA__" type="application/json">
+            {"props":{"pageProps":{"data":{"searchAds":{"items":[
+              {"id":1,"title":"Both","slug":"both-ID1","estate":"FLAT","transaction":"RENT","createdAtFirst":"2026-11-19T10:00:00+00:00",
+               "location":{"reverseGeocoding":{"locations":[
+                 {"id":"mazowieckie/warszawa/warszawa/warszawa","locationLevel":"city_or_village","name":"Warszawa"},
+                 {"id":"mazowieckie/warszawa/warszawa/warszawa/mokotow","locationLevel":"district","name":"Mokotów"},
+                 {"id":"mazowieckie/warszawa/warszawa/warszawa/mokotow/stegny","locationLevel":"residential","name":"Stegny"}]}}},
+              {"id":2,"title":"District","slug":"district-ID2","estate":"FLAT","transaction":"RENT","createdAtFirst":"2026-11-19T10:00:00+00:00",
+               "location":{"reverseGeocoding":{"locations":[
+                 {"id":"pomorskie/gdansk/gdansk/gdansk","locationLevel":"city_or_village","name":"Gdańsk"},
+                 {"id":"pomorskie/gdansk/gdansk/gdansk/letnica","locationLevel":"district","name":" Letnica "}]}}},
+              {"id":3,"title":"Neighborhood alone","slug":"neighborhood-ID3","estate":"FLAT","transaction":"RENT","createdAtFirst":"2026-11-19T10:00:00+00:00",
+               "location":{"reverseGeocoding":{"locations":[
+                 {"id":"pomorskie/gdansk/gdansk/gdansk","locationLevel":"city_or_village","name":"Gdańsk"},
+                 {"id":"pomorskie/gdansk/gdansk/gdansk/x/y","locationLevel":"residential","name":"Osiedle"}]}}},
+              {"id":4,"title":"Village","slug":"village-ID4","estate":"FLAT","transaction":"RENT","createdAtFirst":"2026-11-19T10:00:00+00:00",
+               "location":{"reverseGeocoding":{"locations":[
+                 {"id":"pomorskie/wejherowski/gmina-wiejska--wejherowo/goscicino","locationLevel":"city_or_village","name":"Gościcino"}]}}}
+            ]}}}}}
+            </script>
+            """;
+
+        var (offers, _, _) = OtoDomListingParser.Parse(html, BaseUrl);
+
+        Assert.That(offers.Select(o => (o.ExternalId, o.DistrictName, o.NeighborhoodName)), Is.EquivalentTo(new[]
+        {
+            ("1", "Mokotów", "Stegny"),
+            ("2", "Letnica", null),
+            ("3", null, null),
+            ("4", (string?)null, (string?)null),
+        }));
+    }
+
+    [Test]
     public void Reads_rent_floor_and_features_of_the_listing()
     {
         const string html = """
@@ -69,14 +106,14 @@ public class OtoDomListingParserTests
             """;
 
         var (offers, _, _) = OtoDomListingParser.Parse(html, BaseUrl);
-        var flat = offers.Single(o => o.ExternalId == "1");
+        var apartment = offers.Single(o => o.ExternalId == "1");
         var high = offers.Single(o => o.ExternalId == "2");
 
         Assert.Multiple(() =>
         {
-            Assert.That((flat.Rent, flat.Floor), Is.EqualTo((new Money(750m, Currency.Pln), 0)));
-            Assert.That(flat.Features, Is.EquivalentTo(new[] { Feature.Balcony, Feature.Parking }));
-            Assert.That((high.Rent, high.Floor), Is.EqualTo(((Money?)null, (int?)null)));
+            Assert.That((apartment.RentAmount, apartment.RentCurrency, apartment.Floor), Is.EqualTo(((decimal?)750m, (Currency?)Currency.Pln, 0)));
+            Assert.That(apartment.Features, Is.EquivalentTo(new[] { Feature.Balcony, Feature.Parking }));
+            Assert.That((high.RentAmount, high.Floor), Is.EqualTo(((decimal?)null, (int?)null)));
             Assert.That(high.Features, Is.Empty);
         });
     }
@@ -140,7 +177,7 @@ public class OtoDomListingParserTests
         Assert.Multiple(() =>
         {
             Assert.That(skipped, Is.Zero);
-            Assert.That(offers.Single().Price, Is.Null);
+            Assert.That(offers.Single().PriceAmount, Is.Null);
             Assert.That(offers.Single().AreaM2, Is.EqualTo(40m));
         });
     }

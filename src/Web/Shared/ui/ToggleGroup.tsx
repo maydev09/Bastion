@@ -4,7 +4,7 @@ import styles from "./ToggleGroup.module.css";
 type Props<Value extends string> = {
   // The accessible name of the group.
   label: string;
-  // A disabled item shows greyed out, e.g. a choice that makes no sense yet.
+  // A disabled item shows grayed out, e.g. a choice that makes no sense yet.
   items: { value: Value; label: string; disabled?: boolean }[];
   // The values whose buttons are pressed.
   pressed: Value[];

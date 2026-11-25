@@ -6,10 +6,16 @@ namespace Bastion.Modules.Housing.Application.ListOffers;
 // An offer without the filtered value (no price, no place) is left out.
 public sealed record OfferFilter
 {
-    // The location: offers in any of the voivodeships or any of the places, or without a place (WithoutPlace).
+    // The location: offers in any of the voivodeships, places or districts, or without a place (WithoutPlace).
     public IReadOnlyList<Voivodeship> Voivodeships { get; init; } = [];
 
     public IReadOnlyList<int> PlaceIds { get; init; } = [];
+
+    // A district takes in its neighborhoods. A picked district or neighborhood narrows its place to the picked ones, and a
+    // picked neighborhood narrows its district the same way.
+    public IReadOnlyList<int> DistrictIds { get; init; } = [];
+
+    public IReadOnlyList<int> NeighborhoodIds { get; init; } = [];
 
     // Offers whose location matched no place.
     public bool WithoutPlace { get; init; }

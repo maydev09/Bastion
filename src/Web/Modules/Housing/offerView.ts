@@ -55,6 +55,9 @@ const defaultPageSize = 50;
 export type OfferFilter = {
   voivodeship: Voivodeship[];
   place: number[];
+  // A picked district or neighborhood narrows its place to the picked ones; a picked neighborhood narrows its district.
+  district: number[];
+  neighborhood: number[];
   // Offers whose location matched no place; joined with OR with the places and voivodeships.
   withoutPlace: boolean;
   size: PlaceSize[];
@@ -93,6 +96,8 @@ export type OfferView = {
 export const noFilter: OfferFilter = {
   voivodeship: [],
   place: [],
+  district: [],
+  neighborhood: [],
   withoutPlace: false,
   size: [],
   role: [],
@@ -134,6 +139,14 @@ export function readView(params: URLSearchParams): OfferView {
       .getAll("place")
       .map(Number)
       .filter((id) => Number.isInteger(id) && id > 0),
+    district: params
+      .getAll("district")
+      .map(Number)
+      .filter((id) => Number.isInteger(id) && id > 0),
+    neighborhood: params
+      .getAll("neighborhood")
+      .map(Number)
+      .filter((id) => Number.isInteger(id) && id > 0),
     withoutPlace: params.get("withoutPlace") === "true",
     size: [...townSizes, ...villageSizes].filter((s) => params.getAll("size").includes(s)),
     role: placeRoles.filter((r) => params.getAll("role").includes(r)),
@@ -166,6 +179,8 @@ export function writeView(view: OfferView): URLSearchParams {
   const { filter } = view;
   filter.voivodeship.forEach((v) => params.append("voivodeship", v));
   filter.place.forEach((id) => params.append("place", String(id)));
+  filter.district.forEach((id) => params.append("district", String(id)));
+  filter.neighborhood.forEach((id) => params.append("neighborhood", String(id)));
   if (filter.withoutPlace) {
     params.set("withoutPlace", "true");
   }
@@ -226,6 +241,8 @@ export function toFilterQuery(filter: OfferFilter) {
   return {
     voivodeship: list(filter.voivodeship),
     place: list(filter.place),
+    district: list(filter.district),
+    neighborhood: list(filter.neighborhood),
     withoutPlace: filter.withoutPlace || undefined,
     size: list(filter.size),
     role: list(filter.role),
@@ -252,6 +269,8 @@ export function countFilters(filter: OfferFilter): number {
   return (
     filter.voivodeship.length +
     filter.place.length +
+    filter.district.length +
+    filter.neighborhood.length +
     (filter.withoutPlace ? 1 : 0) +
     filter.size.length +
     filter.role.length +

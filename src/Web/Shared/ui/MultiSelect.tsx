@@ -16,7 +16,7 @@ type Props<Item> = {
   itemToHint?: (item: Item) => string;
   // A number at the right end of an item, e.g. how many offers it has; the numbers line up.
   itemToCount?: (item: Item) => string;
-  // An item shown greyed out, e.g. a place without offers: it can still be picked.
+  // An item shown grayed out, e.g. a place without offers: it can still be picked.
   isItemMuted?: (item: Item) => boolean;
   // Given when the caller searches itself (e.g. on the server); the typed text is passed on and items are not filtered here.
   onSearch?: (text: string) => void;

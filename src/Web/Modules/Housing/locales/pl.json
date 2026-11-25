@@ -69,6 +69,11 @@
     "placePlaceholder": "Wpisz nazwę…",
     "placeStart": "Wpisz początek nazwy miejscowości.",
     "placeNone": "Nie ma miejscowości o takiej nazwie.",
+    "district": "Dzielnica",
+    "districtPlaceholder": "Wszystkie",
+    "districtNone": "Nie ma takiej dzielnicy.",
+    "neighborhood": "Osiedle",
+    "neighborhoodNone": "Nie ma takiego osiedla.",
     "searching": "Szukam…",
     "inCounty": "pow. {{county}}",
     "voivodeship": "Województwo",
@@ -128,6 +133,8 @@
     "notFound": "Nie ma takiej oferty.",
     "portal": "Otwórz na {{source}}",
     "place": "Miejscowość",
+    "district": "Dzielnica",
+    "neighborhood": "Osiedle",
     "unknownPlace": "Nie udało się ustalić miejscowości tej oferty.",
     "nearby": "Okolica",
     "nearbyHint": "Najbliższe miasto, siedziba powiatu, stolica województwa i metropolia oraz duże miasta do 50 km. Odległość w linii prostej; drogą jest zwykle dalej.",
@@ -293,7 +300,8 @@
     },
     "nearestCity": "{{city}} – {{km}} km",
     "population": "{{population}} mieszk. ({{year}}, {{source}})",
-    "populationNoYear": "{{population}} mieszk. ({{source}})"
+    "populationNoYear": "{{population}} mieszk. ({{source}})",
+    "withDistrict": "{{place}}, {{district}}"
   },
   "voivodeship": {
     "Dolnoslaskie": "dolnośląskie",
@@ -368,7 +376,7 @@
     "page": "poprzednia / następna strona",
     "search": "szukaj miejscowości",
     "filters": "pokaż / ukryj filtry",
-    "neighbour": "poprzednia / następna oferta z listy",
+    "neighbor": "poprzednia / następna oferta z listy",
     "back": "wróć do listy",
     "help": "ta ściąga"
   },
@@ -405,6 +413,7 @@
     "title": "Jak działają filtry",
     "sections": "Oferta musi pasować do wszystkich sekcji, w których coś ustawisz: np. do lokalizacji i do ceny, i do liczby pokoi.",
     "choices": "W jednej sekcji wystarczy jedna z zaznaczonych opcji: Gdańsk lub Gdynia, 2 lub 3 pokoje, metropolia lub duże miasto. W Lokalizacji dotyczy to miejscowości, województw i ofert bez przypisanej miejscowości.",
+    "districts": "Dzielnica zawęża swoją miejscowość: Warszawa z Mokotowem to tylko Mokotów, a inna zaznaczona miejscowość zostaje w całości. Osiedle tak samo zawęża swoją dzielnicę. Lista osiedli pokazuje osiedla zaznaczonych dzielnic, a bez dzielnicy wszystkie. Nazwy dzielnic i osiedli pochodzą z portalu, a wiele miejscowości ich nie ma.",
     "features": "Udogodnienia muszą być wszystkie naraz; przełącznikiem „dowolne” wystarczy jedno z nich.",
     "ranges": "Cena, cena za m² i metraż to zakres od–do; kliknięcie słupka na wykresie ustawia jego zakres, a drugie kliknięcie innego słupka go rozszerza.",
     "history": "W Historii zmian „Zmiany oferty” i „Cena obniżona” muszą być spełnione naraz.",

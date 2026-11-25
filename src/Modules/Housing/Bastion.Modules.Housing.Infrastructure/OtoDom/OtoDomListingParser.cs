@@ -1,13 +1,14 @@
 using System.Globalization;
 using System.Text.Json;
 using System.Text.RegularExpressions;
+using Bastion.Modules.Housing.Application.Abstractions;
 using Bastion.Modules.Housing.Domain;
 
 namespace Bastion.Modules.Housing.Infrastructure.OtoDom;
 
 public static partial class OtoDomListingParser
 {
-    public static (IReadOnlyList<Offer> Offers, int SkippedCount, bool IsLastPage) Parse(string html, Uri baseUrl)
+    public static (IReadOnlyList<ParsedOffer> Offers, int SkippedCount, bool IsLastPage) Parse(string html, Uri baseUrl)
     {
         var script = NextDataRegex().Match(html);
         if (!script.Success)
@@ -23,7 +24,7 @@ public static partial class OtoDomListingParser
             throw new OtoDomParseException("__NEXT_DATA__ has no props.pageProps.data.searchAds.items array.");
         }
 
-        var offers = new List<Offer>();
+        var offers = new List<ParsedOffer>();
         var skipped = 0;
         foreach (var item in items.EnumerateArray())
         {
@@ -34,22 +35,28 @@ public static partial class OtoDomListingParser
                 && TransactionOf(item) is { } transaction
                 && Date(item, "createdAtFirst") is { } createdAt)
             {
-                offers.Add(new Offer(
-                    Source.OtoDom,
+                var (district, neighborhood) = OtoDomLocation.ReadDistrict(item);
+                var price = MoneyOf(item, "totalPrice");
+                var rent = Plausible(MoneyOf(item, "rentPrice"));
+                offers.Add(new ParsedOffer(
                     id.GetRawText(),
                     title.GetString()!,
                     new Uri(baseUrl, $"/pl/oferta/{slug.GetString()}"),
                     propertyType,
                     transaction,
                     createdAt,
-                    MoneyOf(item, "totalPrice"),
+                    price?.Amount,
+                    price?.Currency,
                     Number(item, "areaInSquareMeters"),
                     Rooms(item),
                     Date(item, "pushedUpAt"),
                     OtoDomLocation.KeyOf(item),
-                    Rent: Plausible(MoneyOf(item, "rentPrice")),
-                    Floor: Floor(item),
-                    Features: Features(item)));
+                    rent?.Amount,
+                    rent?.Currency,
+                    Floor(item),
+                    Features(item),
+                    district,
+                    neighborhood));
             }
             else
             {
@@ -142,7 +149,7 @@ public static partial class OtoDomListingParser
 
     private static PropertyType? PropertyTypeOf(JsonElement item) => Text(item, "estate") switch
     {
-        "FLAT" => PropertyType.Flat,
+        "FLAT" => PropertyType.Apartment,
         _ => null,
     };
 

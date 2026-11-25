@@ -1,12 +1,13 @@
 using System.Globalization;
 using System.Text.Json;
+using Bastion.Modules.Housing.Application.Abstractions;
 using Bastion.Modules.Housing.Domain;
 
 namespace Bastion.Modules.Housing.Infrastructure.OtoDom;
 
 public static class OtoDomDetailParser
 {
-    public static (string ExternalId, OfferDetails Details) Parse(string html)
+    public static (string ExternalId, ParsedOfferDetails Details) Parse(string html)
     {
         var script = OtoDomListingParser.NextDataRegex().Match(html);
         if (!script.Success)
@@ -80,9 +81,13 @@ public static class OtoDomDetailParser
             ? NumberBetween("location_radius_m", radiusValue.ToString(), 0, 100_000)
             : null;
 
-        var details = new OfferDetails(
-            OtoDomListingParser.Plausible(MoneyOf("rent")),
-            MoneyOf("deposit"),
+        var rent = OtoDomListingParser.Plausible(MoneyOf("rent"));
+        var deposit = MoneyOf("deposit");
+        var details = new ParsedOfferDetails(
+            rent?.Amount,
+            rent?.Currency,
+            deposit?.Amount,
+            deposit?.Currency,
             DateOnly.TryParseExact(Value("free_from"), "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var from) ? from : null,
             Floor(Value("floor_no")),
             buildingFloors,
@@ -167,7 +172,7 @@ public static class OtoDomDetailParser
     }
 
     // OtoDom has no furnished field, only "furniture" among the equipment the advertiser ticked: other equipment
-    // without it means an unfurnished flat, no equipment at all means not stated.
+    // without it means an unfurnished apartment, no equipment at all means not stated.
     private static Answer? Furnished(JsonElement ad)
     {
         if (ReadGroups(ad) is not { } groups)

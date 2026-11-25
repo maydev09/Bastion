@@ -70,6 +70,34 @@ public sealed class PlaceRepository(NpgsqlDataSource db) : IPlaceRepository
         WHERE p.id = @Id
         """;
 
+    // The SELECT does not see a row the INSERT adds in the same statement, so the two are joined.
+    private const string AddDistrictSql = """
+        WITH added AS (
+            INSERT INTO housing.district (place_id, parent_id, name, name_key)
+            VALUES (@PlaceId, @ParentId, @Name, @NameKey)
+            ON CONFLICT (place_id, parent_id, name_key) DO NOTHING
+            RETURNING id)
+        SELECT id FROM added
+        UNION ALL
+        SELECT id FROM housing.district
+        WHERE place_id = @PlaceId AND parent_id IS NOT DISTINCT FROM @ParentId AND name_key = @NameKey
+        """;
+
+    // An offer points to its neighborhood when it has one, so a district adds the offers of its neighborhoods to its own.
+    private const string ListDistrictsSql = """
+        WITH counts AS (
+            SELECT d.id, d.parent_id, count(o.id)::int AS offer_count
+            FROM housing.district d
+            LEFT JOIN housing.offer o ON o.district_id = d.id AND o.removed_at IS NULL
+            WHERE d.place_id = @PlaceId
+            GROUP BY d.id)
+        SELECT d.id, d.name, d.parent_id,
+            c.offer_count + coalesce((SELECT sum(e.offer_count) FROM counts e WHERE e.parent_id = d.id), 0)::int AS offer_count
+        FROM housing.district d
+        JOIN counts c ON c.id = d.id
+        ORDER BY offer_count DESC, d.name, d.id
+        """;
+
     private const string ReplaceNearbySql = """
         DELETE FROM housing.place_nearby;
         INSERT INTO housing.place_nearby (place_id, tier, rank, nearby_id, km)
@@ -130,6 +158,26 @@ public sealed class PlaceRepository(NpgsqlDataSource db) : IPlaceRepository
         var row = await connection.QuerySingleOrDefaultAsync<PlaceListRow>(new CommandDefinition(
             GetListItemSql, new { Id = id }, cancellationToken: cancellationToken));
         return row is null ? null : ToListItem(row);
+    }
+
+    public async Task<int> AddDistrictAsync(District district, CancellationToken cancellationToken)
+    {
+        await using var connection = await db.OpenConnectionAsync(cancellationToken);
+        return await connection.QueryFirstAsync<int>(new CommandDefinition(AddDistrictSql, new
+        {
+            district.PlaceId,
+            district.ParentId,
+            district.Name,
+            district.NameKey,
+        }, cancellationToken: cancellationToken));
+    }
+
+    public async Task<IReadOnlyList<DistrictListItem>> ListDistrictsAsync(int placeId, CancellationToken cancellationToken)
+    {
+        await using var connection = await db.OpenConnectionAsync(cancellationToken);
+        var rows = await connection.QueryAsync<DistrictListItem>(new CommandDefinition(
+            ListDistrictsSql, new { PlaceId = placeId }, cancellationToken: cancellationToken));
+        return rows.ToList();
     }
 
     public async Task ReplaceNearbyAsync(IReadOnlyList<PlaceNearby> nearby, CancellationToken cancellationToken)

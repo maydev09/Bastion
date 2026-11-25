@@ -41,12 +41,12 @@ public sealed partial class JobRunner(
                 return active;
             }
 
-            // Not cancelled from here on: a run saved in the database must reach the queue or be finished.
+            // Not canceled from here on: a run saved in the database must reach the queue or be finished.
             var run = await runs.AddAsync(job, trigger, time.GetUtcNow(), CancellationToken.None);
             if (!_queue.Writer.TryWrite(run))
             {
                 // The application is stopping and the queue is closed.
-                run = run with { Status = JobRunStatus.Cancelled, FinishedAt = time.GetUtcNow() };
+                run = run with { Status = JobRunStatus.Canceled, FinishedAt = time.GetUtcNow() };
                 await runs.UpdateAsync(run, CancellationToken.None);
                 return run;
             }
@@ -100,11 +100,11 @@ public sealed partial class JobRunner(
         {
         }
 
-        // Runs still waiting in the queue when the application stops are cancelled.
+        // Runs still waiting in the queue when the application stops are canceled.
         _queue.Writer.TryComplete();
         while (_queue.Reader.TryRead(out var run))
         {
-            running.Add(FinishAsync(run with { Status = JobRunStatus.Cancelled, FinishedAt = time.GetUtcNow() }));
+            running.Add(FinishAsync(run with { Status = JobRunStatus.Canceled, FinishedAt = time.GetUtcNow() }));
         }
 
         await Task.WhenAll(running);
@@ -201,7 +201,7 @@ public sealed partial class JobRunner(
         }
         catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
         {
-            return run with { Status = JobRunStatus.Cancelled, FinishedAt = time.GetUtcNow() };
+            return run with { Status = JobRunStatus.Canceled, FinishedAt = time.GetUtcNow() };
         }
         catch (JobFailedException e)
         {

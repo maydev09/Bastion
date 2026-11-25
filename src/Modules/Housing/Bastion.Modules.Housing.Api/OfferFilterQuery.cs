@@ -9,6 +9,8 @@ namespace Bastion.Modules.Housing.Api;
 public sealed record OfferFilterQuery(
     [FromQuery] Voivodeship[]? voivodeship,
     [FromQuery] int[]? place,
+    [FromQuery] int[]? district,
+    [FromQuery] int[]? neighborhood,
     bool? withoutPlace,
     [FromQuery] PlaceSize[]? size,
     [FromQuery] PlaceRole[]? role,
@@ -32,6 +34,8 @@ public sealed record OfferFilterQuery(
     {
         Voivodeships = voivodeship ?? [],
         PlaceIds = place ?? [],
+        DistrictIds = district ?? [],
+        NeighborhoodIds = neighborhood ?? [],
         WithoutPlace = withoutPlace ?? false,
         PlaceSizes = size ?? [],
         PlaceRoles = role ?? [],
