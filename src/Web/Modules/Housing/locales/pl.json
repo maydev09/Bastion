@@ -150,14 +150,18 @@
       "Tenement": "kamienica",
       "Apartment": "apartamentowiec",
       "House": "dom",
-      "Loft": "loft"
+      "Loft": "loft",
+      "Terraced": "szeregowiec",
+      "Infill": "plomba",
+      "Other": "inny budynek"
     },
     "heating": {
       "District": "ogrzewanie miejskie",
       "Gas": "ogrzewanie gazowe",
       "Electric": "ogrzewanie elektryczne",
       "BoilerRoom": "kotłownia",
-      "TiledStove": "piec kaflowy"
+      "TiledStove": "piec kaflowy",
+      "Other": "inne ogrzewanie"
     },
     "condition": {
       "ReadyToUse": "do zamieszkania",

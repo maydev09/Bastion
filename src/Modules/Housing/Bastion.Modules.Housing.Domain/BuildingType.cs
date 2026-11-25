@@ -8,4 +8,7 @@ public enum BuildingType
     Apartment = 3,
     House = 4,
     Loft = 5,
+    Terraced = 6,
+    Infill = 7,
+    Other = 8,
 }

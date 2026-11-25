@@ -116,6 +116,9 @@ public static class OtoDomDetailParser
         "apartment" => BuildingType.Apartment,
         "house" => BuildingType.House,
         "loft" => BuildingType.Loft,
+        "ribbon" => BuildingType.Terraced,
+        "infill" => BuildingType.Infill,
+        "other" => BuildingType.Other,
         _ => null,
     };
 
@@ -126,6 +129,7 @@ public static class OtoDomDetailParser
         "electrical" => Heating.Electric,
         "boiler_room" => Heating.BoilerRoom,
         "tiled_stove" => Heating.TiledStove,
+        "other" => Heating.Other,
         _ => null,
     };
 

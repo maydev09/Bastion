@@ -8,4 +8,5 @@ public enum Heating
     Electric = 3,
     BoilerRoom = 4,
     TiledStove = 5,
+    Other = 6,
 }
