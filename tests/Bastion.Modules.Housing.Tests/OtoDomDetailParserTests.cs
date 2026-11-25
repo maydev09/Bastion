@@ -10,7 +10,7 @@ public class OtoDomDetailParserTests
     {
         const string html = """
             <script id="__NEXT_DATA__" type="application/json">
-            {"props":{"pageProps":{"ad":{"id":68656528,"description":"<p>Flat with a view.</p>",
+            {"props":{"pageProps":{"ad":{"id":68656528,"description":"<p>Apartment with a view.</p>",
               "characteristics":[
                 {"key":"price","value":"2200","currency":"PLN"},
                 {"key":"rent","value":"830","currency":"PLN"},
@@ -41,7 +41,7 @@ public class OtoDomDetailParserTests
                 Is.EqualTo((BuildingType.Block, Heating.District, Condition.ReadyToUse)));
             Assert.That(details.AvailableFrom, Is.EqualTo(new DateOnly(2026, 11, 23)));
             Assert.That((details.Latitude, details.Longitude, details.LocationRadiusM), Is.EqualTo((52.389378m, 16.912691m, 0)));
-            Assert.That(details.Description, Is.EqualTo("<p>Flat with a view.</p>"));
+            Assert.That(details.Description, Is.EqualTo("<p>Apartment with a view.</p>"));
             Assert.That(details.RejectedValues, Is.Null);
             Assert.That(details.Features, Is.EquivalentTo(new[]
             {

@@ -142,7 +142,7 @@ public static partial class OtoDomListingParser
 
     private static PropertyType? PropertyTypeOf(JsonElement item) => Text(item, "estate") switch
     {
-        "FLAT" => PropertyType.Flat,
+        "FLAT" => PropertyType.Apartment,
         _ => null,
     };
 

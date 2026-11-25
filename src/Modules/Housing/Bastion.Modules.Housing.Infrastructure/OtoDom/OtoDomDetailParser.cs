@@ -167,7 +167,7 @@ public static class OtoDomDetailParser
     }
 
     // OtoDom has no furnished field, only "furniture" among the equipment the advertiser ticked: other equipment
-    // without it means an unfurnished flat, no equipment at all means not stated.
+    // without it means an unfurnished apartment, no equipment at all means not stated.
     private static Answer? Furnished(JsonElement ad)
     {
         if (ReadGroups(ad) is not { } groups)

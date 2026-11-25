@@ -1286,7 +1286,7 @@
           "Running",
           "Succeeded",
           "Failed",
-          "Cancelled",
+          "Canceled",
           "Interrupted"
         ]
       },
@@ -2105,7 +2105,7 @@
       },
       "PropertyType": {
         "enum": [
-          "Flat"
+          "Apartment"
         ]
       },
       "ReparseResult": {

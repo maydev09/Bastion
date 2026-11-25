@@ -25,9 +25,9 @@ describe("OfferDetail", () => {
         body: {
           id: 1,
           source: "OtoDom",
-          title: "Flat in Złotów",
-          url: "https://www.otodom.pl/pl/oferta/flat-ID1",
-          propertyType: "Flat",
+          title: "Apartment in Złotów",
+          url: "https://www.otodom.pl/pl/oferta/apartment-ID1",
+          propertyType: "Apartment",
           transaction: "Rent",
           price: 1800,
           priceCurrency: "PLN",
@@ -53,10 +53,10 @@ describe("OfferDetail", () => {
 
     renderDetail();
 
-    expect(await screen.findByRole("heading", { name: "Flat in Złotów" })).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Apartment in Złotów" })).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /OtoDom/ })).toHaveAttribute(
       "href",
-      "https://www.otodom.pl/pl/oferta/flat-ID1",
+      "https://www.otodom.pl/pl/oferta/apartment-ID1",
     );
     expect(screen.getByText(t("place.size.SmallTown"))).toBeInTheDocument();
     expect(screen.getByText(t("place.role.CountySeat"))).toBeInTheDocument();
@@ -77,9 +77,9 @@ describe("OfferDetail", () => {
         body: {
           id: 1,
           source: "OtoDom",
-          title: "Flat in Warszawa",
-          url: "https://www.otodom.pl/pl/oferta/flat-ID1",
-          propertyType: "Flat",
+          title: "Apartment in Warszawa",
+          url: "https://www.otodom.pl/pl/oferta/apartment-ID1",
+          propertyType: "Apartment",
           transaction: "Rent",
           createdAt: "2026-11-16T10:00:00+00:00",
           updatedAt: "2026-11-16T10:00:00+00:00",
@@ -115,9 +115,9 @@ describe("OfferDetail", () => {
     const offer = {
       id: 1,
       source: "OtoDom",
-      title: "Flat in Gdańsk",
-      url: "https://www.otodom.pl/pl/oferta/flat-ID1",
-      propertyType: "Flat",
+      title: "Apartment in Gdańsk",
+      url: "https://www.otodom.pl/pl/oferta/apartment-ID1",
+      propertyType: "Apartment",
       transaction: "Rent",
       createdAt: "2026-11-16T10:00:00+00:00",
       updatedAt: "2026-11-16T10:00:00+00:00",
@@ -138,7 +138,7 @@ describe("OfferDetail", () => {
           longitude: 18.60517,
           locationRadiusM: 0,
           description:
-            '<p>Quiet flat.</p><script>alert(1)</script><p><b>Pets</b> welcome.</p><ul><li>Lift</li></ul><a href="https://example.com">Call us</a>',
+            '<p>Quiet apartment.</p><script>alert(1)</script><p><b>Pets</b> welcome.</p><ul><li>Lift</li></ul><a href="https://example.com">Call us</a>',
           detailsFetchedAt: "2026-11-20T10:00:00+00:00",
         },
       },
@@ -161,7 +161,7 @@ describe("OfferDetail", () => {
     expect(screen.queryByText(t("detail.feature.Garden"))).not.toBeInTheDocument();
     expect(screen.getByText(t("answer.No"))).toBeInTheDocument();
     expect(screen.getByText(t("detail.floorOf", { floor: "2", floors: 5 }))).toBeInTheDocument();
-    expect(screen.getByText("Quiet flat.")).toBeInTheDocument();
+    expect(screen.getByText("Quiet apartment.")).toBeInTheDocument();
     expect(screen.getByText("Pets").tagName).toBe("STRONG");
     expect(screen.getByRole("listitem")).toHaveTextContent("Lift");
     expect(screen.getByText("Call us")).not.toHaveAttribute("href");
@@ -179,9 +179,9 @@ describe("OfferDetail", () => {
         body: {
           id: 1,
           source: "OtoDom",
-          title: "Flat in Gdańsk",
-          url: "https://www.otodom.pl/pl/oferta/flat-ID1",
-          propertyType: "Flat",
+          title: "Apartment in Gdańsk",
+          url: "https://www.otodom.pl/pl/oferta/apartment-ID1",
+          propertyType: "Apartment",
           transaction: "Rent",
           createdAt: "2026-11-16T10:00:00+00:00",
           updatedAt: "2026-11-16T10:00:00+00:00",
@@ -203,9 +203,9 @@ describe("OfferDetail", () => {
         body: {
           id: 1,
           source: "OtoDom",
-          title: "Flat in Gdańsk",
-          url: "https://www.otodom.pl/pl/oferta/flat-ID1",
-          propertyType: "Flat",
+          title: "Apartment in Gdańsk",
+          url: "https://www.otodom.pl/pl/oferta/apartment-ID1",
+          propertyType: "Apartment",
           transaction: "Rent",
           price: 2000,
           priceCurrency: "PLN",
@@ -251,8 +251,8 @@ describe("OfferDetail", () => {
       id,
       source: "OtoDom",
       title,
-      url: `https://www.otodom.pl/pl/oferta/flat-ID${id}`,
-      propertyType: "Flat",
+      url: `https://www.otodom.pl/pl/oferta/apartment-ID${id}`,
+      propertyType: "Apartment",
       transaction: "Rent",
       createdAt: "2026-11-16T10:00:00+00:00",
       updatedAt: "2026-11-16T10:00:00+00:00",

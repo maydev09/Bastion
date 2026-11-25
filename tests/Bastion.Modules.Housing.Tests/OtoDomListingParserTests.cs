@@ -24,7 +24,7 @@ public class OtoDomListingParserTests
             Assert.That(offer.Price, Is.EqualTo(new Money(2200m, Currency.Pln)));
             Assert.That(offer.AreaM2, Is.EqualTo(30m));
             Assert.That(offer.Rooms, Is.EqualTo(1));
-            Assert.That((offer.PropertyType, offer.Transaction), Is.EqualTo((PropertyType.Flat, Transaction.Rent)));
+            Assert.That((offer.PropertyType, offer.Transaction), Is.EqualTo((PropertyType.Apartment, Transaction.Rent)));
         });
     }
 

@@ -52,7 +52,7 @@ describe("Shell", () => {
     expect(toggle).toHaveAttribute("aria-expanded", "true");
   });
 
-  it("in development shows a disabled module greyed out, without a link", async () => {
+  it("in development shows a disabled module grayed out, without a link", async () => {
     renderWithProviders(<Shell />);
 
     const nav = screen.getByRole("navigation");

@@ -115,7 +115,7 @@ export function OfferDetail() {
       });
     }
   };
-  const neighbours = (
+  const neighbors = (
     <>
       <IconButton
         icon="previous"
@@ -207,7 +207,7 @@ export function OfferDetail() {
         before={
           <>
             {back}
-            {neighbours}
+            {neighbors}
           </>
         }
         aside={place}

@@ -147,6 +147,8 @@ Spend effort only on what solves a real problem the maintainer has today
 
 - This is a public repository. All code, identifiers, comments, commit messages,
   pull requests, issues and documentation are written in English.
+- American English, in spelling and in words: `color`, `neighborhood`, not `colour`, `neighbourhood`
+  or `estate`. A portal's own field names stay as the portal writes them (`organisationAssignedMember`).
 - Conversation can be in English or Polish; reply in the language of the message.
 
 ## Documentation

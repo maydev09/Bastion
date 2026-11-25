@@ -145,7 +145,7 @@ export function MarketPosition({ offer: o }: { offer: Offer }) {
   );
 }
 
-// For the renter: "better" (e.g. a lower price per m², a bigger flat), "worse", or "same" within the band.
+// For the renter: "better" (e.g. a lower price per m², a bigger apartment), "worse", or "same" within the band.
 // The colors are those of a price change: green better, red worse.
 function judge(value: number, median: number, better: "lower" | "higher") {
   const difference = (value - median) / median;

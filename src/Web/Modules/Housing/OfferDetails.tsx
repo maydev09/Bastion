@@ -6,7 +6,7 @@ import { useFormat } from "./useFormat";
 
 type Offer = components["schemas"]["OfferListItem"];
 
-// What the flat and its building are like; most of it comes from the detail page.
+// What the apartment and its building are like; most of it comes from the detail page.
 export function OfferDetails({ offer: o }: { offer: Offer }) {
   const { t } = useTranslation("housing");
   const format = useFormat();

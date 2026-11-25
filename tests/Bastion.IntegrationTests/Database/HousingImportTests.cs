@@ -41,9 +41,9 @@ public class HousingImportTests
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } };
 
-    private static readonly Offer Small = new(Source.OtoDom, "1", "Small flat", new Uri("https://www.otodom.pl/pl/oferta/small-ID1"), PropertyType.Flat, Transaction.Rent, At(12), new Money(2200m, Currency.Pln), 30m, 1);
-    private static readonly Offer Medium = new(Source.OtoDom, "3", "Medium flat", new Uri("https://www.otodom.pl/pl/oferta/medium-ID3"), PropertyType.Flat, Transaction.Rent, At(11), new Money(3000m, Currency.Pln), 50m, 2);
-    private static readonly Offer Large = new(Source.OtoDom, "2", "Large flat", new Uri("https://www.otodom.pl/pl/oferta/large-ID2"), PropertyType.Flat, Transaction.Rent, At(10), new Money(4100m, Currency.Pln), 72.5m, 3);
+    private static readonly Offer Small = new(Source.OtoDom, "1", "Small apartment", new Uri("https://www.otodom.pl/pl/oferta/small-ID1"), PropertyType.Apartment, Transaction.Rent, At(12), new Money(2200m, Currency.Pln), 30m, 1);
+    private static readonly Offer Medium = new(Source.OtoDom, "3", "Medium apartment", new Uri("https://www.otodom.pl/pl/oferta/medium-ID3"), PropertyType.Apartment, Transaction.Rent, At(11), new Money(3000m, Currency.Pln), 50m, 2);
+    private static readonly Offer Large = new(Source.OtoDom, "2", "Large apartment", new Uri("https://www.otodom.pl/pl/oferta/large-ID2"), PropertyType.Apartment, Transaction.Rent, At(10), new Money(4100m, Currency.Pln), 72.5m, 3);
 
     private static readonly Place Warszawa = new("0918123", "Warszawa", Voivodeship.Mazowieckie, null, null, PlaceKind.Town, PlaceRole.VoivodeshipCapital, 1_863_056, 2021, PlaceSource.Wikidata, 52.2297m, 21.0122m);
     private static readonly Place Goscicino = new("0176503", "Gościcino", Voivodeship.Pomorskie, "wejherowski", "Wejherowo", PlaceKind.Village, null, 6_134, 2021, PlaceSource.Wikidata, 54.6011m, 18.2369m);
@@ -81,7 +81,7 @@ public class HousingImportTests
             Assert.That((first.Added, first.Updated, first.Unchanged), Is.EqualTo((2, 0, 0)));
             Assert.That((second.Added, second.Updated, second.Unchanged), Is.EqualTo((0, 0, 2)));
             Assert.That(list!.TotalCount, Is.EqualTo(2));
-            Assert.That(list.Items.Select(o => o.Title), Is.EquivalentTo(new[] { "Small flat", "Large flat" }));
+            Assert.That(list.Items.Select(o => o.Title), Is.EquivalentTo(new[] { "Small apartment", "Large apartment" }));
         });
     }
 
@@ -99,7 +99,7 @@ public class HousingImportTests
         var afterImport = await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json);
         var link = await JobRuns.Run(client, LinkPlaces);
         var list = await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json);
-        var small = list!.Items.Single(o => o.Title == "Small flat");
+        var small = list!.Items.Single(o => o.Title == "Small apartment");
 
         Assert.Multiple(() =>
         {
@@ -116,7 +116,7 @@ public class HousingImportTests
             Assert.That((second.Summary!.Counts["added"], second.Summary.Counts["updated"]), Is.EqualTo((0, 0)));
             Assert.That(list.Items.Select(o => (o.Title, o.PlaceName)), Is.EquivalentTo(new[]
             {
-                ("Small flat", "Warszawa"), ("Medium flat", null), ("Large flat", "Gościcino"),
+                ("Small apartment", "Warszawa"), ("Medium apartment", null), ("Large apartment", "Gościcino"),
             }));
             Assert.That((small.PlaceKind, small.PlaceSize, small.PlaceRole, small.Voivodeship, small.Population, small.PopulationYear),
                 Is.EqualTo(((PlaceKind?)PlaceKind.Town, (PlaceSize?)PlaceSize.Metropolis, (PlaceRole?)PlaceRole.VoivodeshipCapital,
@@ -205,7 +205,7 @@ public class HousingImportTests
         Assert.Multiple(() =>
         {
             Assert.That((result.Added, result.Updated, result.Unchanged), Is.EqualTo((0, 1, 1)));
-            Assert.That(list!.Items.Single(o => o.Title == "Small flat").Price, Is.EqualTo(2000m));
+            Assert.That(list!.Items.Single(o => o.Title == "Small apartment").Price, Is.EqualTo(2000m));
         });
     }
 
@@ -235,7 +235,7 @@ public class HousingImportTests
     {
         await using var factory = App(WithFakes);
         using var client = factory.CreateClient();
-        var noPrice = new Offer(Source.OtoDom, "4", "Flat without price", new Uri("https://www.otodom.pl/pl/oferta/none-ID4"), PropertyType.Flat, Transaction.Rent, At(13), AreaM2: 40m, Rooms: 2);
+        var noPrice = new Offer(Source.OtoDom, "4", "Apartment without price", new Uri("https://www.otodom.pl/pl/oferta/none-ID4"), PropertyType.Apartment, Transaction.Rent, At(13), AreaM2: 40m, Rooms: 2);
         _source.Pages = [[noPrice, Small, Medium, Large]];
         await RunImport(client);
 
@@ -245,11 +245,11 @@ public class HousingImportTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(cheapest, Is.EqualTo(new[] { "Small flat", "Medium flat", "Large flat", "Flat without price" }));
-            Assert.That(dearest, Is.EqualTo(new[] { "Large flat", "Medium flat", "Small flat", "Flat without price" }));
+            Assert.That(cheapest, Is.EqualTo(new[] { "Small apartment", "Medium apartment", "Large apartment", "Apartment without price" }));
+            Assert.That(dearest, Is.EqualTo(new[] { "Large apartment", "Medium apartment", "Small apartment", "Apartment without price" }));
             Assert.That(perM2!.Items.Select(o => (o.Title, o.PricePerM2)), Is.EqualTo(new[]
             {
-                ("Large flat", (decimal?)56.55m), ("Medium flat", 60m), ("Small flat", 73.33m), ("Flat without price", null),
+                ("Large apartment", (decimal?)56.55m), ("Medium apartment", 60m), ("Small apartment", 73.33m), ("Apartment without price", null),
             }));
         });
     }
@@ -259,7 +259,7 @@ public class HousingImportTests
     {
         await using var factory = App(WithFakes);
         using var client = factory.CreateClient();
-        var noPrice = new Offer(Source.OtoDom, "4", "Flat without price", new Uri("https://www.otodom.pl/pl/oferta/none-ID4"), PropertyType.Flat, Transaction.Rent, At(13), AreaM2: 50m, Rooms: 2);
+        var noPrice = new Offer(Source.OtoDom, "4", "Apartment without price", new Uri("https://www.otodom.pl/pl/oferta/none-ID4"), PropertyType.Apartment, Transaction.Rent, At(13), AreaM2: 50m, Rooms: 2);
         _source.Pages = [[
             noPrice,
             Small with { Features = [Feature.Balcony] },
@@ -277,11 +277,11 @@ public class HousingImportTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(byPrice, Is.EqualTo(new[] { "Medium flat", "Large flat" }));
-            Assert.That(byAreaAndRooms, Is.EquivalentTo(new[] { "Medium flat", "Flat without price" }));
-            Assert.That(oneOrThreeAndMore, Is.EquivalentTo(new[] { "Small flat", "Large flat" }));
-            Assert.That(byFeatures, Is.EqualTo(new[] { "Medium flat" }));
-            Assert.That(byAnyFeature, Is.EquivalentTo(new[] { "Small flat", "Medium flat", "Large flat" }));
+            Assert.That(byPrice, Is.EqualTo(new[] { "Medium apartment", "Large apartment" }));
+            Assert.That(byAreaAndRooms, Is.EquivalentTo(new[] { "Medium apartment", "Apartment without price" }));
+            Assert.That(oneOrThreeAndMore, Is.EquivalentTo(new[] { "Small apartment", "Large apartment" }));
+            Assert.That(byFeatures, Is.EqualTo(new[] { "Medium apartment" }));
+            Assert.That(byAnyFeature, Is.EquivalentTo(new[] { "Small apartment", "Medium apartment", "Large apartment" }));
             Assert.That((list!.Items.Count, list.TotalCount), Is.EqualTo((1, 2)));
         });
     }
@@ -305,12 +305,12 @@ public class HousingImportTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(inPomorskie, Is.EqualTo(new[] { "Large flat" }));
-            Assert.That(inPomorskieOrWarszawa, Is.EquivalentTo(new[] { "Small flat", "Large flat" }));
-            Assert.That(withoutPlace, Is.EqualTo(new[] { "Medium flat" }));
-            Assert.That(inPomorskieOrWithoutPlace, Is.EquivalentTo(new[] { "Medium flat", "Large flat" }));
+            Assert.That(inPomorskie, Is.EqualTo(new[] { "Large apartment" }));
+            Assert.That(inPomorskieOrWarszawa, Is.EquivalentTo(new[] { "Small apartment", "Large apartment" }));
+            Assert.That(withoutPlace, Is.EqualTo(new[] { "Medium apartment" }));
+            Assert.That(inPomorskieOrWithoutPlace, Is.EquivalentTo(new[] { "Medium apartment", "Large apartment" }));
             Assert.That(metropolis, Is.Empty);
-            Assert.That(bigCityOrVillage, Is.EquivalentTo(new[] { "Small flat", "Large flat" }));
+            Assert.That(bigCityOrVillage, Is.EquivalentTo(new[] { "Small apartment", "Large apartment" }));
         });
     }
 
@@ -333,10 +333,10 @@ public class HousingImportTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(capitals, Is.EqualTo(new[] { "Small flat" }));
+            Assert.That(capitals, Is.EqualTo(new[] { "Small apartment" }));
             Assert.That(countyOrMunicipalitySeats, Is.Empty);
-            Assert.That(perM2, Is.EquivalentTo(new[] { "Small flat", "Medium flat", "Large flat" }));
-            Assert.That(cheapPerM2, Is.EquivalentTo(new[] { "Medium flat", "Large flat" }));
+            Assert.That(perM2, Is.EquivalentTo(new[] { "Small apartment", "Medium apartment", "Large apartment" }));
+            Assert.That(cheapPerM2, Is.EquivalentTo(new[] { "Medium apartment", "Large apartment" }));
             // Seats join with OR, so they are counted without the picked one, under the other filters.
             Assert.That(capitalAbove70.PlaceRoles, Is.EquivalentTo(new Dictionary<PlaceRole, int> { [PlaceRole.VoivodeshipCapital] = 1 }));
             Assert.That(upTo60.PlaceRoles, Is.Empty);
@@ -362,7 +362,7 @@ public class HousingImportTests
         Assert.Multiple(() =>
         {
             Assert.That(shown, Is.EqualTo(56.55m));
-            Assert.That(upToShown, Is.EqualTo(new[] { "Medium flat" }));
+            Assert.That(upToShown, Is.EqualTo(new[] { "Medium apartment" }));
             Assert.That(belowShown, Is.Empty);
         });
     }
@@ -474,7 +474,7 @@ public class HousingImportTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(added, Is.EqualTo(new[] { "Medium flat" }));
+            Assert.That(added, Is.EqualTo(new[] { "Medium apartment" }));
             Assert.That(counts.AddedSince, Is.EqualTo(new[] { 1, 2 }));
         });
     }
@@ -524,13 +524,13 @@ public class HousingImportTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(cut, Is.EqualTo(new[] { "Small flat" }));
-            Assert.That(changed, Is.EquivalentTo(new[] { "Small flat", "Medium flat" }));
-            Assert.That(unchanged, Is.EqualTo(new[] { "Large flat" }));
+            Assert.That(cut, Is.EqualTo(new[] { "Small apartment" }));
+            Assert.That(changed, Is.EquivalentTo(new[] { "Small apartment", "Medium apartment" }));
+            Assert.That(unchanged, Is.EqualTo(new[] { "Large apartment" }));
             Assert.That((facets.Changed, facets.Unchanged, facets.PriceCut), Is.EqualTo((2, 1, 1)));
             Assert.That(previous, Is.EqualTo(new[]
             {
-                ("Small flat", (decimal?)2000m, (decimal?)2200m), ("Medium flat", 3200m, 3000m), ("Large flat", 4100m, null),
+                ("Small apartment", (decimal?)2000m, (decimal?)2200m), ("Medium apartment", 3200m, 3000m), ("Large apartment", 4100m, null),
             }));
         });
     }
@@ -559,9 +559,9 @@ public class HousingImportTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(furnished, Is.EqualTo(new[] { "Small flat" }));
-            Assert.That(unfurnished, Is.EqualTo(new[] { "Medium flat" }));
-            Assert.That(byRent, Is.EqualTo(new[] { "Medium flat", "Small flat", "Large flat" }));
+            Assert.That(furnished, Is.EqualTo(new[] { "Small apartment" }));
+            Assert.That(unfurnished, Is.EqualTo(new[] { "Medium apartment" }));
+            Assert.That(byRent, Is.EqualTo(new[] { "Medium apartment", "Small apartment", "Large apartment" }));
             Assert.That((small.Rent, small.Furnished), Is.EqualTo(((decimal?)500m, (Answer?)Answer.Yes)));
             Assert.That(card!.Furnished, Is.EqualTo(Answer.No));
             var change = card.Changes.SelectMany(c => c.Changes).Single(c => c.Field == "furnished");
@@ -611,7 +611,7 @@ public class HousingImportTests
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
         using var client = factory.CreateClient();
-        _source.Pages = [[Small with { Title = "Flat of Jan Kowalski" }]];
+        _source.Pages = [[Small with { Title = "Apartment of Jan Kowalski" }]];
 
         await RunImport(client);
         var file = Directory.GetFiles(_rawPath, "*.zst", SearchOption.AllDirectories).Single();
@@ -622,7 +622,7 @@ public class HousingImportTests
         Assert.Multiple(() =>
         {
             Assert.That(stored, Does.Not.Contain("Kowalski"));
-            Assert.That(list!.Items.Single().Title, Is.EqualTo("Flat of Jan ***"));
+            Assert.That(list!.Items.Single().Title, Is.EqualTo("Apartment of Jan ***"));
         });
     }
 
@@ -661,7 +661,7 @@ public class HousingImportTests
         Assert.Multiple(() =>
         {
             Assert.That((result.Pages, result.Added, result.Unchanged), Is.EqualTo((1, 1, 1)));
-            Assert.That(list!.Items.Select(o => o.Title), Is.EquivalentTo(new[] { "Medium flat", "Large flat" }));
+            Assert.That(list!.Items.Select(o => o.Title), Is.EquivalentTo(new[] { "Medium apartment", "Large apartment" }));
         });
     }
 
@@ -690,7 +690,7 @@ public class HousingImportTests
         Assert.Multiple(() =>
         {
             Assert.That(result.Pages, Is.EqualTo(3));
-            Assert.That(list!.Items.Select(o => o.Title), Is.EqualTo(new[] { "Small flat", "Medium flat", "Large flat" }));
+            Assert.That(list!.Items.Select(o => o.Title), Is.EqualTo(new[] { "Small apartment", "Medium apartment", "Large apartment" }));
         });
     }
 
@@ -759,10 +759,10 @@ public class HousingImportTests
         Assert.Multiple(() =>
         {
             Assert.That((firstMiss.Missed, firstMiss.Removed), Is.EqualTo((1, 0)));
-            Assert.That(afterFirstMiss, Is.EquivalentTo(new[] { "Small flat", "Large flat" }));
+            Assert.That(afterFirstMiss, Is.EquivalentTo(new[] { "Small apartment", "Large apartment" }));
             Assert.That((secondMiss.Missed, secondMiss.Removed), Is.EqualTo((1, 1)));
-            Assert.That(afterSecondMiss, Is.EqualTo(new[] { "Small flat" }));
-            Assert.That(afterReturn, Is.EquivalentTo(new[] { "Small flat", "Large flat" }));
+            Assert.That(afterSecondMiss, Is.EqualTo(new[] { "Small apartment" }));
+            Assert.That(afterReturn, Is.EquivalentTo(new[] { "Small apartment", "Large apartment" }));
         });
     }
 
@@ -785,7 +785,7 @@ public class HousingImportTests
         {
             Assert.That(first.Status, Is.EqualTo(JobRunStatus.Failed));
             Assert.That(first.ErrorCode, Is.EqualTo("housing.pageLimitReached"));
-            Assert.That(listed, Is.EquivalentTo(new[] { "Small flat", "Large flat" }));
+            Assert.That(listed, Is.EquivalentTo(new[] { "Small apartment", "Large apartment" }));
             Assert.That(pagesRead, Is.EqualTo(3));
         });
     }
@@ -807,7 +807,7 @@ public class HousingImportTests
         Assert.Multiple(() =>
         {
             Assert.That((result!.CaptureCount, result.FailedCount, result.AddedCount), Is.EqualTo((1, 0, 2)));
-            Assert.That(list!.Items.Select(o => o.Title), Is.EquivalentTo(new[] { "Small flat", "Large flat" }));
+            Assert.That(list!.Items.Select(o => o.Title), Is.EquivalentTo(new[] { "Small apartment", "Large apartment" }));
         });
     }
 
@@ -1155,7 +1155,7 @@ public class HousingImportTests
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
         using var client = factory.CreateClient();
         _source.Pages = [Enumerable.Range(1, FetchDetailsHandler.MaxFetchFailuresInRow + 2)
-            .Select(i => Small with { ExternalId = $"{i}", Url = new Uri($"https://www.otodom.pl/pl/oferta/flat-ID{i}") })
+            .Select(i => Small with { ExternalId = $"{i}", Url = new Uri($"https://www.otodom.pl/pl/oferta/apartment-ID{i}") })
             .ToList()];
         await RunImport(client);
         _source.DetailsRefused = true;
@@ -1224,7 +1224,7 @@ public class HousingImportTests
         using var client = factory.CreateClient();
         // No detail pages: every fetch answers 404, as after the portal changed its URLs.
         _source.Pages = [Enumerable.Range(1, FetchDetailsHandler.MaxMissingPagesInRow + 2)
-            .Select(i => Small with { ExternalId = $"{i}", Url = new Uri($"https://www.otodom.pl/pl/oferta/flat-ID{i}") })
+            .Select(i => Small with { ExternalId = $"{i}", Url = new Uri($"https://www.otodom.pl/pl/oferta/apartment-ID{i}") })
             .ToList()];
         await RunImport(client);
 

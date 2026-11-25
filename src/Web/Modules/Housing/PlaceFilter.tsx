@@ -72,7 +72,7 @@ export function PlaceFilter({ value, onChange }: Props) {
             : ""
       }
       itemToCount={(place) => format.number(place.offerCount)}
-      // A place without offers is found too, greyed out, so the user knows the name is right.
+      // A place without offers is found too, grayed out, so the user knows the name is right.
       isItemMuted={(place) => place.offerCount === 0}
       onSearch={(text) => {
         clearTimeout(timer.current);

@@ -395,7 +395,7 @@ export interface components {
             summary: null | components["schemas"]["JobSummary"];
         };
         /** @enum {unknown} */
-        JobRunStatus: "Queued" | "Running" | "Succeeded" | "Failed" | "Cancelled" | "Interrupted";
+        JobRunStatus: "Queued" | "Running" | "Succeeded" | "Failed" | "Canceled" | "Interrupted";
         JobSummary: {
             counts: {
                 [key: string]: number;
@@ -584,7 +584,7 @@ export interface components {
             instance?: null | string;
         };
         /** @enum {unknown} */
-        PropertyType: "Flat";
+        PropertyType: "Apartment";
         ReparseResult: {
             /** Format: int32 */
             captureCount: number;

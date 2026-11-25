@@ -23,7 +23,7 @@ const groups = [
   {
     title: "shortcuts.card",
     keys: [
-      { keys: ["←", "→"], action: "shortcuts.neighbour" },
+      { keys: ["←", "→"], action: "shortcuts.neighbor" },
       { keys: ["Esc"], action: "shortcuts.back" },
       { keys: ["o"], action: "shortcuts.portal" },
     ],
