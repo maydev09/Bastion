@@ -327,7 +327,7 @@ export interface components {
         /** @enum {unknown} */
         Answer: "Yes" | "No" | "NotStated" | null;
         /** @enum {unknown} */
-        BuildingType: "Block" | "Tenement" | "Apartment" | "House" | "Loft" | null;
+        BuildingType: "Block" | "Tenement" | "Apartment" | "House" | "Loft" | "Terraced" | "Infill" | "Other" | null;
         /** @enum {unknown} */
         Condition: "ReadyToUse" | "ToRenovate" | "ToFinish" | null;
         /** @enum {unknown} */
@@ -354,7 +354,7 @@ export interface components {
             after: unknown;
         };
         /** @enum {unknown} */
-        Heating: "District" | "Gas" | "Electric" | "BoilerRoom" | "TiledStove" | null;
+        Heating: "District" | "Gas" | "Electric" | "BoilerRoom" | "TiledStove" | "Other" | null;
         Histogram: {
             /** Format: double */
             from: number;

@@ -60,7 +60,7 @@ public class OtoDomDetailParserTests
               {"key":"floor_no","value":"ground_floor"},
               {"key":"build_year","value":""},
               {"key":"building_type","value":"castle"},
-              {"key":"heating","value":"other"}]}}}}
+              {"key":"heating","value":"coal"}]}}}}
             </script>
             """;
 
@@ -75,6 +75,30 @@ public class OtoDomDetailParserTests
             Assert.That(details.Furnished, Is.Null);
             Assert.That((details.BuildYear, details.RejectedValues), Is.EqualTo(((int?)null, (IReadOnlyDictionary<string, string>?)null)));
         });
+    }
+
+    // Every value seen on production detail pages (2026-11-24).
+    [TestCase("block", "urban", BuildingType.Block, Heating.District)]
+    [TestCase("apartment", "gas", BuildingType.Apartment, Heating.Gas)]
+    [TestCase("tenement", "electrical", BuildingType.Tenement, Heating.Electric)]
+    [TestCase("house", "boiler_room", BuildingType.House, Heating.BoilerRoom)]
+    [TestCase("loft", "tiled_stove", BuildingType.Loft, Heating.TiledStove)]
+    [TestCase("ribbon", "other", BuildingType.Terraced, Heating.Other)]
+    [TestCase("infill", "other", BuildingType.Infill, Heating.Other)]
+    [TestCase("other", "other", BuildingType.Other, Heating.Other)]
+    public void Reads_building_type_and_heating(string buildingType, string heating, BuildingType expectedType, Heating expectedHeating)
+    {
+        var html = $$"""
+            <script id="__NEXT_DATA__" type="application/json">
+            {"props":{"pageProps":{"ad":{"id":1,"characteristics":[
+              {"key":"building_type","value":"{{buildingType}}"},
+              {"key":"heating","value":"{{heating}}"}]} } } }
+            </script>
+            """;
+
+        var (_, details) = OtoDomDetailParser.Parse(html);
+
+        Assert.That((details.BuildingType, details.Heating), Is.EqualTo(((BuildingType?)expectedType, (Heating?)expectedHeating)));
     }
 
     [Test]

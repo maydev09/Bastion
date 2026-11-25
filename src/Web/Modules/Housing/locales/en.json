@@ -146,14 +146,18 @@
       "Tenement": "tenement",
       "Apartment": "apartment building",
       "House": "house",
-      "Loft": "loft"
+      "Loft": "loft",
+      "Terraced": "terraced house",
+      "Infill": "infill building",
+      "Other": "other building"
     },
     "heating": {
       "District": "district heating",
       "Gas": "gas heating",
       "Electric": "electric heating",
       "BoilerRoom": "boiler room",
-      "TiledStove": "tiled stove"
+      "TiledStove": "tiled stove",
+      "Other": "other heating"
     },
     "condition": {
       "ReadyToUse": "ready to move in",

@@ -1015,6 +1015,9 @@
           "Apartment",
           "House",
           "Loft",
+          "Terraced",
+          "Infill",
+          "Other",
           null
         ]
       },
@@ -1139,6 +1142,7 @@
           "Electric",
           "BoilerRoom",
           "TiledStove",
+          "Other",
           null
         ]
       },

@@ -75,6 +75,19 @@ equipment (not stated).
 Other fields of the page not stored yet: `rent_to_students` (`1`/`0`, about 20% of pages),
 windows, building material and the energy certificate.
 
+## Values chosen from a list
+
+Values of the detail page's `characteristics` seen on the detail pages fetched on 2026-11-24 (production):
+- `building_type`: `block`, `apartment`, `tenement`, `house`, `ribbon` (terraced house), `other`, `infill`,
+  `loft`;
+- `heating`: `urban`, `gas`, `boiler_room`, `electrical`, `other` (`tiled_stove` was seen earlier);
+- `construction_status`: `ready_to_use`, `to_completion`, `to_renovation`;
+- `floor_no`: `cellar`, `ground_floor`, `floor_1` … `floor_10`, `floor_higher_10` (about 2% of pages) and
+  `garret`. The last two give no floor number, so the floor stays empty.
+
+Each field is missing on some pages: the seller did not fill it in (for example the build year on about 30%
+of pages, the date the flat is available on about a third).
+
 ## Values typed by sellers
 
 Numbers in the detail page's `characteristics` are what the seller typed, unchecked. On 2026-11-23 an
