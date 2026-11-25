@@ -346,6 +346,8 @@ public class HousingImportTests
         var inStegnyOrWola = await ListedTitles(client, $"?place={warszawa.Id}&district={mokotow.Id}&district={wolaId}&neighborhood={stegny.Id}");
         var inStegnyOrGoscicino = await ListedTitles(client, $"?place={warszawa.Id}&place={goscicino.Id}&neighborhood={stegny.Id}");
         var ofGoscicino = await client.GetFromJsonAsync<DistrictListItem[]>($"/api/housing/places/{goscicino.Id}/districts", Json);
+        // Counted under the other filters (the 3000 zł apartment in Mokotów is too dear) and without the location ones.
+        var cheapFacets = await Facets(client, $"?place={warszawa.Id}&district={wolaId}&priceMax=2500");
 
         Assert.Multiple(() =>
         {
@@ -365,6 +367,10 @@ public class HousingImportTests
             // A neighborhood narrows only its own place; another picked place stays whole.
             Assert.That(inStegnyOrGoscicino, Is.EquivalentTo(new[] { "Small apartment", "Large apartment" }));
             Assert.That(ofGoscicino, Is.Empty);
+            Assert.That(cheapFacets.Districts, Is.EquivalentTo(new Dictionary<int, int>
+            {
+                [mokotow.Id] = 2, [stegny.Id] = 1, [districts!.Single(d => d.Name == "Sielce").Id] = 1, [wolaId] = 1,
+            }));
         });
     }
 

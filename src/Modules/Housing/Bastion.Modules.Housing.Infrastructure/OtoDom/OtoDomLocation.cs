@@ -10,19 +10,19 @@ public static class OtoDomLocation
     // has the id voivodeship/county/municipality/place in OtoDom's URL spelling, e.g.
     // "pomorskie/wejherowski/gmina-wiejska--wejherowo/goscicino" or "mazowieckie/warszawa/warszawa/warszawa".
     public static string? KeyOf(JsonElement item) =>
-        LevelOf(item, "city_or_village") is { } level && level.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.String
+        FindLevel(item, "city_or_village") is { } level && level.TryGetProperty("id", out var id) && id.ValueKind == JsonValueKind.String
             ? id.GetString()
             : null;
 
     // The levels below the place: "district" (e.g. "Mokotów") and "residential", a neighborhood inside the district
     // ("Stegny"). Big cities have both, many towns only a district, villages and some towns neither.
-    public static (string? District, string? Neighborhood) DistrictOf(JsonElement item)
+    public static (string? District, string? Neighborhood) ReadDistrict(JsonElement item)
     {
-        var district = NameOf(LevelOf(item, "district"));
-        return district is null ? (null, null) : (district, NameOf(LevelOf(item, "residential")));
+        var district = ReadName(FindLevel(item, "district"));
+        return district is null ? (null, null) : (district, ReadName(FindLevel(item, "residential")));
     }
 
-    private static JsonElement? LevelOf(JsonElement item, string levelName)
+    private static JsonElement? FindLevel(JsonElement item, string levelName)
     {
         if (!item.TryGetProperty("location", out var location) || location.ValueKind != JsonValueKind.Object
             || !location.TryGetProperty("reverseGeocoding", out var geocoding) || geocoding.ValueKind != JsonValueKind.Object
@@ -44,7 +44,7 @@ public static class OtoDomLocation
         return null;
     }
 
-    private static string? NameOf(JsonElement? level) =>
+    private static string? ReadName(JsonElement? level) =>
         level is { } found && found.TryGetProperty("name", out var name) && name.ValueKind == JsonValueKind.String
         && !string.IsNullOrWhiteSpace(name.GetString())
             ? name.GetString()!.Trim()

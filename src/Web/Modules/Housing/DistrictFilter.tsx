@@ -10,12 +10,22 @@ type Props = {
   placeNames: Map<number, string>;
   district: number[];
   neighborhood: number[];
+  // How many offers each district and neighborhood would leave under the other filters (the facets); undefined
+  // until they load.
+  counts: Record<string, number> | undefined;
   onChange: (picked: { district: number[]; neighborhood: number[] }) => void;
 };
 
 // Shown once a picked place has districts: a picked district narrows its place, a picked neighborhood its district.
 // The neighborhoods are those of the picked districts, or of all districts while none is picked.
-export function DistrictFilter({ districts, placeNames, district, neighborhood, onChange }: Props) {
+export function DistrictFilter({
+  districts,
+  placeNames,
+  district,
+  neighborhood,
+  counts,
+  onChange,
+}: Props) {
   const { t } = useTranslation("housing");
   const format = useFormat();
   if (districts.length === 0) {
@@ -23,8 +33,11 @@ export function DistrictFilter({ districts, placeNames, district, neighborhood, 
   }
 
   const names = new Map(districts.map((d) => [d.id, d.name]));
-  const districtItems = districts.filter((d) => d.parentId == null);
-  const neighborhoodItems = districts.filter(
+  // Most offers under the current filters first; until the counts load, most listed offers first.
+  const countOf = (d: District) => (counts ? (counts[d.id] ?? 0) : d.offerCount);
+  const sorted = [...districts].sort((a, b) => countOf(b) - countOf(a));
+  const districtItems = sorted.filter((d) => d.parentId == null);
+  const neighborhoodItems = sorted.filter(
     (d) =>
       d.parentId != null &&
       (district.length === 0 || district.includes(d.parentId) || neighborhood.includes(d.id)),
@@ -35,8 +48,8 @@ export function DistrictFilter({ districts, placeNames, district, neighborhood, 
     placeholder: t("filters.districtPlaceholder"),
     itemToKey: (d: District) => String(d.id),
     itemToLabel: (d: District) => d.name,
-    itemToCount: (d: District) => format.number(d.offerCount),
-    isItemMuted: (d: District) => d.offerCount === 0,
+    itemToCount: (d: District) => (counts ? format.number(countOf(d)) : ""),
+    isItemMuted: (d: District) => counts != null && countOf(d) === 0,
     removeLabel: (name: string) => t("filters.remove", { name }),
   };
 

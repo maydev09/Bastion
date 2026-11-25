@@ -36,7 +36,7 @@ public sealed class PlaceResolver(OfferSources sources, IPlaceRepository places)
             linked.Add(offer with
             {
                 PlaceId = placeId,
-                DistrictId = await DistrictIdOfAsync(placeId, offer.DistrictName, offer.NeighborhoodName, cancellationToken),
+                DistrictId = await ResolveDistrictIdAsync(placeId, offer.DistrictName, offer.NeighborhoodName, cancellationToken),
             });
         }
 
@@ -44,7 +44,7 @@ public sealed class PlaceResolver(OfferSources sources, IPlaceRepository places)
     }
 
     // The neighborhood when there is one, else the district; a neighborhood is known only inside its district.
-    private async Task<int?> DistrictIdOfAsync(int? placeId, string? districtName, string? neighborhoodName, CancellationToken cancellationToken)
+    private async Task<int?> ResolveDistrictIdAsync(int? placeId, string? districtName, string? neighborhoodName, CancellationToken cancellationToken)
     {
         if (placeId is null || districtName is null)
         {

@@ -97,7 +97,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Returns stored offers that match all given filters, by default newest first; offers without the sorted value come last. Prices are in PLN; place and voivodeship together match offers in any of them, and so do rooms and roomsMin; amenities match all of them unless featureMatch is Any. */
+        /** Returns stored offers that match all given filters, by default newest first; offers without the sorted value come last. Prices are in PLN; place and voivodeship together match offers in any of them, and so do rooms and roomsMin; district and neighborhood take ids from /places/{id}/districts (a neighborhood has a parentId): a picked district narrows its place to the picked districts and takes in its neighborhoods, a picked neighborhood narrows its district the same way, and other picked places and districts stay whole; amenities match all of them unless featureMatch is Any. */
         get: operations["ListHousingOffers"];
         put?: never;
         post?: never;
@@ -114,7 +114,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Returns how many offers each filter choice would show with the other given filters, the spread of prices and areas without the price and area bounds, and the offers first seen since each countAddedSince. */
+        /** Returns how many offers each filter choice would show with the other given filters (districts: the districts and neighborhoods of the picked places by id, a district with its neighborhoods), the spread of prices and areas without the price and area bounds, and the offers first seen since each countAddedSince. */
         get: operations["CountHousingOfferFacets"];
         put?: never;
         post?: never;
@@ -459,6 +459,9 @@ export interface components {
             };
             /** Format: int32 */
             withoutPlace: number;
+            districts: {
+                [key: string]: number;
+            };
             placeSizes: {
                 [key: string]: number;
             };

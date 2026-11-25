@@ -13,6 +13,9 @@ public sealed record OfferFacets
 
     public required int WithoutPlace { get; init; }
 
+    // The districts and neighborhoods of the picked places, by id; a district counts the offers of its neighborhoods too.
+    public required IReadOnlyDictionary<int, int> Districts { get; init; }
+
     public required IReadOnlyDictionary<PlaceSize, int> PlaceSizes { get; init; }
 
     public required IReadOnlyDictionary<PlaceRole, int> PlaceRoles { get; init; }

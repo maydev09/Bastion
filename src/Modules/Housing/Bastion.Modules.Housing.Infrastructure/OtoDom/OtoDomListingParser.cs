@@ -34,7 +34,7 @@ public static partial class OtoDomListingParser
                 && TransactionOf(item) is { } transaction
                 && Date(item, "createdAtFirst") is { } createdAt)
             {
-                var (district, neighborhood) = OtoDomLocation.DistrictOf(item);
+                var (district, neighborhood) = OtoDomLocation.ReadDistrict(item);
                 offers.Add(new Offer(
                     Source.OtoDom,
                     id.GetRawText(),

@@ -511,6 +511,13 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
 
             SELECT count(*)::int FROM housing.offer o WHERE {{withoutLocation}} AND o.place_id IS NULL;
 
+            SELECT counted.id, count(*)::int
+            FROM housing.offer o
+            JOIN housing.district d ON d.id = o.district_id
+            CROSS JOIN LATERAL (VALUES (d.id), (d.parent_id)) AS counted (id)
+            WHERE {{withoutLocation}} AND d.place_id = ANY(@PlaceIds) AND counted.id IS NOT NULL
+            GROUP BY counted.id;
+
             SELECT s.size, count(*)::int
             FROM housing.offer o
             JOIN housing.place p ON p.id = o.place_id
@@ -569,6 +576,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
 
         var voivodeships = (await results.ReadAsync<(int Value, int Count)>()).ToDictionary(r => (Voivodeship)r.Value, r => r.Count);
         var withoutPlace = await results.ReadSingleAsync<int>();
+        var districts = (await results.ReadAsync<(int Id, int Count)>()).ToDictionary(r => r.Id, r => r.Count);
         var sizes = (await results.ReadAsync<(int Value, int Count)>()).ToDictionary(r => (PlaceSize)r.Value, r => r.Count);
         var roles = (await results.ReadAsync<(int Value, int Count)>()).ToDictionary(r => (PlaceRole)r.Value, r => r.Count);
         var furnished = (await results.ReadAsync<(int Value, int Count)>()).ToDictionary(r => (Answer)r.Value, r => r.Count);
@@ -578,6 +586,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         {
             Voivodeships = voivodeships,
             WithoutPlace = withoutPlace,
+            Districts = districts,
             PlaceSizes = sizes,
             PlaceRoles = roles,
             Furnished = furnished,

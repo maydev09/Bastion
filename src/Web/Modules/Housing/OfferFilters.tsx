@@ -198,6 +198,7 @@ export function OfferFilters({ filter, onChange, onHide, previousVisit, searchRe
             placeNames={placeNames}
             district={filter.district}
             neighborhood={filter.neighborhood}
+            counts={facets?.districts}
             onChange={set}
           />
           <MultiSelect
