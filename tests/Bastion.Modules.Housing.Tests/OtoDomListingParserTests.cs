@@ -113,7 +113,8 @@ public class OtoDomListingParserTests
         {
             Assert.That((apartment.RentAmount, apartment.RentCurrency, apartment.Floor), Is.EqualTo(((decimal?)750m, (Currency?)Currency.Pln, 0)));
             Assert.That(apartment.Features, Is.EquivalentTo(new[] { Feature.Balcony, Feature.Parking }));
-            Assert.That((high.RentAmount, high.Floor), Is.EqualTo(((decimal?)null, (int?)null)));
+            // A rent of 1 zł is kept as typed: it often means included or not filled in, which the monthly cost marks.
+            Assert.That((high.RentAmount, high.Floor), Is.EqualTo(((decimal?)1m, (int?)null)));
             Assert.That(high.Features, Is.Empty);
         });
     }
