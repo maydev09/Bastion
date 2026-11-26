@@ -69,8 +69,12 @@ public sealed class MonthlyCostRepository(NpgsqlDataSource db) : IMonthlyCostRep
 
     public async Task<IReadOnlyList<CostInput>> ListInputsAsync(CancellationToken cancellationToken)
     {
+        const string sql = $"""
+            {InputsSql}
+            WHERE o.removed_at IS NULL OR NOT EXISTS (SELECT 1 FROM housing.monthly_cost c WHERE c.offer_id = o.id)
+            """;
         await using var connection = await db.OpenConnectionAsync(cancellationToken);
-        return (await connection.QueryAsync<CostInput>(new CommandDefinition(InputsSql, cancellationToken: cancellationToken))).ToList();
+        return (await connection.QueryAsync<CostInput>(new CommandDefinition(sql, cancellationToken: cancellationToken))).ToList();
     }
 
     public async Task<IReadOnlyList<CostInput>> ListInputsAsync(

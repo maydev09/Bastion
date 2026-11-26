@@ -761,6 +761,41 @@ public class HousingImportTests
     }
 
     [Test]
+    public async Task A_removed_offer_keeps_the_cost_of_its_own_time()
+    {
+        await using var factory = App(WithFakes, NoAreaCorrection);
+        using var client = factory.CreateClient();
+        await JobRuns.Run(client, ImportPlaces);
+        ParsedOffer InWarszawa(string id, decimal price, decimal area, decimal? rent) =>
+            new(id, $"Offer {id}", new Uri($"https://www.otodom.pl/pl/oferta/offer-ID{id}"), PropertyType.Apartment, Transaction.Rent, At(10),
+                price, Currency.Pln, area, 2, LocationKey: WarszawaKey, RentAmount: rent, RentCurrency: rent is null ? null : Currency.Pln);
+        _source.Pages = [[
+            InWarszawa("1", 3000m, 40m, 800m),  // 20 zł/m²
+            InWarszawa("2", 4000m, 50m, 1500m), // 30 zł/m²
+            InWarszawa("3", 2500m, 40m, null),
+            InWarszawa("4", 2500m, 40m, null),
+        ]];
+        await RunImport(client);
+        await JobRuns.Run(client, CalculateMonthlyCosts);
+        var removed = await CardOf(client, "Offer 3");
+        await Sql($"UPDATE housing.offer SET removed_at = now() WHERE id = {removed.Id}");
+
+        // The market moves: a new offer at 60 zł/m² makes the median 30 zł/m².
+        _source.Pages = [[InWarszawa("5", 6000m, 40m, 2400m)]];
+        await RunImport(client);
+        await JobRuns.Run(client, CalculateMonthlyCosts);
+        var frozen = await client.GetFromJsonAsync<OfferListItem>($"/api/housing/offers/{removed.Id}", Json);
+        var listed = await CardOf(client, "Offer 4");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(removed.MonthlyCost!.Rent, Is.EqualTo(1000m));
+            Assert.That(frozen!.MonthlyCost!.Rent, Is.EqualTo(1000m));
+            Assert.That(listed.MonthlyCost!.Rent, Is.EqualTo(1200m));
+        });
+    }
+
+    [Test]
     public async Task Nearby_offers_weigh_in_the_estimate()
     {
         await using var factory = App(WithFakes, NoAreaCorrection);

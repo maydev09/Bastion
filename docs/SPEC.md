@@ -112,7 +112,8 @@ Replaces the legacy flat offers scraper.
   type (by the pin, up to 10 within 2 km) blended with the most local groups of offers (country down to the
   neighborhood) and corrected for the area. A rent read from the description or estimated is marked wherever it
   shows (list, card, API with the quote or with the neighbors and the group used, and how many of each source in
-  every summary). Above the list,
+  every summary). The cost of a listed offer follows the market every night; a removed offer keeps the cost of the time
+  it was listed, so statistics over time compare each offer with its own market. Above the list,
   the typical price, price per m², rent (known rents only: the field or the description), total monthly cost and area of
   the filtered offers (median and the middle half), and
   quick picks for offers found in the last 24 hours or since the last visit; the price, price per m² and area

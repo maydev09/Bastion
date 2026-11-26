@@ -10,7 +10,9 @@ namespace Bastion.Modules.Housing.Application.MonthlyCosts;
 // The rent field is never changed. Rates, estimates and amounts read from descriptions are in PLN.
 public sealed class MonthlyCostService(IMonthlyCostRepository repository, IOptions<MonthlyCostOptions> options, TimeProvider time)
 {
-    // The rates from all stored offers, then the cost of every offer with them.
+    // The rates from the listed offers, then the cost of every listed offer with them. A removed offer keeps the cost it had
+    // while it was listed (the market of its own time, for statistics over time); one removed before it got a cost gets one
+    // now. An offer listed again is saved again, and so gets a new cost.
     public async Task<MonthlyCostResult> RecalculateAllAsync(CancellationToken cancellationToken)
     {
         var samples = await ListRateSamplesAsync(cancellationToken);

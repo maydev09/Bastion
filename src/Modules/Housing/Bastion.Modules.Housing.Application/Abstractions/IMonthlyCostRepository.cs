@@ -4,7 +4,8 @@ namespace Bastion.Modules.Housing.Application.Abstractions;
 
 public interface IMonthlyCostRepository
 {
-    // Every stored offer, also a removed one.
+    // Every listed offer, and a removed one that never got a cost. A removed offer keeps the cost it had while it was
+    // listed, so it is not read again.
     Task<IReadOnlyList<CostInput>> ListInputsAsync(CancellationToken cancellationToken);
 
     Task<IReadOnlyList<CostInput>> ListInputsAsync(Source source, IReadOnlyList<string> externalIds, CancellationToken cancellationToken);
