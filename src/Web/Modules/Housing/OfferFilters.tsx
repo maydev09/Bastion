@@ -53,6 +53,7 @@ type SectionId =
   | "size"
   | "role"
   | "price"
+  | "totalCost"
   | "pricePerM2"
   | "area"
   | "rooms"
@@ -124,6 +125,7 @@ export function OfferFilters({ filter, onChange, onHide, previousVisit, searchRe
     size: filter.size.length,
     role: filter.role.length,
     price: [filter.priceMin, filter.priceMax].filter((v) => v != null).length,
+    totalCost: [filter.totalCostMin, filter.totalCostMax].filter((v) => v != null).length,
     pricePerM2: [filter.pricePerM2Min, filter.pricePerM2Max].filter((v) => v != null).length,
     area: [filter.areaMin, filter.areaMax].filter((v) => v != null).length,
     rooms: filter.rooms.length + (filter.roomsMin != null ? 1 : 0),
@@ -286,6 +288,23 @@ export function OfferFilters({ filter, onChange, onHide, previousVisit, searchRe
           histogram={facets?.price}
           show={(value) => format.wholeMoney(value, "PLN")}
         />,
+      )}
+
+      {section(
+        "totalCost",
+        t("filters.totalCost"),
+        <>
+          <Range
+            title={t("filters.totalCost")}
+            unit={t("units.pln")}
+            min={filter.totalCostMin}
+            max={filter.totalCostMax}
+            onChange={(totalCostMin, totalCostMax) => set({ totalCostMin, totalCostMax })}
+            histogram={facets?.totalCost}
+            show={(value) => format.wholeMoney(value, "PLN")}
+          />
+          <p className={styles.hint}>{t("filters.totalCostHint")}</p>
+        </>,
       )}
 
       {section(

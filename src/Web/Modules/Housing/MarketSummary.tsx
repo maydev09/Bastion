@@ -32,6 +32,17 @@ export function MarketSummary({ filter }: { filter: OfferFilter }) {
     { title: t("summary.pricePerM2"), spread: summary.data.pricePerM2, show: money, low: whole },
     { title: t("summary.rent"), spread: summary.data.rent, show: money, low: whole },
     {
+      title: t("summary.totalCost"),
+      spread: summary.data.totalCost,
+      show: money,
+      low: whole,
+      // How many totals add a rent that is not the stated one.
+      note: t("summary.rentSources", {
+        estimated: summary.data.rentSources.Estimated ?? 0,
+        description: summary.data.rentSources.Description ?? 0,
+      }),
+    },
+    {
       title: t("summary.area"),
       spread: summary.data.areaM2,
       show: format.area,
@@ -41,7 +52,7 @@ export function MarketSummary({ filter }: { filter: OfferFilter }) {
 
   return (
     <dl className={styles.summary} data-busy={summary.isPlaceholderData}>
-      {tiles.map(({ title, spread, show, low }) => (
+      {tiles.map(({ title, spread, show, low, note }) => (
         <div key={title} className={styles.tile} data-uncertain={isUncertain(spread) || undefined}>
           <dt>{title}</dt>
           <dd className={styles.value}>{spread ? show(spread.median) : "—"}</dd>
@@ -55,6 +66,7 @@ export function MarketSummary({ filter }: { filter: OfferFilter }) {
                 ` · ${t("summary.from", { count: spread.count })}`}
             </dd>
           )}
+          {spread && note && <dd className={styles.detail}>{note}</dd>}
         </div>
       ))}
     </dl>

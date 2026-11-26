@@ -1,4 +1,5 @@
 using Bastion.Modules.Housing.Application.Abstractions;
+using Bastion.Modules.Housing.Application.MonthlyCosts;
 using Bastion.Modules.Housing.Application.Places;
 using Bastion.Modules.Housing.Application.RawCaptures;
 using Bastion.Modules.Housing.Domain;
@@ -11,6 +12,7 @@ public sealed class ImportOffersHandler(
     RawCaptureService rawCaptures,
     IOfferRepository repository,
     IPlaceRepository places,
+    MonthlyCostService costs,
     IOptions<ImportOptions> options)
 {
     public const string PageLimitReached = "housing.pageLimitReached";
@@ -54,6 +56,7 @@ public sealed class ImportOffersHandler(
             // New offers posted during the import push offers of a read page onto the next one; they are not saved twice.
             var offers = await resolver.LinkAsync(source, parsed.Offers.Where(o => seen.Add(o.ExternalId)), cancellationToken);
             var saved = await repository.SaveAsync(offers, capture, recordChanges: true, cancellationToken);
+            await costs.UpdateAsync(source, offers.Select(o => o.ExternalId).ToList(), cancellationToken);
             statistics.Add(saved, parsed.SkippedCount);
             pageCount++;
 

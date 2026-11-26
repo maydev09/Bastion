@@ -1,0 +1,24 @@
+using Bastion.Modules.Housing.Domain;
+
+namespace Bastion.Modules.Housing.Application.Abstractions;
+
+public interface IMonthlyCostRepository
+{
+    // Every stored offer, also a removed one.
+    Task<IReadOnlyList<CostInput>> ListInputsAsync(CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<CostInput>> ListInputsAsync(Source source, IReadOnlyList<string> externalIds, CancellationToken cancellationToken);
+
+    // Every listed offer (not removed) that states a rent and an area, without its title and description: the typical rents
+    // describe the market as it is now.
+    Task<IReadOnlyList<CostInput>> ListRateSamplesAsync(CancellationToken cancellationToken);
+
+    Task<IReadOnlyList<RentRate>> ListRatesAsync(CancellationToken cancellationToken);
+
+    // The stored rates are replaced by these.
+    Task ReplaceRatesAsync(IReadOnlyList<RentRate> rates, CancellationToken cancellationToken);
+
+    // Stores the costs of the offers and the estimates of their rents; an offer of offerIds without a cost or an estimate
+    // loses its stored one.
+    Task SaveAsync(IReadOnlyList<int> offerIds, IReadOnlyList<MonthlyCost> costs, IReadOnlyList<RentEstimate> estimates, CancellationToken cancellationToken);
+}

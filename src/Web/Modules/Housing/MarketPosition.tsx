@@ -61,6 +61,10 @@ export function MarketPosition({ offer: o }: { offer: Offer }) {
   }
 
   const money = (value: number) => format.wholeMoney(value, "PLN");
+  // An estimated rent makes the offer's own total an estimate too.
+  // An estimated rent makes the offer's own rent and total estimates too.
+  const estimate = (value: number) =>
+    o.monthlyCost?.rentSource === "Estimated" ? `≈ ${money(value)}` : money(value);
   const days = (value: number) => t("market.days", { count: Math.round(value) });
   const listedSince = o.externalCreatedAt ?? o.createdAt;
   const rows = [
@@ -73,9 +77,22 @@ export function MarketPosition({ offer: o }: { offer: Offer }) {
     },
     {
       label: t("market.rent"),
-      value: o.rentCurrency === "PLN" ? o.rent : null,
+      // The rent the monthly total uses (stated, read from the description or estimated), else the stated one.
+      value:
+        o.monthlyCost?.currency === "PLN"
+          ? o.monthlyCost.rent
+          : o.rentCurrency === "PLN"
+            ? o.rent
+            : null,
       spread: summary.rent,
-      show: money,
+      show: estimate,
+      better: "lower",
+    },
+    {
+      label: t("market.totalCost"),
+      value: o.monthlyCost?.currency === "PLN" ? o.monthlyCost.total : null,
+      spread: summary.totalCost,
+      show: estimate,
       better: "lower",
     },
     {

@@ -88,6 +88,13 @@ export function FilterChips({ filter, onChange }: Props) {
       remove: { priceMin: null, priceMax: null },
     });
   }
+  if (filter.totalCostMin != null || filter.totalCostMax != null) {
+    chips.push({
+      key: "totalCost",
+      label: range(t("filters.totalCost"), filter.totalCostMin, filter.totalCostMax, money),
+      remove: { totalCostMin: null, totalCostMax: null },
+    });
+  }
   if (filter.pricePerM2Min != null || filter.pricePerM2Max != null) {
     chips.push({
       key: "pricePerM2",

@@ -42,6 +42,10 @@ public sealed record OfferListItem
 
     public Currency? RentCurrency { get; init; }
 
+    // What the offer costs a month: the price plus the admin rent, and where the rent comes from; null without a price,
+    // or when the rent needs an estimate that cannot be made.
+    public MonthlyCostItem? MonthlyCost { get; init; }
+
     public Answer? Furnished { get; init; }
 
     // From Deposit to DetailsFetchedAt only on the offer card (GetAsync); the list does not show them.

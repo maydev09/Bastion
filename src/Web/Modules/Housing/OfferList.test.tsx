@@ -83,6 +83,53 @@ describe("OfferList", () => {
     expect(screen.getByRole("button", { name: common("table.next") })).toBeDisabled();
   });
 
+  it("marks estimated fees in the fees column, but not a plain 0", async () => {
+    const offer = (id: number, title: string, extra: object) => ({
+      id,
+      source: "OtoDom",
+      title,
+      url: `https://www.otodom.pl/pl/oferta/offer-ID${id}`,
+      price: 3000,
+      priceCurrency: "PLN",
+      createdAt: "2026-11-16T10:00:00+00:00",
+      updatedAt: "2026-11-16T10:00:00+00:00",
+      ...extra,
+    });
+    const cost = (rent: number, rentSource: string) => ({
+      monthlyCost: {
+        total: 3000 + rent,
+        currency: "PLN",
+        rent,
+        rentSource,
+        calculatedAt: "2026-11-26T02:00:00+00:00",
+      },
+    });
+    stubApi({
+      "/api/housing/offers": {
+        status: 200,
+        body: {
+          items: [
+            offer(1, "Stated", { rent: 700, rentCurrency: "PLN", ...cost(700, "Stated") }),
+            offer(2, "Estimated", cost(663, "Estimated")),
+            offer(3, "Zero", { rent: 0, rentCurrency: "PLN", ...cost(0, "Nominal") }),
+          ],
+          page: 1,
+          pageSize: 50,
+          totalCount: 3,
+        },
+      },
+    });
+
+    renderList("/housing/offers");
+
+    const row = async (title: string) =>
+      within((await screen.findByRole("link", { name: title })).closest("tr")!);
+    expect((await row("Stated")).queryByText(t("cost.estimatedShort"))).toBeNull();
+    expect((await row("Estimated")).getByText(t("cost.estimatedShort"))).toBeVisible();
+    expect((await row("Estimated")).getByText(/^≈\s663\s/)).toBeVisible();
+    expect((await row("Zero")).queryByText(t("cost.estimatedShort"))).toBeNull();
+  });
+
   it("sorts by a column header: cheapest first, then dearest", async () => {
     const requests = stubApi({ "/api/housing/offers": longList });
     renderList("/housing/offers");

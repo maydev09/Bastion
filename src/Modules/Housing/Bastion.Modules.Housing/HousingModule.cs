@@ -10,6 +10,7 @@ using Bastion.Modules.Housing.Application.ImportPlaces;
 using Bastion.Modules.Housing.Application.LinkPlaces;
 using Bastion.Modules.Housing.Application.ListOffers;
 using Bastion.Modules.Housing.Application.ListPlaces;
+using Bastion.Modules.Housing.Application.MonthlyCosts;
 using Bastion.Modules.Housing.Application.Places;
 using Bastion.Modules.Housing.Application.RawCaptures;
 using Bastion.Modules.Housing.Application.ReparseOffers;
@@ -65,6 +66,10 @@ public sealed class HousingModule : IModule
             .Bind(moduleSection.GetSection(PlaceSizeOptions.Section))
             .ValidateDataAnnotations()
             .ValidateOnStart();
+        services.AddOptions<MonthlyCostOptions>()
+            .Bind(moduleSection.GetSection(MonthlyCostOptions.Section))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
 
         services.AddSingleton<IOfferSource, OtoDomSource>();
         services.AddSingleton<OfferSources>();
@@ -81,8 +86,10 @@ public sealed class HousingModule : IModule
         services.AddSingleton<IOfferRepository, OfferRepository>();
         services.AddSingleton<IPlaceRepository, PlaceRepository>();
         services.AddSingleton<IRawCaptureRepository, RawCaptureRepository>();
+        services.AddSingleton<IMonthlyCostRepository, MonthlyCostRepository>();
         services.AddSingleton<IRawCaptureFileStorage, RawCaptureFileStorage>();
         services.AddSingleton<RawCaptureService>();
+        services.AddTransient<MonthlyCostService>();
         services.AddTransient<ImportOffersHandler>();
         services.AddTransient<FetchDetailsHandler>();
         services.AddTransient<ReparseOffersHandler>();
@@ -97,7 +104,8 @@ public sealed class HousingModule : IModule
             .Add<FetchDetailsJob>(FetchDetailsJob.Name)
             .Add<RawCaptureRetentionJob>(RawCaptureRetentionJob.Name)
             .Add<ImportPlacesJob>(ImportPlacesJob.Name)
-            .Add<LinkPlacesJob>(LinkPlacesJob.Name);
+            .Add<LinkPlacesJob>(LinkPlacesJob.Name)
+            .Add<CalculateMonthlyCostsJob>(CalculateMonthlyCostsJob.Name);
     }
 
     public void MapEndpoints(IEndpointRouteBuilder moduleGroup)

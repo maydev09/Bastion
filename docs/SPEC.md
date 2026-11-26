@@ -102,14 +102,23 @@ Replaces the legacy flat offers scraper.
   and the neighborhood of a picked place (named as the portal names them; a picked district narrows its place, a picked
   neighborhood its district), size of the place
   (each size with the populations its configured thresholds cover), the highest seat it holds (voivodeship capital,
-  county or municipality seat), price, price per m², area, rooms, furnished, amenities by category (all or any of
+  county or municipality seat), price, total monthly cost, price per m², area, rooms, furnished, amenities by category (all or any of
   the picked) and a price cut seen in the changelog. Filters join with AND, the choices inside one filter with OR; each choice shows how many
-  offers it would leave, and the filters in use show above the list, removable one by one. Above the list,
-  the typical price, price per m², rent and area of the filtered offers (median and the middle half), and
+  offers it would leave, and the filters in use show above the list, removable one by one. The total monthly
+  cost is the price plus the admin rent (not utilities billed separately). The rent comes from the rent field
+  when it is plausible; else from the description, when it states one amount or says the rent is included
+  (deterministic rules, no paid AI service; amounts per person, per m² or with utilities are left out); else a
+  field of 0 or 1 zł counts as no rent; else the rent is estimated from the nearest offers of the same building
+  type (by the pin, up to 10 within 2 km) blended with the most local groups of offers (country down to the
+  neighborhood) and corrected for the area. A rent read from the description or estimated is marked wherever it
+  shows (list, card, API with the quote or with the neighbors and the group used, and how many of each source in
+  every summary). Above the list,
+  the typical price, price per m², rent (known rents only: the field or the description), total monthly cost and area of
+  the filtered offers (median and the middle half), and
   quick picks for offers found in the last 24 hours or since the last visit; the price, price per m² and area
   filters show how the offers spread over the values. The offer card shows where the offer stands among similar ones
   (the same room count in the same place, or in the voivodeship when the place has too few): price per m²,
-  rent, area and days listed against their median and middle half. Change status (e.g. not interested,
+  rent, total monthly cost, area and days listed against their median and middle half. Change status (e.g. not interested,
   waiting, visit scheduled, still interested after visit), bookmark, add notes.
   Every manual change is recorded in the changelog.
 

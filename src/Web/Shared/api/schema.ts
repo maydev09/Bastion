@@ -114,7 +114,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Returns stored offers that match all given filters, by default newest first; offers without the sorted value come last. Prices are in PLN; place and voivodeship together match offers in any of them, and so do rooms and roomsMin; district and neighborhood take ids from /places/{id}/districts (a neighborhood has a parentId): a picked district narrows its place to the picked districts and takes in its neighborhoods, a picked neighborhood narrows its district the same way, and other picked places and districts stay whole; amenities match all of them unless featureMatch is Any. */
+        /** Returns stored offers that match all given filters, by default newest first; offers without the sorted value come last. Prices are in PLN; totalCost is the price plus the admin rent a month (rentSource: Stated in the rent field; Description or Included as the description says, with rentQuote; Nominal for a field of 0 or 1 zł with nothing in the description, taken as 0; Estimated from the nearest offers of the same building type and the most local group of offers, with both shown); place and voivodeship together match offers in any of them, and so do rooms and roomsMin; district and neighborhood take ids from /places/{id}/districts (a neighborhood has a parentId): a picked district narrows its place to the picked districts and takes in its neighborhoods, a picked neighborhood narrows its district the same way, and other picked places and districts stay whole; amenities match all of them unless featureMatch is Any. */
         get: operations["ListHousingOffers"];
         put?: never;
         post?: never;
@@ -131,7 +131,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Returns how many offers each filter choice would show with the other given filters (districts: the districts and neighborhoods of the picked places by id, a district with its neighborhoods), the spread of prices and areas without the price and area bounds, and the offers first seen since each countAddedSince. */
+        /** Returns how many offers each filter choice would show with the other given filters (districts: the districts and neighborhoods of the picked places by id, a district with its neighborhoods), the spread of prices, areas and total monthly costs without their own bounds, and the offers first seen since each countAddedSince. */
         get: operations["CountHousingOfferFacets"];
         put?: never;
         post?: never;
@@ -148,7 +148,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Returns the typical price, price per m², rent and area of the offers that match the filters: the median, the middle half and how many offers have the value. Money is in PLN. */
+        /** Returns the typical price, price per m², rent, total monthly cost and area of the offers that match the filters: the median, the middle half and how many offers have the value. Money is in PLN. The rent counts only known rents (the rent field when plausible, or the amount the description states). The total cost is the price plus the admin rent; rentSources counts its offers by where their rent comes from (Stated, Description, Included, Nominal, Estimated). */
         get: operations["SummarizeHousingOffers"];
         put?: never;
         post?: never;
@@ -464,6 +464,18 @@ export interface components {
             name: string;
             routePrefix: string;
         };
+        MonthlyCostItem: {
+            /** Format: double */
+            total: number;
+            currency: components["schemas"]["Currency"];
+            /** Format: double */
+            rent: number;
+            rentSource: components["schemas"]["RentSource"];
+            rentQuote?: null | string;
+            /** Format: date-time */
+            calculatedAt: string;
+            estimate?: null | components["schemas"]["RentEstimateItem"];
+        };
         NearbyPlace: {
             tier: components["schemas"]["NearbyTier"];
             name: string;
@@ -510,6 +522,7 @@ export interface components {
             price?: null | components["schemas"]["Histogram"];
             pricePerM2?: null | components["schemas"]["Histogram"];
             areaM2?: null | components["schemas"]["Histogram"];
+            totalCost?: null | components["schemas"]["Histogram"];
         };
         OfferListItem: {
             /** Format: int32 */
@@ -541,6 +554,7 @@ export interface components {
             /** Format: double */
             rent?: null | number;
             rentCurrency?: null | components["schemas"]["Currency"];
+            monthlyCost?: null | components["schemas"]["MonthlyCostItem"];
             furnished?: null | components["schemas"]["Answer"];
             /** Format: double */
             deposit?: null | number;
@@ -586,13 +600,17 @@ export interface components {
             changes?: components["schemas"]["OfferChange"][];
         };
         /** @enum {unknown} */
-        OfferSort: "FirstSeen" | "Price" | "PricePerM2" | "AreaM2" | "Rooms" | "Rent";
+        OfferSort: "FirstSeen" | "Price" | "PricePerM2" | "AreaM2" | "Rooms" | "Rent" | "TotalCost";
         OfferSummary: {
             /** Format: int32 */
             count: number;
             price?: null | components["schemas"]["Spread"];
             pricePerM2?: null | components["schemas"]["Spread"];
             rent?: null | components["schemas"]["Spread"];
+            totalCost?: null | components["schemas"]["Spread"];
+            rentSources: {
+                [key: string]: number;
+            };
             areaM2?: null | components["schemas"]["Spread"];
             daysListed?: null | components["schemas"]["Spread"];
         };
@@ -642,6 +660,25 @@ export interface components {
         };
         /** @enum {unknown} */
         PropertyType: "Apartment";
+        /** @enum {unknown} */
+        RentBasis: "Country" | "Voivodeship" | "VoivodeshipBuildingType" | "Place" | "PlaceBuildingType" | "District" | "DistrictBuildingType" | "Neighborhood" | "NeighborhoodBuildingType" | null;
+        RentEstimateItem: {
+            /** Format: double */
+            ratePerM2: number;
+            basis?: null | components["schemas"]["RentBasis"];
+            /** Format: double */
+            basisPerM2?: null | number;
+            /** Format: int32 */
+            sampleSize?: null | number;
+            /** Format: int32 */
+            neighbors: number;
+            /** Format: double */
+            neighborsPerM2?: null | number;
+            /** Format: double */
+            neighborsKm?: null | number;
+        };
+        /** @enum {unknown} */
+        RentSource: "Stated" | "Nominal" | "Estimated" | "Description" | "Included";
         ReparseResult: {
             /** Format: int32 */
             captureCount: number;
@@ -823,6 +860,8 @@ export interface operations {
                 priceMax?: number;
                 pricePerM2Min?: number;
                 pricePerM2Max?: number;
+                totalCostMin?: number;
+                totalCostMax?: number;
                 areaMin?: number;
                 areaMax?: number;
                 rooms?: number[];
@@ -870,6 +909,8 @@ export interface operations {
                 priceMax?: number;
                 pricePerM2Min?: number;
                 pricePerM2Max?: number;
+                totalCostMin?: number;
+                totalCostMax?: number;
                 areaMin?: number;
                 areaMax?: number;
                 rooms?: number[];
@@ -914,6 +955,8 @@ export interface operations {
                 priceMax?: number;
                 pricePerM2Min?: number;
                 pricePerM2Max?: number;
+                totalCostMin?: number;
+                totalCostMax?: number;
                 areaMin?: number;
                 areaMax?: number;
                 rooms?: number[];

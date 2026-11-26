@@ -1,6 +1,7 @@
 import { useTranslation } from "react-i18next";
 import { PageTitle } from "@shared/ui/PageTitle";
 import styles from "./Housing.module.css";
+import { CalculateMonthlyCosts } from "./CalculateMonthlyCosts";
 import { ImportOffers } from "./ImportOffers";
 import { ImportPlaces } from "./ImportPlaces";
 import { LinkPlaces } from "./LinkPlaces";
@@ -19,6 +20,7 @@ export function CollectionPage() {
         <ReparseOffers />
         <ImportPlaces />
         <LinkPlaces />
+        <CalculateMonthlyCosts />
       </div>
     </div>
   );

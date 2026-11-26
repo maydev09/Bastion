@@ -34,6 +34,12 @@
     "running": "Linking…",
     "result": "Offers with a place: {{linked}}, without: {{unlinked}}."
   },
+  "costs": {
+    "description": "Calculates the typical fees per m² from all offers again, and with them the monthly cost of every offer (price + fees, stated or estimated). Runs on its own every night; a saved offer gets its cost at once from the latest rates.",
+    "run": "Recalculate monthly costs",
+    "running": "Recalculating…",
+    "result": "Rates: {{rates}}. Fees stated: {{stated}}, from the description: {{description}}, included per the description: {{included}}, 0 or 1 zł without a description: {{nominal}}, estimated: {{estimated}}, without a cost: {{without}}."
+  },
   "list": {
     "title": "Offers",
     "count_one": "{{count, number}} offer",
@@ -50,8 +56,29 @@
     "firstSeen": "Added",
     "pageEmpty": "There are no more offers on this page. Go to the last page.",
     "rent": "Fees",
+    "totalCost": "Total",
     "furnished": "Furniture",
     "previousPrice": "Before: {{price}}"
+  },
+  "cost": {
+    "total": "Monthly total",
+    "hint": "The rent price plus the fees. Utilities billed separately (electricity, gas) are not included, and what the fees cover depends on the building.",
+    "estimatedShort": "estimated",
+    "descriptionShort": "from the description",
+    "includedShort": "none (description)",
+    "statedShort": "stated {{rent}}",
+    "description": "Fees of {{rent}} read from the description: “{{quote}}”.",
+    "field": "The fees field of the offer says {{rent}}.",
+    "included": "The description says the fees are included in the price or there are none: “{{quote}}”.",
+    "implausible": "The stated fees of {{rent}} look like a mistake, so the total uses an estimate.",
+    "voivodeship": "{{name}} voivodeship",
+    "country": "all of Poland",
+    "estimate": "Estimated fees: {{rent}} = {{rate}} × {{area}}.",
+    "neighbors": "Nearest offers with fees: {{count}} within {{km}} km, typically {{rate}}.",
+    "neighborsOfType": "Nearest offers with fees ({{type}}): {{count}} within {{km}} km, typically {{rate}}.",
+    "group_one": "{{group}}: typically {{rate}} from {{count, number}} offer.",
+    "group_other": "{{group}}: typically {{rate}} from {{count, number}} offers.",
+    "areaNote": "The rate takes the area into account: small flats pay more per m², big ones less."
   },
   "filters": {
     "title": "Filters",
@@ -80,6 +107,8 @@
     "towns": "Towns",
     "villages": "Villages",
     "price": "Rent price (without fees)",
+    "totalCost": "Total with fees",
+    "totalCostHint": "The price plus the fees, stated or estimated from similar offers.",
     "area": "Area",
     "rooms": "Rooms",
     "from": "{{what}}: from",
@@ -347,6 +376,8 @@
     "price": "Typical rent price",
     "pricePerM2": "Typical per m²",
     "rent": "Typical fees",
+    "totalCost": "Typical total with fees",
+    "rentSources": "estimated: {{estimated, number}} · from the description: {{description, number}}",
     "area": "Typical area",
     "middle": "middle half: {{low}}–{{high}}",
     "from_one": "of {{count, number}} offer",
@@ -376,6 +407,7 @@
     "noPlace": "The offer has no matched place, so there is nothing to compare it with.",
     "pricePerM2": "Price per m²",
     "rent": "Fees",
+    "totalCost": "Total with fees",
     "area": "Area",
     "daysListed": "Listed for",
     "same": "typical",
@@ -397,7 +429,7 @@
     "choices": "Within one section any of the ticked choices is enough: Gdańsk or Gdynia, 2 or 3 rooms, metropolis or large city. In Location this covers places, voivodeships and offers without a matched place.",
     "districts": "A district narrows its own place: Warsaw with Mokotów is only Mokotów, while another ticked place stays whole. A neighborhood narrows its district the same way. The neighborhood list shows the neighborhoods of the ticked districts, or all of them when no district is ticked. District and neighborhood names come from the portal, and many places have none.",
     "features": "Amenities must all be there; with the “any” switch one of them is enough.",
-    "ranges": "Price, price per m² and area are a from–to range; a click on a bar of the chart sets its range, a click on another bar widens it.",
+    "ranges": "Price, total with fees, price per m² and area are a from–to range; a click on a bar of the chart sets its range, a click on another bar widens it.",
     "history": "In Change history, “Offer changes” and “Price cut” must both hold.",
     "counts": "The number next to a choice says how many offers the list shows once it is ticked, with the other filters as they are."
   }

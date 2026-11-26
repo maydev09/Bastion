@@ -40,4 +40,7 @@ public sealed record OfferFacets
     public Histogram? PricePerM2 { get; init; }
 
     public Histogram? AreaM2 { get; init; }
+
+    // The total monthly costs (PLN) under the other filters.
+    public Histogram? TotalCost { get; init; }
 }
