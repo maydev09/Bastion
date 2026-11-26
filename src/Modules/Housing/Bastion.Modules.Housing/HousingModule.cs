@@ -102,6 +102,7 @@ public sealed class HousingModule : IModule
             .Add<ImportOffersJob>(ImportOffersJob.Name)
             .Add<ScanOffersJob>(ScanOffersJob.Name)
             .Add<FetchDetailsJob>(FetchDetailsJob.Name)
+            .Add<ReparseOffersJob>(ReparseOffersJob.Name)
             .Add<RawCaptureRetentionJob>(RawCaptureRetentionJob.Name)
             .Add<ImportPlacesJob>(ImportPlacesJob.Name)
             .Add<LinkPlacesJob>(LinkPlacesJob.Name)
