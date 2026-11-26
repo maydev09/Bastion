@@ -42,6 +42,10 @@
     },
     "database": {
       "unavailable": "Nie udało się połączyć z bazą. Czy działa (scripts/dev-up.sh)?"
+    },
+    "jobs": {
+      "unexpected": "Zadanie przerwał nieoczekiwany błąd; szczegóły są w logach serwera.",
+      "unknownJob": "Nie ma takiego zadania."
     }
   },
   "database": {

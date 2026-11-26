@@ -6,39 +6,164 @@
   },
   "collection": {
     "title": "Pobieranie danych",
-    "hint": "Import z OtoDom, ponowne przetwarzanie zapisanych stron i słownik miejscowości. Wszystko działa też samo według harmonogramu; tu uruchamiasz to ręcznie."
+    "hint": "Zadania, które zbierają i porządkują dane. Większość działa sama według harmonogramu; tu widać, jak poszły ostatnio, i możesz je uruchomić ręcznie.",
+    "schedulesOff": "Harmonogram jest wyłączony na tej instancji: zadania działają tylko po ręcznym uruchomieniu."
   },
-  "import": {
-    "description": "Pobiera najnowszą stronę ogłoszeń z OtoDom, zapisuje nowe oferty i aktualizuje zmienione.",
-    "run": "Importuj z OtoDom",
-    "running": "Importuję…",
-    "result": "{{source}}: nowe {{added}}, zmienione {{updated}}, bez zmian {{unchanged}}.",
-    "skipped": "Pominięte (niepełne dane): {{count}}."
-  },
-  "reparse": {
-    "description": "Odczytuje oferty ponownie z zapisanych stron OtoDom, bez pobierania czegokolwiek. Przydaje się po poprawce parsera.",
-    "run": "Przetwórz zapisane strony",
-    "running": "Przetwarzam…",
-    "result": "Stron: {{captures}}. Nowe {{added}}, zmienione {{updated}}, bez zmian {{unchanged}}.",
-    "failed": "Nieudane strony: {{count}}."
-  },
-  "places": {
-    "description": "Pobiera z Wikidata słownik miejscowości: miasto czy wieś, liczba mieszkańców, najbliższe większe miasta. Oferty zostają bez zmian. Trwa minutę lub dwie.",
-    "run": "Pobierz miejscowości",
-    "running": "Pobieram miejscowości…",
-    "result": "Miejscowości: {{places}} (nowe {{added}}, zmienione {{updated}})."
-  },
-  "link": {
-    "description": "Przypisuje zapisane oferty do miejscowości ze słownika. Uruchom po pobraniu miejscowości albo po poprawce dopasowania; nowe oferty dostają miejscowość od razu przy imporcie.",
-    "run": "Przypisz oferty do miejscowości",
-    "running": "Przypisuję…",
-    "result": "Oferty z miejscowością: {{linked}}, bez: {{unlinked}}."
-  },
-  "costs": {
-    "description": "Liczy od nowa typowe stawki czynszu za m² ze wszystkich ofert, a z nimi koszt miesięczny każdej oferty (cena + czynsz, podany albo szacowany). Działa samo co noc; zapisywana oferta dostaje koszt od razu z ostatnich stawek.",
-    "run": "Przelicz koszty miesięczne",
-    "running": "Przeliczam…",
-    "result": "Stawek: {{rates}}. Czynsz podany: {{stated}}, z opisu: {{description}}, w cenie wg opisu: {{included}}, 0 lub 1 zł bez opisu: {{nominal}}, szacowany: {{estimated}}, bez kosztu: {{without}}."
+  "jobs": {
+    "group": {
+      "offers": "Oferty z OtoDom",
+      "places": "Miejscowości",
+      "upkeep": "Koszty i porządki",
+      "other": "Inne"
+    },
+    "run": "Uruchom",
+    "running": "Trwa…",
+    "queued": "W kolejce…",
+    "neverRun": "Jeszcze nie uruchamiane",
+    "schedule": {
+      "every": "co {{interval}}",
+      "dailyAt": "codziennie o {{time}}",
+      "manual": "tylko ręcznie"
+    },
+    "minutes_one": "{{count}} minutę",
+    "minutes_few": "{{count}} minuty",
+    "minutes_many": "{{count}} minut",
+    "minutes_other": "{{count}} minuty",
+    "hours_one": "godzinę",
+    "hours_few": "{{count}} godziny",
+    "hours_many": "{{count}} godzin",
+    "hours_other": "{{count}} godziny",
+    "duration": {
+      "seconds": "{{seconds}} s",
+      "minutes": "{{minutes}} min {{seconds}} s",
+      "hours": "{{hours}} godz. {{minutes}} min"
+    },
+    "status": {
+      "Queued": "w kolejce",
+      "Running": "trwa",
+      "Succeeded": "udane",
+      "Failed": "nieudane",
+      "Canceled": "anulowane",
+      "Interrupted": "przerwane"
+    },
+    "trigger": {
+      "Manual": "ręcznie",
+      "Schedule": "harmonogram"
+    },
+    "interrupted": "Przerwane przez restart aplikacji; następny przebieg zacznie od nowa.",
+    "ImportOffers": {
+      "name": "Pobierz nowe ogłoszenia",
+      "description": "Czyta najnowsze strony wyników OtoDom, aż trafi na ogłoszenie, które już zna (najwyżej kilka stron). Dodaje nowe oferty i aktualizuje zmienione.",
+      "counts": {
+        "pages": "Strony",
+        "added": "Nowe",
+        "updated": "Zmienione",
+        "unchanged": "Bez zmian",
+        "skipped": "Pominięte"
+      }
+    },
+    "ScanOffers": {
+      "name": "Przejrzyj wszystkie ogłoszenia",
+      "description": "Czyta całą listę ogłoszeń OtoDom do ostatniej strony (około pół godziny). Oferta, której nie ma w dwóch pełnych przeglądach z rzędu, zostaje oznaczona jako zdjęta.",
+      "counts": {
+        "pages": "Strony",
+        "added": "Nowe",
+        "updated": "Zmienione",
+        "unchanged": "Bez zmian",
+        "skipped": "Pominięte",
+        "missed": "Nieobecne w przeglądzie",
+        "removed": "Zdjęte"
+      }
+    },
+    "FetchDetails": {
+      "name": "Pobierz szczegóły ofert",
+      "description": "Otwiera stronę każdej nowej lub zmienionej oferty i zapisuje opis, czynsz, piętro, ogrzewanie, udogodnienia i położenie. Pracuje do godziny; resztę kończy następny przebieg.",
+      "counts": {
+        "fetched": "Pobrane",
+        "failed": "Nieudane",
+        "removed": "Zdjęte z portalu",
+        "retried": "Ponowione"
+      }
+    },
+    "ReparseOffers": {
+      "name": "Przetwórz zapisane strony ponownie",
+      "description": "Odczytuje oferty jeszcze raz z zapisanych stron, bez łączenia z OtoDom. Uruchom po poprawce w odczytywaniu stron; na końcu przelicza koszty miesięczne.",
+      "counts": {
+        "pages": "Strony",
+        "failedPages": "Nieudane strony",
+        "added": "Nowe",
+        "updated": "Zmienione",
+        "unchanged": "Bez zmian",
+        "skipped": "Pominięte",
+        "detailPages": "Strony szczegółów"
+      }
+    },
+    "ImportPlaces": {
+      "name": "Pobierz słownik miejscowości",
+      "description": "Pobiera z Wikidata słownik miejscowości: miasto czy wieś, liczba mieszkańców, najbliższe większe miasta. Oferty zostają bez zmian. Trwa minutę lub dwie.",
+      "counts": {
+        "places": "Miejscowości",
+        "added": "Nowe",
+        "updated": "Zmienione"
+      }
+    },
+    "LinkPlaces": {
+      "name": "Przypisz oferty do miejscowości",
+      "description": "Przypisuje zapisane oferty do miejscowości ze słownika. Uruchom po pobraniu miejscowości albo po poprawce dopasowania; nowe oferty dostają miejscowość od razu przy imporcie.",
+      "counts": {
+        "linkedOffers": "Oferty z miejscowością",
+        "unlinkedOffers": "Bez miejscowości"
+      }
+    },
+    "CalculateMonthlyCosts": {
+      "name": "Przelicz koszty miesięczne",
+      "description": "Liczy od nowa typowe stawki czynszu za m² z wystawionych ofert, a z nimi koszt miesięczny (cena + czynsz) każdej wystawionej oferty. Zapisywana oferta dostaje koszt od razu; to zadanie odświeża wszystkie.",
+      "counts": {
+        "rentRates": "Stawki grup",
+        "statedRents": "Czynsz podany",
+        "descriptionRents": "Czynsz z opisu",
+        "includedRents": "Brak czynszu wg opisu",
+        "nominalRents": "0 lub 1 zł",
+        "estimatedRents": "Czynsz szacowany",
+        "withoutCost": "Bez kosztu"
+      }
+    },
+    "RawCaptureRetention": {
+      "name": "Usuń stare zapisane strony",
+      "description": "Kasuje zapisane strony starsze niż okres przechowywania (30 dni), żeby nie zapełniły dysku. Oferty i ich dane zostają.",
+      "counts": {
+        "deletedCaptures": "Usunięte strony",
+        "freedBytes": "Zwolnione miejsce"
+      }
+    },
+    "history": {
+      "title": "Historia uruchomień",
+      "job": "Zadanie",
+      "trigger": "Uruchomienie",
+      "status": "Stan",
+      "started": "Start",
+      "duration": "Czas",
+      "result": "Wynik",
+      "allJobs": "Wszystkie zadania",
+      "allStatuses": "Każdy stan",
+      "allTriggers": "Każde uruchomienie",
+      "from": "Od",
+      "to": "Do",
+      "clear": "Wyczyść filtry",
+      "empty": "Brak uruchomień dla wybranych filtrów.",
+      "noCounts": "Ten przebieg nie podał żadnych liczników.",
+      "noCounts": "Ten przebieg nie podał żadnych liczników.",
+      "loading": "Wczytywanie historii…"
+    },
+    "megabytes": "{{value, number}} MB",
+    "table": {
+      "task": "Zadanie",
+      "schedule": "Harmonogram",
+      "last": "Ostatnio",
+      "result": "Wynik"
+    },
+    "keyResult": "{{label}}: {{value}}",
+    "runningFor": "Trwa od {{duration}}"
   },
   "list": {
     "title": "Oferty",
@@ -364,7 +489,9 @@
   "errors": {
     "parseFailed": "OtoDom zmienił wygląd strony, nie udało się odczytać ofert.",
     "placesUnavailable": "Wikidata nie odpowiedziała. Spróbuj ponownie za kilka minut.",
-    "placesIncomplete": "Wikidata zwróciła niepełne dane, więc niczego nie zapisano. Spróbuj ponownie za kilka minut."
+    "placesIncomplete": "Wikidata zwróciła niepełne dane, więc niczego nie zapisano. Spróbuj ponownie za kilka minut.",
+    "pageLimitReached": "Przegląd doszedł do limitu stron przed końcem listy, więc zdjętych ofert nie oznaczono.",
+    "unknownSource": "Nie ma takiego portalu."
   },
   "answer": {
     "Yes": "tak",

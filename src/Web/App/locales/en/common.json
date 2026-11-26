@@ -42,6 +42,10 @@
     },
     "database": {
       "unavailable": "Could not connect to the database. Is it running (scripts/dev-up.sh)?"
+    },
+    "jobs": {
+      "unexpected": "An unexpected error stopped the task; the server logs have the details.",
+      "unknownJob": "There is no such task."
     }
   },
   "database": {

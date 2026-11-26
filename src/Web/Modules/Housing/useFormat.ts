@@ -23,6 +23,7 @@ function createFormat(t: TFunction<"housing">, language: string) {
     dateStyle: "short",
     timeStyle: "short",
   });
+  const relative = new Intl.RelativeTimeFormat(language, { numeric: "auto", style: "short" });
 
   return {
     number: (value: number) => number.format(value),
@@ -49,6 +50,21 @@ function createFormat(t: TFunction<"housing">, language: string) {
         maximumFractionDigits: 0,
       }).format(value),
     date: (iso: string) => dateTime.format(new Date(iso)),
+    // "5 min temu", "2 godz. temu" within a day of now (the server's time, so a wrong device clock does not matter),
+    // else "21.11.2026, 11:45".
+    ago: (iso: string, now: string) => {
+      const seconds = Math.round((Date.parse(iso) - Date.parse(now)) / 1000);
+      if (seconds > -60) {
+        return relative.format(0, "second");
+      }
+      if (seconds > -3600) {
+        return relative.format(Math.round(seconds / 60), "minute");
+      }
+      if (seconds > -86400) {
+        return relative.format(Math.round(seconds / 3600), "hour");
+      }
+      return shortDateTime.format(new Date(iso));
+    },
     // "21.11.2026, 11:45" for table columns.
     shortDate: (iso: string) => shortDateTime.format(new Date(iso)),
     // "21.11.2026" and "11:45" for narrow columns, one under the other.
