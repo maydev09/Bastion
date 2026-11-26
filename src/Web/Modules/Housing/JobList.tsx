@@ -60,12 +60,14 @@ export function JobList({ list, start }: Props) {
         id: "schedule",
         header: t("jobs.table.schedule"),
         minWidth: 170,
+        width: "16%",
         cell: (job) => <span className={styles.secondary}>{describeSchedule(t, job)}</span>,
       },
       {
         id: "last",
         header: t("jobs.table.last"),
         minWidth: 190,
+        width: "19%",
         cell: (job) => {
           const run = job.latestRun;
           if (!run) {
@@ -91,6 +93,7 @@ export function JobList({ list, start }: Props) {
         id: "result",
         header: t("jobs.table.result"),
         minWidth: 220,
+        width: "22%",
         cell: (job) => {
           if (start.isError && start.variables === job.name) {
             return (
@@ -110,6 +113,8 @@ export function JobList({ list, start }: Props) {
         id: "run",
         header: "",
         align: "end",
+        minWidth: 112,
+        width: "7rem",
         cell: (job) => {
           const run = job.latestRun;
           const going = run != null && !run.finishedAt;
@@ -148,6 +153,8 @@ export function JobList({ list, start }: Props) {
                 columns={columns}
                 rows={inGroup}
                 getRowId={(job) => job.name}
+                // One table per group, the same columns in each: they line up one above another.
+                fixedColumns
                 // The tasks keep the page's order; no column sorts.
                 sort={{ column: "task", descending: false }}
                 onSortChange={() => {}}

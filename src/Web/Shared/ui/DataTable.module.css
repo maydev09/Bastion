@@ -20,6 +20,10 @@
   font-variant-numeric: tabular-nums;
   transition: opacity 0.15s ease;
 
+  &[data-fixed="true"] {
+    table-layout: fixed;
+  }
+
   /* Dims only when the answer takes a moment (see .progress); comes back at once. */
   &[data-busy="true"] {
     opacity: 0.55;

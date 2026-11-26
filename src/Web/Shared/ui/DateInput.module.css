@@ -13,6 +13,7 @@
 }
 
 .picker {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
@@ -32,24 +33,20 @@
   font-size: var(--font-size-sm);
 }
 
+.value {
+  color: var(--color-text);
+  font-variant-numeric: tabular-nums;
+}
+
 .input {
+  position: absolute;
+  inset: 0;
+  width: 100%;
   padding: 0;
   border: none;
-  background: none;
-  color: var(--color-text);
-  font: inherit;
-  font-variant-numeric: tabular-nums;
+  opacity: 0;
   color-scheme: inherit;
   cursor: pointer;
-
-  &:focus {
-    outline: none;
-  }
-
-  /* The field opens the calendar on click and has its own icon on the left. */
-  &::-webkit-calendar-picker-indicator {
-    display: none;
-  }
 }
 
 /* Inside the field's border, so a little smaller than a standalone icon button. */
