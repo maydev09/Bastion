@@ -1,0 +1,60 @@
+.field {
+  display: inline-flex;
+  align-items: center;
+  height: var(--control-height);
+  border: 1px solid var(--color-border-strong);
+  border-radius: var(--radius);
+  background: var(--color-surface);
+
+  &:focus-within {
+    outline: 2px solid var(--color-focus);
+    outline-offset: -1px;
+  }
+}
+
+.picker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  height: 100%;
+  padding: 0 var(--space-2);
+  border-radius: var(--radius);
+  color: var(--color-text-secondary);
+  cursor: pointer;
+
+  &:hover {
+    background: var(--color-surface-hover);
+  }
+}
+
+.label {
+  color: var(--color-muted);
+  font-size: var(--font-size-sm);
+}
+
+.input {
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--color-text);
+  font: inherit;
+  font-variant-numeric: tabular-nums;
+  color-scheme: inherit;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+  }
+
+  /* The field opens the calendar on click and has its own icon on the left. */
+  &::-webkit-calendar-picker-indicator {
+    display: none;
+  }
+}
+
+/* Inside the field's border, so a little smaller than a standalone icon button. */
+.clear {
+  width: calc(var(--control-height) - var(--space-2));
+  height: calc(var(--control-height) - var(--space-2));
+  margin-right: var(--space-1);
+}

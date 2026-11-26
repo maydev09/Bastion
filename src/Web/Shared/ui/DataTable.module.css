@@ -72,6 +72,19 @@
   & tbody tr[data-clickable="true"] {
     cursor: pointer;
   }
+
+  /* An opened row and its details read as one block: the row keeps a tint, the details sit sunken under it. */
+  & tbody tr[data-expanded] td {
+    background: var(--color-accent-soft);
+    border-bottom-color: transparent;
+  }
+
+  & tbody tr.expanded td,
+  & tbody tr.expanded:hover td {
+    padding: 0;
+    background: var(--color-surface-sunken);
+    cursor: auto;
+  }
 }
 
 .sort {

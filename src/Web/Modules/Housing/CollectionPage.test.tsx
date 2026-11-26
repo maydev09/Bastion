@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import i18n from "i18next";
 import { describe, expect, it } from "vitest";
@@ -7,97 +7,179 @@ import { CollectionPage } from "./CollectionPage";
 
 const t = i18n.getFixedT("pl", "housing");
 
+const run = (job: string, extra: object) => ({
+  id: 1,
+  job,
+  trigger: "Schedule",
+  status: "Succeeded",
+  queuedAt: "2026-11-26T10:00:00+00:00",
+  startedAt: "2026-11-26T10:00:00+00:00",
+  finishedAt: "2026-11-26T10:00:42+00:00",
+  errorCode: null,
+  summary: null,
+  ...extra,
+});
+
+const jobList = (jobs: object[]) => ({
+  status: 200,
+  body: {
+    jobs,
+    scheduled: true,
+    timeZone: "Europe/Warsaw",
+    serverTime: "2026-11-26T10:05:00+00:00",
+  },
+});
+
+const noRuns = { status: 200, body: { items: [], page: 1, pageSize: 25, totalCount: 0 } };
+
 describe("CollectionPage", () => {
-  it("shows what the place import saved", async () => {
+  it("shows each task by when it runs and how its last run went", async () => {
     stubApi({
-      "/api/housing/jobs/ImportPlaces/runs/latest": {
-        status: 200,
-        body: {
-          run: {
-            id: 1,
-            job: "ImportPlaces",
+      "/api/housing/jobs": jobList([
+        {
+          name: "ImportOffers",
+          every: "00:10:00",
+          latestRun: run("ImportOffers", {
+            summary: { counts: { pages: 1, added: 3, updated: 1, unchanged: 68, skipped: 0 } },
+          }),
+        },
+        {
+          name: "ImportPlaces",
+          latestRun: run("ImportPlaces", {
+            status: "Failed",
+            errorCode: "housing.placesUnavailable",
+          }),
+        },
+        { name: "ReparseOffers", latestRun: null },
+      ]),
+      "/api/housing/jobs/runs": noRuns,
+    });
+
+    renderWithProviders(<CollectionPage />);
+
+    const importRow = within((await screen.findByText(t("jobs.ImportOffers.name"))).closest("tr")!);
+    expect(
+      importRow.getByText(t("jobs.schedule.every", { interval: t("jobs.minutes", { count: 10 }) })),
+    ).toBeVisible();
+    // The row shows only the key count.
+    expect(
+      importRow.getByText(
+        t("jobs.keyResult", { label: t("jobs.ImportOffers.counts.added"), value: "3" }),
+      ),
+    ).toBeVisible();
+    const placesRow = within(screen.getByText(t("jobs.ImportPlaces.name")).closest("tr")!);
+    expect(placesRow.getByText(t("errors.placesUnavailable"))).toBeVisible();
+    const reparseRow = within(screen.getByText(t("jobs.ReparseOffers.name")).closest("tr")!);
+    expect(reparseRow.getByText(t("jobs.neverRun"))).toBeVisible();
+  });
+
+  it("shows a run started elsewhere as running and does not let it start twice", async () => {
+    stubApi({
+      "/api/housing/jobs": jobList([
+        {
+          name: "ReparseOffers",
+          latestRun: run("ReparseOffers", {
             trigger: "Manual",
-            status: "Succeeded",
-            queuedAt: "2026-11-20T10:00:00+00:00",
-            startedAt: "2026-11-20T10:00:00+00:00",
-            finishedAt: "2026-11-20T10:01:30+00:00",
-            errorCode: null,
-            summary: {
-              counts: {
-                places: 65000,
-                added: 65000,
-                updated: 0,
-              },
-            },
-          },
-          serverTime: "2026-11-20T10:02:00+00:00",
+            status: "Running",
+            finishedAt: null,
+          }),
         },
-      },
+      ]),
+      "/api/housing/jobs/runs": noRuns,
     });
 
     renderWithProviders(<CollectionPage />);
 
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      t("places.result", { places: 65000, added: 65000, updated: 0 }),
-    );
+    const button = await screen.findByRole("button", {
+      name: `${t("jobs.running")} ${t("jobs.ReparseOffers.name")}`,
+    });
+    expect(button).toBeDisabled();
   });
 
-  it("shows what the import saved", async () => {
-    stubApi({
-      "/api/housing/import/OtoDom": {
+  it("starts a task on the server", async () => {
+    const requests = stubApi({
+      "/api/housing/jobs": jobList([{ name: "ReparseOffers", latestRun: null }]),
+      "/api/housing/jobs/runs": noRuns,
+      "/api/housing/jobs/ReparseOffers/runs": {
+        status: 202,
+        body: run("ReparseOffers", {
+          trigger: "Manual",
+          status: "Queued",
+          startedAt: null,
+          finishedAt: null,
+        }),
+      },
+    });
+    renderWithProviders(<CollectionPage />);
+
+    await userEvent.click(
+      await screen.findByRole("button", {
+        name: `${t("jobs.run")} ${t("jobs.ReparseOffers.name")}`,
+      }),
+    );
+
+    expect(requests.some((r) => r.pathname === "/api/housing/jobs/ReparseOffers/runs")).toBe(true);
+  });
+
+  it("reads the history view from the link", async () => {
+    const requests = stubApi({
+      "/api/housing/jobs": jobList([{ name: "ImportOffers", every: "00:10:00", latestRun: null }]),
+      "/api/housing/jobs/runs": {
         status: 200,
         body: {
-          source: "OtoDom",
-          addedCount: 70,
-          updatedCount: 1,
-          unchangedCount: 1,
-          skippedCount: 0,
+          items: [run("ImportOffers", { status: "Failed", errorCode: "housing.pageLimitReached" })],
+          page: 2,
+          pageSize: 25,
+          totalCount: 26,
         },
       },
     });
-    renderWithProviders(<CollectionPage />);
 
-    await userEvent.click(screen.getByRole("button", { name: t("import.run") }));
-
-    expect(await screen.findByRole("status")).toHaveTextContent(
-      t("import.result", { source: "OtoDom", added: 70, updated: 1, unchanged: 1 }),
+    renderWithProviders(
+      <CollectionPage />,
+      "/?job=ImportOffers&status=Failed&trigger=Manual&from=2026-11-25&to=2026-11-25&page=2",
     );
-  });
 
-  it.each([
-    { status: 503, code: "scraping.vpnRequired", ns: "common", key: "errors.scraping.vpnRequired" },
-    { status: 502, code: "housing.parseFailed", ns: "housing", key: "errors.parseFailed" },
-  ] as const)("shows the translated import error for $code", async ({ status, code, ns, key }) => {
-    stubApi({
-      "/api/housing/import/OtoDom": { status, body: { title: "Import failed", code } },
+    expect(await screen.findByText(t("errors.pageLimitReached"))).toBeVisible();
+    const query = Object.fromEntries(
+      requests.filter((r) => r.pathname === "/api/housing/jobs/runs").at(-1)!.searchParams,
+    );
+    expect(query).toMatchObject({
+      job: "ImportOffers",
+      status: "Failed",
+      trigger: "Manual",
+      page: "2",
     });
-    renderWithProviders(<CollectionPage />);
-
-    await userEvent.click(screen.getByRole("button", { name: t("import.run") }));
-
-    expect(await screen.findByRole("alert")).toHaveTextContent(
-      i18n.getResource("pl", ns, key) as string,
-    );
+    // One whole day, the "to" day included.
+    expect(Date.parse(query.to) - Date.parse(query.from)).toBe(24 * 60 * 60 * 1000);
   });
 
-  it("shows what parsing the stored pages saved", async () => {
+  it("opens a run of the history in place with everything it counted", async () => {
     stubApi({
-      "/api/housing/reparse": {
+      "/api/housing/jobs": jobList([{ name: "ImportOffers", every: "00:10:00", latestRun: null }]),
+      "/api/housing/jobs/runs": {
         status: 200,
         body: {
-          captureCount: 3,
-          failedCount: 1,
-          addedCount: 2,
-          updatedCount: 0,
-          unchangedCount: 70,
-          skippedCount: 0,
+          items: [
+            run("ImportOffers", {
+              summary: { counts: { pages: 1, added: 3, updated: 1, unchanged: 68, skipped: 0 } },
+            }),
+          ],
+          page: 1,
+          pageSize: 25,
+          totalCount: 1,
         },
       },
     });
     renderWithProviders(<CollectionPage />);
+    const history = within(await screen.findByRole("region", { name: t("jobs.history.title") }));
 
-    await userEvent.click(screen.getByRole("button", { name: t("reparse.run") }));
+    const toggle = await history.findByRole("button", { name: t("jobs.ImportOffers.name") });
+    await userEvent.click(toggle);
 
-    expect(await screen.findByRole("status")).toHaveTextContent(t("reparse.failed", { count: 1 }));
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(
+      history.getByText(t("jobs.ImportOffers.counts.unchanged")).nextSibling,
+    ).toHaveTextContent("68");
   });
 });

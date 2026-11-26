@@ -6,39 +6,159 @@
   },
   "collection": {
     "title": "Data collection",
-    "hint": "Import from OtoDom, parsing stored pages again and the dictionary of places. Everything also runs on its own on a schedule; here you start it by hand."
+    "hint": "Tasks that collect and tidy the data. Most run on their own on a schedule; here you see how they went last and can start them by hand.",
+    "schedulesOff": "The schedule is off on this instance: tasks run only when started by hand."
   },
-  "import": {
-    "description": "Fetches the newest page of OtoDom listings, saves new offers and updates changed ones.",
-    "run": "Import from OtoDom",
-    "running": "Importing…",
-    "result": "{{source}}: {{added}} new, {{updated}} changed, {{unchanged}} unchanged.",
-    "skipped": "Skipped (incomplete data): {{count}}."
-  },
-  "reparse": {
-    "description": "Reads the offers again from stored OtoDom pages, without fetching anything. Useful after a parser fix.",
-    "run": "Process stored pages",
-    "running": "Processing…",
-    "result": "Pages: {{captures}}. {{added}} new, {{updated}} changed, {{unchanged}} unchanged.",
-    "failed": "Failed pages: {{count}}."
-  },
-  "places": {
-    "description": "Downloads the dictionary of places from Wikidata: town or village, population, the nearest bigger cities. Offers stay as they are. Takes a minute or two.",
-    "run": "Download places",
-    "running": "Downloading places…",
-    "result": "Places: {{places}} ({{added}} new, {{updated}} changed)."
-  },
-  "link": {
-    "description": "Links stored offers to places from the dictionary. Run it after downloading places or after a fix in matching; new offers get their place at once when imported.",
-    "run": "Link offers to places",
-    "running": "Linking…",
-    "result": "Offers with a place: {{linked}}, without: {{unlinked}}."
-  },
-  "costs": {
-    "description": "Calculates the typical fees per m² from all offers again, and with them the monthly cost of every offer (price + fees, stated or estimated). Runs on its own every night; a saved offer gets its cost at once from the latest rates.",
-    "run": "Recalculate monthly costs",
-    "running": "Recalculating…",
-    "result": "Rates: {{rates}}. Fees stated: {{stated}}, from the description: {{description}}, included per the description: {{included}}, 0 or 1 zł without a description: {{nominal}}, estimated: {{estimated}}, without a cost: {{without}}."
+  "jobs": {
+    "group": {
+      "offers": "Offers from OtoDom",
+      "places": "Places",
+      "upkeep": "Costs and housekeeping",
+      "other": "Other"
+    },
+    "run": "Run",
+    "running": "Running…",
+    "queued": "Queued…",
+    "neverRun": "Not run yet",
+    "schedule": {
+      "every": "every {{interval}}",
+      "dailyAt": "daily at {{time}}",
+      "manual": "by hand only"
+    },
+    "minutes_one": "minute",
+    "minutes_other": "{{count}} minutes",
+    "hours_one": "hour",
+    "hours_other": "{{count}} hours",
+    "duration": {
+      "seconds": "{{seconds}} s",
+      "minutes": "{{minutes}} min {{seconds}} s",
+      "hours": "{{hours}} h {{minutes}} min"
+    },
+    "status": {
+      "Queued": "queued",
+      "Running": "running",
+      "Succeeded": "succeeded",
+      "Failed": "failed",
+      "Canceled": "canceled",
+      "Interrupted": "interrupted"
+    },
+    "trigger": {
+      "Manual": "by hand",
+      "Schedule": "schedule"
+    },
+    "interrupted": "Interrupted by a restart of the application; the next run starts again.",
+    "ImportOffers": {
+      "name": "Fetch new listings",
+      "description": "Reads the newest OtoDom result pages until it meets a listing it already knows (a few pages at most). Adds new offers and updates changed ones.",
+      "counts": {
+        "pages": "Pages",
+        "added": "New",
+        "updated": "Changed",
+        "unchanged": "Unchanged",
+        "skipped": "Skipped"
+      }
+    },
+    "ScanOffers": {
+      "name": "Scan all listings",
+      "description": "Reads the whole OtoDom listing to its last page (about half an hour). An offer missing from two full scans in a row is marked as removed.",
+      "counts": {
+        "pages": "Pages",
+        "added": "New",
+        "updated": "Changed",
+        "unchanged": "Unchanged",
+        "skipped": "Skipped",
+        "missed": "Missing from the scan",
+        "removed": "Removed"
+      }
+    },
+    "FetchDetails": {
+      "name": "Fetch offer details",
+      "description": "Opens the page of every new or changed offer and saves the description, fees, floor, heating, amenities and location. Works up to an hour; the next run finishes the rest.",
+      "counts": {
+        "fetched": "Fetched",
+        "failed": "Failed",
+        "removed": "Removed from the portal",
+        "retried": "Retried"
+      }
+    },
+    "ReparseOffers": {
+      "name": "Process the stored pages again",
+      "description": "Reads the offers again from the stored pages, without contacting OtoDom. Run it after a fix in reading the pages; it recalculates the monthly costs at the end.",
+      "counts": {
+        "pages": "Pages",
+        "failedPages": "Failed pages",
+        "added": "New",
+        "updated": "Changed",
+        "unchanged": "Unchanged",
+        "skipped": "Skipped",
+        "detailPages": "Detail pages"
+      }
+    },
+    "ImportPlaces": {
+      "name": "Fetch the place dictionary",
+      "description": "Downloads the dictionary of places from Wikidata: town or village, population, the nearest bigger cities. Offers stay as they are. Takes a minute or two.",
+      "counts": {
+        "places": "Places",
+        "added": "New",
+        "updated": "Changed"
+      }
+    },
+    "LinkPlaces": {
+      "name": "Link offers to places",
+      "description": "Links stored offers to places from the dictionary. Run it after downloading places or after a fix in matching; new offers get their place at once when imported.",
+      "counts": {
+        "linkedOffers": "Offers with a place",
+        "unlinkedOffers": "Without a place"
+      }
+    },
+    "CalculateMonthlyCosts": {
+      "name": "Recalculate monthly costs",
+      "description": "Calculates the typical fees per m² from the listed offers again, and with them the monthly cost (price + fees) of every listed offer. A saved offer gets its cost at once; this task refreshes them all.",
+      "counts": {
+        "rentRates": "Group rates",
+        "statedRents": "Fees stated",
+        "descriptionRents": "Fees from the description",
+        "includedRents": "No fees per the description",
+        "nominalRents": "0 or 1 zł",
+        "estimatedRents": "Fees estimated",
+        "withoutCost": "Without a cost"
+      }
+    },
+    "RawCaptureRetention": {
+      "name": "Delete old stored pages",
+      "description": "Deletes stored pages older than the retention period (30 days) so they do not fill the disk. Offers and their data stay.",
+      "counts": {
+        "deletedCaptures": "Deleted pages",
+        "freedBytes": "Freed space"
+      }
+    },
+    "history": {
+      "title": "Run history",
+      "job": "Task",
+      "trigger": "Started by",
+      "status": "Status",
+      "started": "Start",
+      "duration": "Took",
+      "result": "Result",
+      "allJobs": "All tasks",
+      "allStatuses": "Any status",
+      "allTriggers": "Any trigger",
+      "from": "From",
+      "to": "To",
+      "clear": "Clear filters",
+      "empty": "No runs for the chosen filters.",
+      "noCounts": "This run reported no counts.",
+      "loading": "Loading the history…"
+    },
+    "megabytes": "{{value, number}} MB",
+    "table": {
+      "task": "Task",
+      "schedule": "Schedule",
+      "last": "Last run",
+      "result": "Result"
+    },
+    "keyResult": "{{label}}: {{value}}",
+    "runningFor": "Running for {{duration}}"
   },
   "list": {
     "title": "Offers",
@@ -356,7 +476,9 @@
   "errors": {
     "parseFailed": "OtoDom changed its page layout; the offers could not be read.",
     "placesUnavailable": "Wikidata did not respond. Try again in a few minutes.",
-    "placesIncomplete": "Wikidata returned incomplete data, so nothing was saved. Try again in a few minutes."
+    "placesIncomplete": "Wikidata returned incomplete data, so nothing was saved. Try again in a few minutes.",
+    "pageLimitReached": "The scan reached the page limit before the end of the listing, so no offer was marked as removed.",
+    "unknownSource": "There is no such portal."
   },
   "answer": {
     "Yes": "yes",

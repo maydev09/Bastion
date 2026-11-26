@@ -35,6 +35,7 @@ public class HousingImportTests
     private const string FetchDetails = "/api/housing/jobs/FetchDetails";
     private const string ImportPlaces = "/api/housing/jobs/ImportPlaces";
     private const string LinkPlaces = "/api/housing/jobs/LinkPlaces";
+    private const string Reparse = "/api/housing/jobs/ReparseOffers";
     private const string CalculateMonthlyCosts = "/api/housing/jobs/CalculateMonthlyCosts";
 
     private const string WarszawaKey = "mazowieckie/warszawa/warszawa/warszawa";
@@ -1059,9 +1060,7 @@ public class HousingImportTests
         await RunImport(client);
         await Sql("DELETE FROM housing.offer");
 
-        var response = await client.PostAsync(new Uri("/api/housing/reparse", UriKind.Relative), null);
-        response.EnsureSuccessStatusCode();
-        var result = await response.Content.ReadFromJsonAsync<ReparseResult>(Json);
+        var result = await RunReparse(client);
         var list = await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json);
 
         Assert.Multiple(() =>
@@ -1081,8 +1080,7 @@ public class HousingImportTests
         _source.Pages = [[Small with { PriceAmount = 2000m, PriceCurrency = Currency.Pln }]];
         await RunImport(client);
 
-        var response = await client.PostAsync(new Uri("/api/housing/reparse", UriKind.Relative), null);
-        var result = await response.Content.ReadFromJsonAsync<ReparseResult>(Json);
+        var result = await RunReparse(client);
         var list = await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json);
 
         Assert.Multiple(() =>
@@ -1572,8 +1570,7 @@ public class HousingImportTests
         await RunDetails(client);
         await Sql("UPDATE housing.offer SET floor = NULL; DELETE FROM housing.offer_feature;");
 
-        var response = await client.PostAsync(new Uri("/api/housing/reparse", UriKind.Relative), null);
-        var result = await response.Content.ReadFromJsonAsync<ReparseResult>(Json);
+        var result = await RunReparse(client);
 
         var floor = await Scalar<int>("SELECT floor FROM housing.offer");
         var feature = await Scalar<int>("SELECT feature FROM housing.offer_feature");
@@ -1645,25 +1642,13 @@ public class HousingImportTests
         await RunDetails(client);
         var before = await Scalar<long>("SELECT count(*) FROM housing.offer_change");
 
-        var response = await client.PostAsync(new Uri("/api/housing/reparse", UriKind.Relative), null);
-        response.EnsureSuccessStatusCode();
+        await RunReparse(client);
 
         Assert.Multiple(async () =>
         {
             Assert.That(before, Is.EqualTo(2));
             Assert.That(await Scalar<long>("SELECT count(*) FROM housing.offer_change"), Is.EqualTo(before));
         });
-    }
-
-    [Test]
-    public async Task Import_of_an_unknown_source_is_not_found()
-    {
-        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
-        using var client = factory.CreateClient();
-
-        var response = await client.PostAsync(new Uri("/api/housing/import/99", UriKind.Relative), null);
-
-        Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
     }
 
     private void WithFakes(IServiceCollection services)
@@ -1706,6 +1691,16 @@ public class HousingImportTests
         Assert.That(run.Status, Is.EqualTo(JobRunStatus.Succeeded), run.ErrorCode);
         var counts = run.Summary!.Counts;
         return new Imported((int)counts["pages"], (int)counts["added"], (int)counts["updated"], (int)counts["unchanged"]);
+    }
+
+    private static async Task<ReparseResult> RunReparse(HttpClient client)
+    {
+        var run = await JobRuns.Run(client, Reparse);
+        Assert.That(run.Status, Is.EqualTo(JobRunStatus.Succeeded), run.ErrorCode);
+        var counts = run.Summary!.Counts;
+        return new ReparseResult(
+            (int)counts["pages"], (int)counts["failedPages"], (int)counts["added"], (int)counts["updated"],
+            (int)counts["unchanged"], (int)counts["skipped"], (int)counts["detailPages"]);
     }
 
     private static async Task<Fetched> RunDetails(HttpClient client)

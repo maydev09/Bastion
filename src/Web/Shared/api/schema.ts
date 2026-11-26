@@ -73,40 +73,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/housing/import/{source}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Fetches one live results page of the source, stores it as raw data, saves new offers and updates changed ones. */
-        post: operations["ImportHousingOffers"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/housing/reparse": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Parses all stored raw pages again, oldest first, and saves the offers. Nothing is fetched. */
-        post: operations["ReparseHousingOffers"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/housing/offers": {
         parameters: {
             query?: never;
@@ -252,6 +218,95 @@ export interface paths {
         };
         /** Returns one stored offer with its place and the nearest big cities, also a removed one. */
         get: operations["GetHousingOffer"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/housing/jobs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns every job of the module in its registered order: its schedule (dailyAt, a time of day in timeZone, or every, an interval; neither: started by hand only), whether schedules are on here (scheduled), its latest run (null before the first one) and the server's current time. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["JobList"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/housing/jobs/runs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Returns the runs of the module's jobs, newest first: when each was queued, started and finished, what started it (Manual or Schedule), how it ended, the error code of a failed run and the counts of its summary. job, status and trigger narrow the list; from (inclusive) and to (exclusive) narrow it to runs queued in that time range (ISO 8601; a time without an offset is UTC); page and pageSize page it. */
+        get: {
+            parameters: {
+                query?: {
+                    job?: string;
+                    status?: components["schemas"]["JobRunStatus"];
+                    trigger?: components["schemas"]["JobTrigger"];
+                    from?: string;
+                    to?: string;
+                    page?: number;
+                    pageSize?: number;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["PagedResultOfJobRun"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/problem+json": components["schemas"]["ProblemDetails"];
+                    };
+                };
+            };
+        };
         put?: never;
         post?: never;
         delete?: never;
@@ -414,22 +469,19 @@ export interface components {
             width: number;
             counts: number[];
         };
-        ImportResult: {
-            source: components["schemas"]["Source"];
-            /** Format: int32 */
-            pageCount: number;
-            /** Format: int32 */
-            addedCount: number;
-            /** Format: int32 */
-            updatedCount: number;
-            /** Format: int32 */
-            unchangedCount: number;
-            /** Format: int32 */
-            skippedCount: number;
-            /** Format: int32 */
-            missedCount: number;
-            /** Format: int32 */
-            removedCount: number;
+        JobList: {
+            jobs: components["schemas"]["JobListItem"][];
+            scheduled: boolean;
+            timeZone: string;
+            /** Format: date-time */
+            serverTime: string;
+        };
+        JobListItem: {
+            name: string;
+            /** Format: time */
+            dailyAt: null | string;
+            every: null | string;
+            latestRun: null | components["schemas"]["JobRun"];
         };
         JobRun: {
             /** Format: int32 */
@@ -614,6 +666,15 @@ export interface components {
             areaM2?: null | components["schemas"]["Spread"];
             daysListed?: null | components["schemas"]["Spread"];
         };
+        PagedResultOfJobRun: {
+            items: components["schemas"]["JobRun"][];
+            /** Format: int32 */
+            page: number;
+            /** Format: int32 */
+            pageSize: number;
+            /** Format: int32 */
+            totalCount: number;
+        };
         PagedResultOfOfferListItem: {
             items: components["schemas"]["OfferListItem"][];
             /** Format: int32 */
@@ -679,22 +740,6 @@ export interface components {
         };
         /** @enum {unknown} */
         RentSource: "Stated" | "Nominal" | "Estimated" | "Description" | "Included";
-        ReparseResult: {
-            /** Format: int32 */
-            captureCount: number;
-            /** Format: int32 */
-            failedCount: number;
-            /** Format: int32 */
-            addedCount: number;
-            /** Format: int32 */
-            updatedCount: number;
-            /** Format: int32 */
-            unchangedCount: number;
-            /** Format: int32 */
-            skippedCount: number;
-            /** Format: int32 */
-            detailCount: number;
-        };
         SchemaMigration: {
             schema: string;
             version: null | string;
@@ -771,75 +816,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["AppVersion"];
-                };
-            };
-        };
-    };
-    ImportHousingOffers: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                source: components["schemas"]["Source"];
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ImportResult"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Bad Gateway */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-            /** @description Service Unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/problem+json": components["schemas"]["ProblemDetails"];
-                };
-            };
-        };
-    };
-    ReparseHousingOffers: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description OK */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ReparseResult"];
                 };
             };
         };

@@ -22,6 +22,17 @@
   color: var(--color-muted);
 }
 
+.label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  white-space: nowrap;
+
+  & > svg {
+    color: var(--color-text-secondary);
+  }
+}
+
 .positioner {
   z-index: 20;
   outline: none;

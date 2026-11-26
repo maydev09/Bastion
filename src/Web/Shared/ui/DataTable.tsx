@@ -8,6 +8,7 @@ import {
   type SortingState,
 } from "@tanstack/react-table";
 import {
+  Fragment,
   useEffect,
   useLayoutEffect,
   useMemo,
@@ -62,6 +63,9 @@ type Props<Row extends RowData> = {
   scrollKey?: string;
   // The row to mark, e.g. the one the user opened last.
   markedRowId?: string;
+  // The rows opened in place: renderExpanded shows the details of each on a full-width line under it.
+  expandedRowIds?: string[];
+  renderExpanded?: (row: Row) => ReactNode;
 };
 
 export function DataTable<Row extends RowData>({
@@ -76,6 +80,8 @@ export function DataTable<Row extends RowData>({
   fill = false,
   scrollKey,
   markedRowId,
+  expandedRowIds = [],
+  renderExpanded,
 }: Props<Row>) {
   const tableColumns = useMemo(
     () =>
@@ -84,7 +90,6 @@ export function DataTable<Row extends RowData>({
         header: column.header,
         // TanStack lets only columns with an accessor be sorted; the row itself is enough.
         accessorFn: (row) => row,
-        cell: ({ row }) => column.cell(row.original),
         enableSorting: column.sortable ?? false,
         sortDescFirst: column.descendingFirst ?? false,
       })),
@@ -207,18 +212,27 @@ export function DataTable<Row extends RowData>({
               </tr>
             ))}
           {table.getRowModel().rows.map((row) => (
-            <tr
-              key={row.id}
-              data-clickable={onRowClick !== undefined}
-              data-marked={row.id === markedRowId || undefined}
-              onClick={(event) => handleRowClick(event, row.original)}
-            >
-              {row.getAllCells().map((cell) => (
-                <td key={cell.id} data-align={byId.get(cell.column.id)?.align ?? "start"}>
-                  <table.FlexRender cell={cell} />
-                </td>
-              ))}
-            </tr>
+            <Fragment key={row.id}>
+              <tr
+                data-clickable={onRowClick !== undefined}
+                data-marked={row.id === markedRowId || undefined}
+                data-expanded={expandedRowIds.includes(row.id) || undefined}
+                onClick={(event) => handleRowClick(event, row.original)}
+              >
+                {/* Cells are rendered by calling column.cell, not as components, so new columns (e.g. after a
+                    state change) update the cells instead of mounting them anew, which would drop focus. */}
+                {columns.map((column) => (
+                  <td key={column.id} data-align={column.align ?? "start"}>
+                    {column.cell(row.original)}
+                  </td>
+                ))}
+              </tr>
+              {renderExpanded && expandedRowIds.includes(row.id) && (
+                <tr className={styles.expanded}>
+                  <td colSpan={columns.length}>{renderExpanded(row.original)}</td>
+                </tr>
+              )}
+            </Fragment>
           ))}
         </tbody>
       </table>

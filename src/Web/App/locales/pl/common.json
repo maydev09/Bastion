@@ -42,6 +42,10 @@
     },
     "database": {
       "unavailable": "Nie udało się połączyć z bazą. Czy działa (scripts/dev-up.sh)?"
+    },
+    "jobs": {
+      "unexpected": "Zadanie przerwał nieoczekiwany błąd; szczegóły są w logach serwera.",
+      "unknownJob": "Nie ma takiego zadania."
     }
   },
   "database": {
@@ -51,6 +55,9 @@
     "running": "Sprawdzam…",
     "ok": "Połączenie z bazą danych działa.",
     "canChangeSchema": "Uwaga: aplikacja ma za szerokie uprawnienia w bazie (może zmieniać schemat)."
+  },
+  "date": {
+    "clear": "Wyczyść datę"
   },
   "table": {
     "pagination": "Strony wyników",

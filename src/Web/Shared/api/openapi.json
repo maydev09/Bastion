@@ -79,88 +79,6 @@
         }
       }
     },
-    "/api/housing/import/{source}": {
-      "post": {
-        "tags": [
-          "Housing"
-        ],
-        "summary": "Fetches one live results page of the source, stores it as raw data, saves new offers and updates changed ones.",
-        "operationId": "ImportHousingOffers",
-        "parameters": [
-          {
-            "name": "source",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "$ref": "#/components/schemas/Source"
-            }
-          }
-        ],
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ImportResult"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "502": {
-            "description": "Bad Gateway",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          },
-          "503": {
-            "description": "Service Unavailable",
-            "content": {
-              "application/problem+json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ProblemDetails"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
-    "/api/housing/reparse": {
-      "post": {
-        "tags": [
-          "Housing"
-        ],
-        "summary": "Parses all stored raw pages again, oldest first, and saves the offers. Nothing is fetched.",
-        "operationId": "ReparseHousingOffers",
-        "responses": {
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/ReparseResult"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/housing/offers": {
       "get": {
         "tags": [
@@ -1087,6 +1005,117 @@
         }
       }
     },
+    "/api/housing/jobs": {
+      "get": {
+        "tags": [
+          "Housing"
+        ],
+        "summary": "Returns every job of the module in its registered order: its schedule (dailyAt, a time of day in timeZone, or every, an interval; neither: started by hand only), whether schedules are on here (scheduled), its latest run (null before the first one) and the server's current time.",
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobList"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/housing/jobs/runs": {
+      "get": {
+        "tags": [
+          "Housing"
+        ],
+        "summary": "Returns the runs of the module's jobs, newest first: when each was queued, started and finished, what started it (Manual or Schedule), how it ended, the error code of a failed run and the counts of its summary. job, status and trigger narrow the list; from (inclusive) and to (exclusive) narrow it to runs queued in that time range (ISO 8601; a time without an offset is UTC); page and pageSize page it.",
+        "parameters": [
+          {
+            "name": "job",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/JobRunStatus"
+            }
+          },
+          {
+            "name": "trigger",
+            "in": "query",
+            "schema": {
+              "$ref": "#/components/schemas/JobTrigger"
+            }
+          },
+          {
+            "name": "from",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "to",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "format": "date-time"
+            }
+          },
+          {
+            "name": "page",
+            "in": "query",
+            "schema": {
+              "maximum": 2147483647,
+              "minimum": 1,
+              "type": "integer",
+              "format": "int32",
+              "default": 1
+            }
+          },
+          {
+            "name": "pageSize",
+            "in": "query",
+            "schema": {
+              "maximum": 100,
+              "minimum": 1,
+              "type": "integer",
+              "format": "int32",
+              "default": 50
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PagedResultOfJobRun"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/problem+json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProblemDetails"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/housing/jobs/{job}/runs": {
       "post": {
         "tags": [
@@ -1408,49 +1437,68 @@
           }
         }
       },
-      "ImportResult": {
+      "JobList": {
         "required": [
-          "source",
-          "pageCount",
-          "addedCount",
-          "updatedCount",
-          "unchangedCount",
-          "skippedCount",
-          "missedCount",
-          "removedCount"
+          "jobs",
+          "scheduled",
+          "timeZone",
+          "serverTime"
         ],
         "type": "object",
         "properties": {
-          "source": {
-            "$ref": "#/components/schemas/Source"
+          "jobs": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobListItem"
+            }
           },
-          "pageCount": {
-            "type": "integer",
-            "format": "int32"
+          "scheduled": {
+            "type": "boolean"
           },
-          "addedCount": {
-            "type": "integer",
-            "format": "int32"
+          "timeZone": {
+            "type": "string"
           },
-          "updatedCount": {
-            "type": "integer",
-            "format": "int32"
+          "serverTime": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "JobListItem": {
+        "required": [
+          "name",
+          "dailyAt",
+          "every",
+          "latestRun"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
           },
-          "unchangedCount": {
-            "type": "integer",
-            "format": "int32"
+          "dailyAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "time"
           },
-          "skippedCount": {
-            "type": "integer",
-            "format": "int32"
+          "every": {
+            "pattern": "^-?(\\d+\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": [
+              "null",
+              "string"
+            ]
           },
-          "missedCount": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "removedCount": {
-            "type": "integer",
-            "format": "int32"
+          "latestRun": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/JobRun"
+              }
+            ]
           }
         }
       },
@@ -2265,6 +2313,35 @@
           }
         }
       },
+      "PagedResultOfJobRun": {
+        "required": [
+          "items",
+          "page",
+          "pageSize",
+          "totalCount"
+        ],
+        "type": "object",
+        "properties": {
+          "items": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/JobRun"
+            }
+          },
+          "page": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "pageSize": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "totalCount": {
+            "type": "integer",
+            "format": "int32"
+          }
+        }
+      },
       "PagedResultOfOfferListItem": {
         "required": [
           "items",
@@ -2527,48 +2604,6 @@
           "Description",
           "Included"
         ]
-      },
-      "ReparseResult": {
-        "required": [
-          "captureCount",
-          "failedCount",
-          "addedCount",
-          "updatedCount",
-          "unchangedCount",
-          "skippedCount",
-          "detailCount"
-        ],
-        "type": "object",
-        "properties": {
-          "captureCount": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "failedCount": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "addedCount": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "updatedCount": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "unchangedCount": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "skippedCount": {
-            "type": "integer",
-            "format": "int32"
-          },
-          "detailCount": {
-            "type": "integer",
-            "format": "int32"
-          }
-        }
       },
       "SchemaMigration": {
         "required": [

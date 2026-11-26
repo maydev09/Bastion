@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Bastion.Platform.Abstractions;
 using Dapper;
 using Npgsql;
 
@@ -52,6 +53,68 @@ public sealed class JobRunRepository(NpgsqlDataSource db, string schema)
             new { Job = job },
             cancellationToken: cancellationToken));
         return row?.ToRun();
+    }
+
+    // The latest run of every job that has run.
+    public async Task<IReadOnlyList<JobRun>> ListLatestAsync(CancellationToken cancellationToken)
+    {
+        await using var connection = await db.OpenConnectionAsync(cancellationToken);
+        var rows = await connection.QueryAsync<Row>(new CommandDefinition(
+            $"SELECT DISTINCT ON (job) {Columns} FROM {schema}.job_run ORDER BY job, id DESC",
+            cancellationToken: cancellationToken));
+        return rows.Select(r => r.ToRun()).ToList();
+    }
+
+    // Newest first; a null job or status leaves that filter off.
+    public async Task<PagedResult<JobRun>> ListAsync(JobRunFilter filter, PageRequest page, CancellationToken cancellationToken)
+    {
+        var conditions = new List<string> { "TRUE" };
+        if (filter.Job is not null)
+        {
+            conditions.Add("job = @Job");
+        }
+
+        if (filter.Status is not null)
+        {
+            conditions.Add("status = @Status");
+        }
+
+        if (filter.Trigger is not null)
+        {
+            conditions.Add("trigger = @Trigger");
+        }
+
+        if (filter.From is not null)
+        {
+            conditions.Add("queued_at >= @From");
+        }
+
+        if (filter.To is not null)
+        {
+            conditions.Add("queued_at < @To");
+        }
+
+        var where = string.Join(" AND ", conditions);
+        await using var connection = await db.OpenConnectionAsync(cancellationToken);
+        await using var results = await connection.QueryMultipleAsync(new CommandDefinition(
+            $"""
+            SELECT {Columns} FROM {schema}.job_run WHERE {where} ORDER BY id DESC LIMIT @PageSize OFFSET @Offset;
+            SELECT count(*)::int FROM {schema}.job_run WHERE {where};
+            """,
+            new
+            {
+                filter.Job,
+                Status = (int?)filter.Status,
+                Trigger = (int?)filter.Trigger,
+                // Npgsql writes timestamptz only from UTC values; the API takes any offset.
+                From = filter.From?.ToUniversalTime(),
+                To = filter.To?.ToUniversalTime(),
+                page.PageSize,
+                page.Offset,
+            },
+            cancellationToken: cancellationToken));
+        var runs = (await results.ReadAsync<Row>()).Select(r => r.ToRun()).ToList();
+        return new PagedResult<JobRun>(runs, page.Page, page.PageSize, await results.ReadSingleAsync<int>());
     }
 
     // Only runs queued before the application started, so runs of the current start are never touched.
