@@ -26,28 +26,37 @@ public sealed class MonthlyCostRepository(NpgsqlDataSource db) : IMonthlyCostRep
 
     private const string ReplaceRatesSql = """
         DELETE FROM housing.rent_rate;
-        INSERT INTO housing.rent_rate (basis, voivodeship, place_id, district_id, building_type, median_per_m2, sample_size, calculated_at)
-        SELECT * FROM unnest(@Bases, @Voivodeships, @PlaceIds, @DistrictIds, @BuildingTypes, @Medians, @SampleSizes, @CalculatedAts);
+        INSERT INTO housing.rent_rate
+            (basis, voivodeship, place_id, district_id, building_type, median_per_m2, currency, sample_size, calculated_at)
+        SELECT * FROM unnest(@Bases, @Voivodeships, @PlaceIds, @DistrictIds, @BuildingTypes, @Medians, @Currencies, @SampleSizes, @CalculatedAts);
         """;
 
-    // Every calculation rewrites the rows, so calculated_at says when the cost was last checked. An estimate belongs to its
-    // cost: the costs are written first.
+    // A calculation writes its rows only where no later one has: a cost saved while the nightly run was working is newer
+    // than that run's snapshot (calculated_at) and stays. An estimate follows the cost row this calculation wrote.
     private const string SaveSql = """
-        DELETE FROM housing.monthly_cost WHERE offer_id = ANY(@OfferIds) AND NOT offer_id = ANY(@CostOfferIds);
+        DELETE FROM housing.monthly_cost
+        WHERE offer_id = ANY(@OfferIds) AND NOT offer_id = ANY(@CostOfferIds) AND calculated_at <= @CalculatedAt;
         INSERT INTO housing.monthly_cost AS c (offer_id, rent, rent_source, total, currency, rent_quote, calculated_at)
-        SELECT * FROM unnest(@CostOfferIds, @Rents, @RentSources, @Totals, @Currencies, @RentQuotes, @CalculatedAts)
+        SELECT u.*, @CalculatedAt FROM unnest(@CostOfferIds, @Rents, @RentSources, @Totals, @Currencies, @RentQuotes) AS u
         ON CONFLICT (offer_id) DO UPDATE SET
             rent = excluded.rent,
             rent_source = excluded.rent_source,
             total = excluded.total,
             currency = excluded.currency,
             rent_quote = excluded.rent_quote,
-            calculated_at = excluded.calculated_at;
+            calculated_at = excluded.calculated_at
+        WHERE c.calculated_at <= excluded.calculated_at;
 
-        DELETE FROM housing.rent_estimate WHERE offer_id = ANY(@OfferIds) AND NOT offer_id = ANY(@EstimateOfferIds);
+        DELETE FROM housing.rent_estimate e
+        USING housing.monthly_cost c
+        WHERE c.offer_id = e.offer_id AND c.offer_id = ANY(@OfferIds) AND c.calculated_at = @CalculatedAt
+          AND NOT e.offer_id = ANY(@EstimateOfferIds);
         INSERT INTO housing.rent_estimate AS e
             (offer_id, rate_per_m2, basis, basis_per_m2, sample_size, neighbors, neighbors_per_m2, neighbors_km)
-        SELECT * FROM unnest(@EstimateOfferIds, @RatesPerM2, @Bases, @BasisRates, @SampleSizes, @Neighbors, @NeighborRates, @NeighborKms)
+        SELECT u.*
+        FROM unnest(@EstimateOfferIds, @RatesPerM2, @Bases, @BasisRates, @SampleSizes, @Neighbors, @NeighborRates, @NeighborKms)
+            AS u (offer_id, rate_per_m2, basis, basis_per_m2, sample_size, neighbors, neighbors_per_m2, neighbors_km)
+        JOIN housing.monthly_cost c ON c.offer_id = u.offer_id AND c.calculated_at = @CalculatedAt
         ON CONFLICT (offer_id) DO UPDATE SET
             rate_per_m2 = excluded.rate_per_m2,
             basis = excluded.basis,
@@ -82,7 +91,7 @@ public sealed class MonthlyCostRepository(NpgsqlDataSource db) : IMonthlyCostRep
     public async Task<IReadOnlyList<RentRate>> ListRatesAsync(CancellationToken cancellationToken)
     {
         const string sql = """
-            SELECT basis, voivodeship, place_id, district_id, building_type, median_per_m2, sample_size, calculated_at
+            SELECT basis, voivodeship, place_id, district_id, building_type, median_per_m2, currency, sample_size, calculated_at
             FROM housing.rent_rate
             """;
         await using var connection = await db.OpenConnectionAsync(cancellationToken);
@@ -102,6 +111,7 @@ public sealed class MonthlyCostRepository(NpgsqlDataSource db) : IMonthlyCostRep
             DistrictIds = rates.Select(r => r.DistrictId).ToArray(),
             BuildingTypes = rates.Select(r => (int?)r.BuildingType).ToArray(),
             Medians = rates.Select(r => r.MedianPerM2).ToArray(),
+            Currencies = rates.Select(r => (int)r.Currency).ToArray(),
             SampleSizes = rates.Select(r => r.SampleSize).ToArray(),
             CalculatedAts = rates.Select(r => r.CalculatedAt).ToArray(),
         }, transaction, cancellationToken: cancellationToken));
@@ -109,20 +119,24 @@ public sealed class MonthlyCostRepository(NpgsqlDataSource db) : IMonthlyCostRep
     }
 
     public async Task SaveAsync(
-        IReadOnlyList<int> offerIds, IReadOnlyList<MonthlyCost> costs, IReadOnlyList<RentEstimate> estimates, CancellationToken cancellationToken)
+        IReadOnlyList<int> offerIds,
+        DateTimeOffset calculatedAt,
+        IReadOnlyList<MonthlyCost> costs,
+        IReadOnlyList<RentEstimate> estimates,
+        CancellationToken cancellationToken)
     {
         await using var connection = await db.OpenConnectionAsync(cancellationToken);
         await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
         await connection.ExecuteAsync(new CommandDefinition(SaveSql, new
         {
             OfferIds = offerIds.ToArray(),
+            CalculatedAt = calculatedAt,
             CostOfferIds = costs.Select(c => c.OfferId).ToArray(),
             Rents = costs.Select(c => c.Rent).ToArray(),
             RentSources = costs.Select(c => (int)c.RentSource).ToArray(),
             Totals = costs.Select(c => c.Total).ToArray(),
             Currencies = costs.Select(c => (int)c.Currency).ToArray(),
             RentQuotes = costs.Select(c => c.RentQuote).ToArray(),
-            CalculatedAts = costs.Select(c => c.CalculatedAt).ToArray(),
             EstimateOfferIds = estimates.Select(e => e.OfferId).ToArray(),
             RatesPerM2 = estimates.Select(e => e.RatePerM2).ToArray(),
             Bases = estimates.Select(e => (int?)e.Basis).ToArray(),
@@ -150,10 +164,12 @@ public sealed class MonthlyCostRepository(NpgsqlDataSource db) : IMonthlyCostRep
 
         public decimal MedianPerM2 { get; init; }
 
+        public Currency Currency { get; init; }
+
         public int SampleSize { get; init; }
 
         public DateTimeOffset CalculatedAt { get; init; }
 
-        public RentRate ToRate() => new(Basis, Voivodeship, PlaceId, DistrictId, BuildingType, MedianPerM2, SampleSize, CalculatedAt);
+        public RentRate ToRate() => new(Basis, Voivodeship, PlaceId, DistrictId, BuildingType, MedianPerM2, Currency, SampleSize, CalculatedAt);
     }
 }

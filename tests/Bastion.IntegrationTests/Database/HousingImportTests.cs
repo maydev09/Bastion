@@ -740,6 +740,27 @@ public class HousingImportTests
     }
 
     [Test]
+    public async Task A_nominal_rent_where_there_was_none_is_no_change()
+    {
+        await using var factory = App(WithFakes);
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small]];
+        await RunImport(client);
+        var id = (await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json))!.Items.Single().Id;
+
+        // The parser dropped rents of 1 zł before; the same listing now shows one.
+        _source.Pages = [[Small with { RentAmount = 1m, RentCurrency = Currency.Pln }]];
+        await RunImport(client);
+        var card = await client.GetFromJsonAsync<OfferListItem>($"/api/housing/offers/{id}", Json);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(card!.Rent, Is.EqualTo(1m));
+            Assert.That(card.Changes, Is.Empty);
+        });
+    }
+
+    [Test]
     public async Task Nearby_offers_weigh_in_the_estimate()
     {
         await using var factory = App(WithFakes, NoAreaCorrection);

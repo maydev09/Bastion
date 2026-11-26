@@ -62,7 +62,8 @@ public static class OfferEndpoints
             TypedResults.Ok(await handler.Handle(filter.ToFilter(), new PageRequest(page, pageSize), sort, direction, cancellationToken)))
         .WithName("ListHousingOffers")
         .WithSummary("Returns stored offers that match all given filters, by default newest first; offers without the sorted value come last. "
-            + "Prices are in PLN; totalCost is the price plus the admin rent a month (rentSource: Stated in the rent field; Description "
+            + "Prices are in PLN; priceMin/priceMax bound the price, totalCostMin/totalCostMax the monthly cost (price plus admin "
+            + "rent, offers without one left out), both in PLN and inclusive. monthlyCost.total is the price plus the admin rent a month (rentSource: Stated in the rent field; Description "
             + "or Included as the description says, with rentQuote; Nominal for a field of 0 or 1 zł with nothing in the description, taken as 0; "
             + "Estimated from the nearest offers of the same building type and the most local group of offers, with both shown); "
             + "place and voivodeship together match offers in any of them, and so do rooms and roomsMin; "
@@ -80,7 +81,7 @@ public static class OfferEndpoints
         .WithName("CountHousingOfferFacets")
         .WithSummary("Returns how many offers each filter choice would show with the other given filters (districts: the districts "
             + "and neighborhoods of the picked places by id, a district with its neighborhoods), "
-            + "the spread of prices, areas and total monthly costs without their own bounds, and the offers first seen since each countAddedSince.");
+            + "the spread of prices, areas and total monthly costs (PLN) without their own bounds (priceMin/priceMax, areaMin/areaMax, totalCostMin/totalCostMax), and the offers first seen since each countAddedSince.");
 
         app.MapGet("/offers/summary", async (
             ListOffersHandler handler, CancellationToken cancellationToken, [AsParameters] OfferFilterQuery filter) =>

@@ -18,7 +18,12 @@ public interface IMonthlyCostRepository
     // The stored rates are replaced by these.
     Task ReplaceRatesAsync(IReadOnlyList<RentRate> rates, CancellationToken cancellationToken);
 
-    // Stores the costs of the offers and the estimates of their rents; an offer of offerIds without a cost or an estimate
-    // loses its stored one.
-    Task SaveAsync(IReadOnlyList<int> offerIds, IReadOnlyList<MonthlyCost> costs, IReadOnlyList<RentEstimate> estimates, CancellationToken cancellationToken);
+    // Stores the costs of the offers and the estimates of their rents, calculated from inputs read at calculatedAt; an offer
+    // of offerIds without a cost or an estimate loses its stored one. A row calculated later is kept.
+    Task SaveAsync(
+        IReadOnlyList<int> offerIds,
+        DateTimeOffset calculatedAt,
+        IReadOnlyList<MonthlyCost> costs,
+        IReadOnlyList<RentEstimate> estimates,
+        CancellationToken cancellationToken);
 }

@@ -39,7 +39,7 @@ public static partial class RentInDescription
                 // the next item, not the rent's).
                 var gap = rest[..after.Groups["whole"].Index];
                 var tail = rest[(after.Index + after.Length)..];
-                tail = tail[..ItemEnd(tail)];
+                tail = tail[..FindItemEnd(tail)];
                 if (PerPerson().IsMatch(gap) || PerPerson().IsMatch(tail) || PerM2().IsMatch(tail)
                     || Utilities().IsMatch(gap) || UtilitiesAfter().IsMatch(tail) || WithUtilities().IsMatch(gap + tail))
                 {
@@ -78,7 +78,7 @@ public static partial class RentInDescription
     }
 
     // Where an item of a list ends: a semicolon, a bullet, or a full stop or a dash before a capital letter.
-    private static int ItemEnd(string text)
+    private static int FindItemEnd(string text)
     {
         var end = ItemSeparator().Match(text);
         return end.Success ? end.Index : text.Length;
@@ -126,9 +126,10 @@ public static partial class RentInDescription
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex AmountAfter();
 
-    // An amount right before the label, not that of the deposit or the price ("kaucja 3000 zł czynsz administracyjny…").
+    // An amount right before the label, not that of the deposit or the price ("kaucja 3000 zł czynsz administracyjny…"),
+    // nor the end of one written with a thousands space ("3 500").
     [GeneratedRegex(
-        @"(?<!(?:kaucj\w*|depozyt\w*|cena|cen[aęy]\s+najmu|najmu|odstępne)\s*:?\s*)(?<![\d.,])(?<whole>\d{1,3}(?:[ .]\d{3})+|\d+)(?:[,.](?<fraction>\d{1,2}))?\s*(?:zł|zl|pln|,-)?\s*(?:[+\-–•]\s*)?$",
+        @"(?<!(?:kaucj\w*|depozyt\w*|cena|cen[aęy]\s+najmu|najmu|odstępne)\s*:?\s*)(?<![\d.,]\s?)(?<whole>\d{1,3}(?:[ .]\d{3})+|\d+)(?:[,.](?<fraction>\d{1,2}))?\s*(?:zł|zl|pln|,-)?\s*(?:[+\-–•]\s*)?$",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex AmountBefore();
 

@@ -27,10 +27,11 @@ public class RentInDescriptionTests
         Assert.That(reading.Amounts.Select(m => m.Amount), Is.EqualTo(new[] { amount }));
     }
 
-    [Test]
-    public void The_deposit_before_the_label_is_no_rent()
+    [TestCase("Kaucja 3000 zł czynsz administracyjny według zużycia")]
+    [TestCase("Kaucja: 3 500 zł czynsz administracyjny według zużycia")]
+    public void The_deposit_before_the_label_is_no_rent(string description)
     {
-        var reading = RentInDescription.Read(null, "Kaucja 3000 zł czynsz administracyjny według zużycia");
+        var reading = RentInDescription.Read(null, description);
 
         Assert.That(reading.Amounts, Is.Empty);
     }

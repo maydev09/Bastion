@@ -1,15 +1,17 @@
 using System.Text.Json;
 using Bastion.Modules.Housing.Application.Abstractions;
 using Bastion.Modules.Housing.Application.ListOffers;
+using Bastion.Modules.Housing.Application.MonthlyCosts;
 using Bastion.Modules.Housing.Application.Places;
 using Bastion.Modules.Housing.Domain;
 using Bastion.Platform.Abstractions;
 using Dapper;
+using Microsoft.Extensions.Options;
 using Npgsql;
 
 namespace Bastion.Modules.Housing.Infrastructure.Repositories;
 
-public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
+public sealed class OfferRepository(NpgsqlDataSource db, IOptions<MonthlyCostOptions> costs) : IOfferRepository
 {
     // Updates only a changed offer, and never with a page older than the stored data.
     // Returns no row for an unchanged offer, otherwise whether it was inserted (xmax = 0).
@@ -404,7 +406,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
 
         if (recordChanges && updated > 0)
         {
-            await RecordChangesAsync(connection, transaction, capture, externalIds, before, isDetailPage: false, cancellationToken);
+            await RecordChangesAsync(connection, transaction, capture, externalIds, before, isDetailPage: false, costs.Value.NominalRentBelow, cancellationToken);
         }
 
         await transaction.CommitAsync(cancellationToken);
@@ -429,12 +431,13 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         string[] externalIds,
         Dictionary<int, IDictionary<string, object?>> before,
         bool isDetailPage,
+        decimal nominalRentBelow,
         CancellationToken cancellationToken)
     {
         var after = await ReadContentAsync(connection, transaction, capture.SourceId, externalIds, cancellationToken);
         var changes = after
             .Where(a => before.ContainsKey(a.Key))
-            .Select(a => (OfferId: a.Key, Changes: BuildChangeMap(before[a.Key], a.Value, isDetailPage)))
+            .Select(a => (OfferId: a.Key, Changes: BuildChangeMap(before[a.Key], a.Value, isDetailPage, nominalRentBelow)))
             .Where(c => c.Changes.Count > 0)
             .ToList();
         if (changes.Count == 0)
@@ -452,13 +455,17 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
 
     // A value where there was none is a change (a seller adds the heating), except on the first detail page of an
     // offer: it fills all detail fields at once. A new offer has no "before" and so no changes.
+    // A nominal rent (0 or 1 zł) where there was none is no change either: the parser dropped such rents until
+    // 2026-11-26, so stored offers get them back without the seller changing anything, and they mean no rent anyway.
     private static Dictionary<string, object?[]> BuildChangeMap(
-        IDictionary<string, object?> before, IDictionary<string, object?> after, bool isDetailPage)
+        IDictionary<string, object?> before, IDictionary<string, object?> after, bool isDetailPage, decimal nominalRentBelow)
     {
         var isFirstDetailPage = isDetailPage && !(bool)before["has_details"]!;
+        var isNominalRentAdded = before["rent"] is null && after["rent"] is decimal rent && rent < nominalRentBelow;
         return after
             .Where(f => f.Key is not ("id" or "has_details"))
             .Where(f => !(isFirstDetailPage && before[f.Key] is null))
+            .Where(f => !(isNominalRentAdded && f.Key is "rent" or "rent_currency"))
             .Where(f => !AreEqual(before[f.Key], f.Value))
             .ToDictionary(f => f.Key, f => new[] { before[f.Key], f.Value });
     }
@@ -1067,7 +1074,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
 
         if (recordChanges)
         {
-            await RecordChangesAsync(connection, transaction, capture, externalIds, before, isDetailPage: true, cancellationToken);
+            await RecordChangesAsync(connection, transaction, capture, externalIds, before, isDetailPage: true, costs.Value.NominalRentBelow, cancellationToken);
         }
 
         await transaction.CommitAsync(cancellationToken);

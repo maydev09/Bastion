@@ -28,12 +28,12 @@ public sealed class RentEstimator
         _rates = rates.ToDictionary(r => new RateKey(r.Basis, r.Voivodeship, r.PlaceId, r.DistrictId, r.BuildingType));
         _samples = samples
             .Where(s => s is { Latitude: not null, Longitude: not null })
-            .Select(s => new Sample((double)s.Latitude!.Value, (double)s.Longitude!.Value, RateOf(s), s.BuildingType))
+            .Select(s => new Sample((double)s.Latitude!.Value, (double)s.Longitude!.Value, CalculateRatePerM2(s), s.BuildingType))
             .OrderBy(s => s.Latitude)
             .ToArray();
     }
 
-    // The median rent per m² of every group that has samples; the samples are offers with a plausible rent.
+    // The median rent per m² of every group that has samples; the samples are offers with a plausible rent in PLN.
     public static List<RentRate> CalculateRates(IReadOnlyList<CostInput> samples, DateTimeOffset now)
     {
         var groups = new Dictionary<RateKey, List<decimal>>();
@@ -47,14 +47,14 @@ public sealed class RentEstimator
                     groups[key] = values;
                 }
 
-                values.Add(RateOf(sample));
+                values.Add(CalculateRatePerM2(sample));
             }
         }
 
         return groups
             .Select(g => new RentRate(
                 g.Key.Basis, g.Key.Voivodeship, g.Key.PlaceId, g.Key.DistrictId, g.Key.BuildingType,
-                Math.Round(CalculateMedian(g.Value), 2, MidpointRounding.AwayFromZero), g.Value.Count, now))
+                Math.Round(CalculateMedian(g.Value), 2, MidpointRounding.AwayFromZero), Currency.Pln, g.Value.Count, now))
             .ToList();
     }
 
@@ -171,7 +171,7 @@ public sealed class RentEstimator
         return low;
     }
 
-    private static decimal RateOf(CostInput sample) => sample.Rent!.Value / sample.AreaM2!.Value;
+    private static decimal CalculateRatePerM2(CostInput sample) => sample.Rent!.Value / sample.AreaM2!.Value;
 
     // The groups of an offer, from the widest to the most local; a group needs the values it is keyed by.
     private static List<RateKey> ListKeys(CostInput offer)

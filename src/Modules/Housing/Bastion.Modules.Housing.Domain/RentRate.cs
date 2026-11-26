@@ -10,5 +10,6 @@ public sealed record RentRate(
     int? DistrictId,
     BuildingType? BuildingType,
     decimal MedianPerM2,
+    Currency Currency,
     int SampleSize,
     DateTimeOffset CalculatedAt);

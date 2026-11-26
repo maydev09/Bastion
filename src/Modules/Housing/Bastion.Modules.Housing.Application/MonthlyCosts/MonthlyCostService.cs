@@ -17,9 +17,11 @@ public sealed class MonthlyCostService(IMonthlyCostRepository repository, IOptio
         var rates = RentEstimator.CalculateRates(samples, time.GetUtcNow());
         await repository.ReplaceRatesAsync(rates, cancellationToken);
 
+        // Taken before the offers are read, so a cost saved meanwhile (it reads later) is not overwritten.
+        var calculatedAt = time.GetUtcNow();
         var offers = await repository.ListInputsAsync(cancellationToken);
-        var (costs, estimates, _) = CalculateCosts(offers, new RentEstimator(options.Value, rates, samples));
-        await repository.SaveAsync(offers.Select(o => o.OfferId).ToList(), costs, estimates, cancellationToken);
+        var (costs, estimates, _) = CalculateCosts(offers, new RentEstimator(options.Value, rates, samples), calculatedAt);
+        await repository.SaveAsync(offers.Select(o => o.OfferId).ToList(), calculatedAt, costs, estimates, cancellationToken);
         return new MonthlyCostResult(
             rates.Count,
             costs.Count(c => c.RentSource == RentSource.Stated),
@@ -39,18 +41,19 @@ public sealed class MonthlyCostService(IMonthlyCostRepository repository, IOptio
             return;
         }
 
+        var calculatedAt = time.GetUtcNow();
         var offers = await repository.ListInputsAsync(source, externalIds, cancellationToken);
-        var (costs, estimates, needEstimate) = CalculateCosts(offers, estimator: null);
+        var (costs, estimates, needEstimate) = CalculateCosts(offers, estimator: null, calculatedAt);
         if (needEstimate.Count > 0)
         {
             var estimator = new RentEstimator(
                 options.Value, await repository.ListRatesAsync(cancellationToken), await ListRateSamplesAsync(cancellationToken));
-            var (estimatedCosts, rentEstimates, _) = CalculateCosts(needEstimate, estimator);
+            var (estimatedCosts, rentEstimates, _) = CalculateCosts(needEstimate, estimator, calculatedAt);
             costs.AddRange(estimatedCosts);
             estimates.AddRange(rentEstimates);
         }
 
-        await repository.SaveAsync(offers.Select(o => o.OfferId).ToList(), costs, estimates, cancellationToken);
+        await repository.SaveAsync(offers.Select(o => o.OfferId).ToList(), calculatedAt, costs, estimates, cancellationToken);
     }
 
     // The offers whose rent the typical rents are made of: listed offers with a plausible rent field in PLN.
@@ -59,9 +62,8 @@ public sealed class MonthlyCostService(IMonthlyCostRepository repository, IOptio
 
     // Without an estimator, the offers that need an estimate are returned in NeedEstimate instead of a cost.
     private (List<MonthlyCost> Costs, List<RentEstimate> Estimates, List<CostInput> NeedEstimate) CalculateCosts(
-        IReadOnlyList<CostInput> offers, RentEstimator? estimator)
+        IReadOnlyList<CostInput> offers, RentEstimator? estimator, DateTimeOffset now)
     {
-        var now = time.GetUtcNow();
         var costs = new List<MonthlyCost>();
         var estimates = new List<RentEstimate>();
         var needEstimate = new List<CostInput>();
