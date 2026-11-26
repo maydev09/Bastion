@@ -69,8 +69,11 @@
   }
 }
 
+/* No width of its own: a browser sizes an input to about 20 characters of the system font, which
+   in a wider font pushed a narrow panel (the filters) out sideways. It grows to fill the line instead. */
 .input {
   flex: 1;
+  width: 0;
   min-width: 80px;
   height: 30px;
   padding: 0 var(--space-1);
