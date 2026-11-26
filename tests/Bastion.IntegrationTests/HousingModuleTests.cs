@@ -5,8 +5,8 @@ namespace Bastion.IntegrationTests;
 
 public class HousingModuleTests
 {
-    [TestCase("POST", "/api/housing/import/OtoDom")]
-    [TestCase("POST", "/api/housing/reparse")]
+    [TestCase("GET", "/api/housing/jobs")]
+    [TestCase("GET", "/api/housing/jobs/runs")]
     [TestCase("GET", "/api/housing/offers")]
     [TestCase("POST", "/api/housing/jobs/RawCaptureRetention/runs")]
     [TestCase("GET", "/api/housing/jobs/RawCaptureRetention/runs/latest")]

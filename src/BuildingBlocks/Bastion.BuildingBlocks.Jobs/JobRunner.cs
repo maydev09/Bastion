@@ -1,4 +1,5 @@
 using System.Threading.Channels;
+using Bastion.Platform.Abstractions;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -62,6 +63,22 @@ public sealed partial class JobRunner(
 
     public Task<JobRun?> LatestAsync(string job, CancellationToken cancellationToken) =>
         runs.LatestAsync(job, cancellationToken);
+
+    public async Task<JobList> ListAsync(CancellationToken cancellationToken)
+    {
+        var latest = (await runs.ListLatestAsync(cancellationToken)).ToDictionary(r => r.Job);
+        var items = jobs
+            .Select(job =>
+            {
+                var schedule = schedules.Get(OptionsName(schema, job.Name));
+                return new JobListItem(job.Name, schedule.DailyAt, schedule.Every, latest.GetValueOrDefault(job.Name));
+            })
+            .ToList();
+        return new JobList(items, options.Value.Scheduled, options.Value.TimeZone, time.GetUtcNow());
+    }
+
+    public Task<PagedResult<JobRun>> ListRunsAsync(JobRunFilter filter, PageRequest page, CancellationToken cancellationToken) =>
+        runs.ListAsync(filter, page, cancellationToken);
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {

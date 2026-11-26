@@ -6,6 +6,7 @@ using Bastion.BuildingBlocks.Jobs;
 using Bastion.BuildingBlocks.Scraping;
 using Bastion.Host;
 using Bastion.Modules.Housing.Application.Abstractions;
+using Bastion.Platform.Abstractions;
 using Dapper;
 using Microsoft.AspNetCore.Http.Connections;
 using Microsoft.AspNetCore.Mvc.Testing;
@@ -208,6 +209,63 @@ public class HousingJobsTests
         {
             Assert.That(run.Id, Is.EqualTo(started.Id));
             Assert.That(run.Status, Is.EqualTo(JobRunStatus.Succeeded));
+        });
+    }
+
+    [Test]
+    public async Task The_job_list_shows_every_job_with_its_schedule_and_latest_run()
+    {
+        await using var factory = App();
+        using var client = factory.CreateClient();
+        var run = await WaitForFinish(client, (await Start(client)).Id);
+
+        var list = await client.GetFromJsonAsync<JobList>("/api/housing/jobs", Json);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(list!.Jobs.Select(j => j.Name), Is.EqualTo(new[]
+            {
+                "ImportOffers", "ScanOffers", "FetchDetails", "ReparseOffers", "RawCaptureRetention", "ImportPlaces", "LinkPlaces",
+                "CalculateMonthlyCosts",
+            }));
+            var import = list.Jobs.Single(j => j.Name == "ImportOffers");
+            Assert.That((import.Every, import.DailyAt), Is.EqualTo(((TimeSpan?)TimeSpan.FromMinutes(10), (TimeOnly?)null)));
+            var retention = list.Jobs.Single(j => j.Name == "RawCaptureRetention");
+            Assert.That((retention.DailyAt, retention.LatestRun?.Id), Is.EqualTo(((TimeOnly?)new TimeOnly(4, 0), (int?)run.Id)));
+            Assert.That(list.Jobs.Single(j => j.Name == "ReparseOffers").LatestRun, Is.Null);
+            Assert.That(list.TimeZone, Is.EqualTo("Europe/Warsaw"));
+        });
+    }
+
+    [Test]
+    public async Task Run_history_is_newest_first_and_narrowed_by_job_status_trigger_and_time()
+    {
+        await Sql("""
+            INSERT INTO housing.job_run (job, trigger, status, queued_at, started_at, finished_at, error_code)
+            VALUES ('RawCaptureRetention', 2, 3, '2026-11-20T03:00:00Z', '2026-11-20T03:00:00Z', '2026-11-20T03:00:05Z', NULL),
+                   ('ImportOffers', 2, 4, '2026-11-20T03:10:00Z', '2026-11-20T03:10:00Z', '2026-11-20T03:10:09Z', 'housing.pageLimitReached'),
+                   ('RawCaptureRetention', 1, 4, '2026-11-21T03:00:00Z', '2026-11-21T03:00:00Z', '2026-11-21T03:00:01Z', 'jobs.unexpected');
+            """);
+        await using var factory = App();
+        using var client = factory.CreateClient();
+
+        var all = await client.GetFromJsonAsync<PagedResult<JobRun>>("/api/housing/jobs/runs", Json);
+        var retention = await client.GetFromJsonAsync<PagedResult<JobRun>>("/api/housing/jobs/runs?job=RawCaptureRetention", Json);
+        var failed = await client.GetFromJsonAsync<PagedResult<JobRun>>("/api/housing/jobs/runs?status=Failed&pageSize=1&page=2", Json);
+        var manual = await client.GetFromJsonAsync<PagedResult<JobRun>>("/api/housing/jobs/runs?trigger=Manual", Json);
+        // One day in Warsaw: from inclusive, to exclusive.
+        var day = await client.GetFromJsonAsync<PagedResult<JobRun>>(
+            "/api/housing/jobs/runs?from=2026-11-20T04:00:00%2B01:00&to=2026-11-21T04:00:00%2B01:00", Json);
+        var unknown = await client.GetAsync(new Uri("/api/housing/jobs/runs?job=nothing", UriKind.Relative));
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(all!.Items.Select(r => r.Job), Is.EqualTo(new[] { "RawCaptureRetention", "ImportOffers", "RawCaptureRetention" }));
+            Assert.That(retention!.Items.Select(r => r.Status), Is.EqualTo(new[] { JobRunStatus.Failed, JobRunStatus.Succeeded }));
+            Assert.That((failed!.TotalCount, failed.Items.Single().Job), Is.EqualTo((2, "ImportOffers")));
+            Assert.That(manual!.Items.Select(r => r.QueuedAt.Day), Is.EqualTo(new[] { 21 }));
+            Assert.That(day!.Items.Select(r => r.Job), Is.EqualTo(new[] { "ImportOffers", "RawCaptureRetention" }));
+            Assert.That(unknown.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
         });
     }
 
