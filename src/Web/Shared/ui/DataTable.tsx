@@ -35,6 +35,8 @@ export type DataTableColumn<Row> = {
   align?: "start" | "end";
   // In pixels; keeps text columns readable when the table is narrow.
   minWidth?: number;
+  // Only with fixedColumns: a share of the table ("15%") or a size ("6rem"); columns without one share the rest.
+  width?: string;
   sortable?: boolean;
   // The first click sorts descending (newest or largest first) instead of ascending.
   descendingFirst?: boolean;
@@ -66,6 +68,8 @@ type Props<Row extends RowData> = {
   // The rows opened in place: renderExpanded shows the details of each on a full-width line under it.
   expandedRowIds?: string[];
   renderExpanded?: (row: Row) => ReactNode;
+  // The columns keep their given width whatever their content, so tables of the same columns one above another line up.
+  fixedColumns?: boolean;
 };
 
 export function DataTable<Row extends RowData>({
@@ -82,6 +86,7 @@ export function DataTable<Row extends RowData>({
   markedRowId,
   expandedRowIds = [],
   renderExpanded,
+  fixedColumns = false,
 }: Props<Row>) {
   const tableColumns = useMemo(
     () =>
@@ -151,7 +156,18 @@ export function DataTable<Row extends RowData>({
     <div ref={frame} className={fill ? `${styles.frame} ${styles.fill}` : styles.frame}>
       {busy && <div className={styles.progress} aria-hidden="true" />}
       {loading && <VisuallyHidden role="status">{loading}</VisuallyHidden>}
-      <table className={styles.table} aria-busy={busy || loading !== undefined} data-busy={busy}>
+      <table
+        className={styles.table}
+        aria-busy={busy || loading !== undefined}
+        data-busy={busy}
+        data-fixed={fixedColumns}
+        // Fixed columns ignore their minWidth, so the table as a whole keeps it and scrolls when narrower.
+        style={
+          fixedColumns
+            ? { minWidth: columns.reduce((sum, column) => sum + (column.minWidth ?? 0), 0) }
+            : undefined
+        }
+      >
         <thead>
           {table.getHeaderGroups().map((group) => (
             <tr key={group.id}>
@@ -161,7 +177,10 @@ export function DataTable<Row extends RowData>({
                   <th
                     key={header.id}
                     data-align={byId.get(header.column.id)?.align ?? "start"}
-                    style={{ minWidth: byId.get(header.column.id)?.minWidth }}
+                    style={{
+                      minWidth: byId.get(header.column.id)?.minWidth,
+                      width: fixedColumns ? byId.get(header.column.id)?.width : undefined,
+                    }}
                     aria-sort={
                       header.column.getCanSort()
                         ? sorted === "asc"
