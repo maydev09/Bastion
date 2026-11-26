@@ -1,15 +1,17 @@
 using System.Text.Json;
 using Bastion.Modules.Housing.Application.Abstractions;
 using Bastion.Modules.Housing.Application.ListOffers;
+using Bastion.Modules.Housing.Application.MonthlyCosts;
 using Bastion.Modules.Housing.Application.Places;
 using Bastion.Modules.Housing.Domain;
 using Bastion.Platform.Abstractions;
 using Dapper;
+using Microsoft.Extensions.Options;
 using Npgsql;
 
 namespace Bastion.Modules.Housing.Infrastructure.Repositories;
 
-public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
+public sealed class OfferRepository(NpgsqlDataSource db, IOptions<MonthlyCostOptions> costs) : IOfferRepository
 {
     // Updates only a changed offer, and never with a page older than the stored data.
     // Returns no row for an unchanged offer, otherwise whether it was inserted (xmax = 0).
@@ -95,10 +97,19 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
          LIMIT 1) AS previous_price
         """;
 
+    // The monthly cost and the estimate of its rent, last in a row: each is read as its own object, from its first column
+    // on (CostSplit), and is null when that column is.
+    private const string CostColumns = """
+        mc.total, mc.currency, mc.rent, mc.rent_source, mc.rent_quote, mc.calculated_at,
+        re.rate_per_m2, re.basis, re.basis_per_m2, re.sample_size, re.neighbors, re.neighbors_per_m2, re.neighbors_km
+        """;
+
+    private const string CostSplit = "total,rate_per_m2";
+
     // The page is cut first and only its offers are joined with their places.
     // The WHERE conditions from BuildWhere pick the offers; the ORDER BY list from BuildOrderBy picks the page and orders its rows.
     private static string BuildListSql(string where, string orderBy) => $$"""
-        SELECT {{OfferColumns}}
+        SELECT {{OfferColumns}}, {{CostColumns}}
         FROM (
             SELECT *
             FROM housing.offer o
@@ -109,6 +120,8 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         LEFT JOIN housing.place p ON p.id = o.place_id
         LEFT JOIN housing.district d ON d.id = o.district_id
         LEFT JOIN housing.district dp ON dp.id = d.parent_id
+        LEFT JOIN housing.monthly_cost mc ON mc.offer_id = o.id
+        LEFT JOIN housing.rent_estimate re ON re.offer_id = o.id
         ORDER BY {{orderBy}};
 
         SELECT count(*)::int FROM housing.offer o WHERE {{where}};
@@ -146,6 +159,14 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
     // The price per m² as the list shows it; an offer without an area has none.
     private const string PricePerM2 = "o.price / NULLIF(o.area_m2, 0)";
 
+    // The rent as the list shows it: the one in the monthly cost (stated, 0 or estimated), else the stated one.
+    private const string RentShown =
+        "coalesce((SELECT mc.rent FROM housing.monthly_cost mc WHERE mc.offer_id = o.id), o.rent)";
+
+    // The total monthly cost in the filter's currency; an offer without one has none.
+    private const string TotalCost =
+        "(SELECT mc.total FROM housing.monthly_cost mc WHERE mc.offer_id = o.id AND mc.currency = @PriceCurrency)";
+
     private const string AllFeaturesCondition = """
         (SELECT count(*) FROM housing.offer_feature f WHERE f.offer_id = o.id AND f.feature = ANY(@Features)) = @FeatureCount
         """;
@@ -169,11 +190,13 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         SELECT {OfferColumns},
             o.deposit, o.deposit_currency, o.available_from, o.floor, o.building_floors,
             o.build_year, o.building_type, o.heating, o.condition, o.latitude, o.longitude, o.location_radius_m,
-            o.description, f.fetched_at AS details_fetched_at
+            o.description, f.fetched_at AS details_fetched_at, {CostColumns}
         FROM housing.offer o
         LEFT JOIN housing.place p ON p.id = o.place_id
         LEFT JOIN housing.district d ON d.id = o.district_id
         LEFT JOIN housing.district dp ON dp.id = d.parent_id
+        LEFT JOIN housing.monthly_cost mc ON mc.offer_id = o.id
+        LEFT JOIN housing.rent_estimate re ON re.offer_id = o.id
         LEFT JOIN housing.offer_detail_fetch f ON f.offer_id = o.id
         WHERE o.id = @Id;
 
@@ -383,7 +406,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
 
         if (recordChanges && updated > 0)
         {
-            await RecordChangesAsync(connection, transaction, capture, externalIds, before, isDetailPage: false, cancellationToken);
+            await RecordChangesAsync(connection, transaction, capture, externalIds, before, isDetailPage: false, costs.Value.NominalRentBelow, cancellationToken);
         }
 
         await transaction.CommitAsync(cancellationToken);
@@ -408,12 +431,13 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         string[] externalIds,
         Dictionary<int, IDictionary<string, object?>> before,
         bool isDetailPage,
+        decimal nominalRentBelow,
         CancellationToken cancellationToken)
     {
         var after = await ReadContentAsync(connection, transaction, capture.SourceId, externalIds, cancellationToken);
         var changes = after
             .Where(a => before.ContainsKey(a.Key))
-            .Select(a => (OfferId: a.Key, Changes: BuildChangeMap(before[a.Key], a.Value, isDetailPage)))
+            .Select(a => (OfferId: a.Key, Changes: BuildChangeMap(before[a.Key], a.Value, isDetailPage, nominalRentBelow)))
             .Where(c => c.Changes.Count > 0)
             .ToList();
         if (changes.Count == 0)
@@ -431,13 +455,17 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
 
     // A value where there was none is a change (a seller adds the heating), except on the first detail page of an
     // offer: it fills all detail fields at once. A new offer has no "before" and so no changes.
+    // A nominal rent (0 or 1 zł) where there was none is no change either: the parser dropped such rents until
+    // 2026-11-26, so stored offers get them back without the seller changing anything, and they mean no rent anyway.
     private static Dictionary<string, object?[]> BuildChangeMap(
-        IDictionary<string, object?> before, IDictionary<string, object?> after, bool isDetailPage)
+        IDictionary<string, object?> before, IDictionary<string, object?> after, bool isDetailPage, decimal nominalRentBelow)
     {
         var isFirstDetailPage = isDetailPage && !(bool)before["has_details"]!;
+        var isNominalRentAdded = before["rent"] is null && after["rent"] is decimal rent && rent < nominalRentBelow;
         return after
             .Where(f => f.Key is not ("id" or "has_details"))
             .Where(f => !(isFirstDetailPage && before[f.Key] is null))
+            .Where(f => !(isNominalRentAdded && f.Key is "rent" or "rent_currency"))
             .Where(f => !AreEqual(before[f.Key], f.Value))
             .ToDictionary(f => f.Key, f => new[] { before[f.Key], f.Value });
     }
@@ -477,7 +505,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         await using var connection = await db.OpenConnectionAsync(cancellationToken);
         await using var results = await connection.QueryMultipleAsync(new CommandDefinition(sql, parameters, cancellationToken: cancellationToken));
 
-        var items = (await results.ReadAsync<OfferListItem>()).ToList();
+        var items = results.Read<OfferListItem, MonthlyCostItem, RentEstimateItem, OfferListItem>(AddCost, CostSplit).ToList();
         var total = await results.ReadSingleAsync<int>();
         return new PagedResult<OfferListItem>(await WithNearbyAsync(connection, items, cancellationToken), page.Page, page.PageSize, total);
     }
@@ -501,6 +529,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         var withoutPricePerM2 = BuildWhere(filter with { PricePerM2Min = null, PricePerM2Max = null }, placeSizes)
             + " AND o.price_currency = @PriceCurrency";
         var withoutArea = BuildWhere(filter with { AreaMin = null, AreaMax = null }, placeSizes);
+        var withoutTotalCost = BuildWhere(filter with { TotalCostMin = null, TotalCostMax = null }, placeSizes);
         var withoutAddedSince = BuildWhere(filter with { AddedSince = null }, placeSizes);
         var sql = $$"""
             SELECT p.voivodeship, count(*)::int
@@ -556,6 +585,8 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
 
             {{BuildHistogramSql("o.area_m2", withoutArea)}}
 
+            {{BuildHistogramSql(TotalCost, withoutTotalCost)}}
+
             {{string.Concat(countAddedSince.Select((_, i) => $"SELECT count(*)::int FROM housing.offer o WHERE {withoutAddedSince} AND o.created_at >= @CountAddedSince{i};\n"))}}
             """;
         var parameters = BuildParameters(filter, placeSizes);
@@ -597,6 +628,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             Price = ReadHistogram(await results.ReadAsync<HistogramRow>()),
             PricePerM2 = ReadHistogram(await results.ReadAsync<HistogramRow>()),
             AreaM2 = ReadHistogram(await results.ReadAsync<HistogramRow>()),
+            TotalCost = ReadHistogram(await results.ReadAsync<HistogramRow>()),
             AddedSince = await ReadCountsAsync(results, countAddedSince.Count),
         };
     }
@@ -682,22 +714,35 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             SELECT count(*)::int AS count,
                 {{BuildSpreadSql("o.price", "o.price_currency = @PriceCurrency", "price")}},
                 {{BuildSpreadSql(PricePerM2, "o.price_currency = @PriceCurrency", "price_per_m2")}},
-                {{BuildSpreadSql("o.rent", "o.rent_currency = @PriceCurrency", "rent")}},
+                {{BuildSpreadSql("mc.rent", "mc.currency = @PriceCurrency AND mc.rent_source = ANY(@KnownRentSources)", "rent")}},
+                {{BuildSpreadSql("mc.total", "mc.currency = @PriceCurrency", "total_cost")}},
                 {{BuildSpreadSql("o.area_m2", "TRUE", "area")}},
                 {{BuildSpreadSql("extract(epoch FROM @Now - coalesce(o.external_created_at, o.created_at)) / 86400", "TRUE", "days_listed")}}
             FROM housing.offer o
+            LEFT JOIN housing.monthly_cost mc ON mc.offer_id = o.id
             WHERE {{BuildWhere(filter, placeSizes)}};
+
+            SELECT mc.rent_source, count(*)::int
+            FROM housing.offer o
+            JOIN housing.monthly_cost mc ON mc.offer_id = o.id
+            WHERE {{BuildWhere(filter, placeSizes)}} AND mc.currency = @PriceCurrency
+            GROUP BY mc.rent_source;
             """;
         await using var connection = await db.OpenConnectionAsync(cancellationToken);
         var parameters = BuildParameters(filter, placeSizes);
         parameters.Add("Now", now);
-        var row = await connection.QuerySingleAsync<SummaryRow>(new CommandDefinition(sql, parameters, cancellationToken: cancellationToken));
+        parameters.Add("KnownRentSources", new[] { (int)RentSource.Stated, (int)RentSource.Description });
+        await using var results = await connection.QueryMultipleAsync(new CommandDefinition(sql, parameters, cancellationToken: cancellationToken));
+        var row = await results.ReadSingleAsync<SummaryRow>();
+        var rentSources = (await results.ReadAsync<(int Value, int Count)>()).ToDictionary(r => (RentSource)r.Value, r => r.Count);
         return new OfferSummary
         {
             Count = row.Count,
             Price = ReadSpread(row.Price, row.PriceCount),
             PricePerM2 = ReadSpread(row.PricePerM2, row.PricePerM2Count),
             Rent = ReadSpread(row.Rent, row.RentCount),
+            TotalCost = ReadSpread(row.TotalCost, row.TotalCostCount),
+            RentSources = rentSources,
             AreaM2 = ReadSpread(row.Area, row.AreaCount),
             DaysListed = ReadSpread(row.DaysListed, row.DaysListedCount),
         };
@@ -731,6 +776,10 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
 
         public int RentCount { get; init; }
 
+        public double[]? TotalCost { get; init; }
+
+        public int TotalCostCount { get; init; }
+
         public double[]? Area { get; init; }
 
         public int AreaCount { get; init; }
@@ -759,6 +808,8 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             filter.PriceMax,
             filter.PricePerM2Min,
             filter.PricePerM2Max,
+            filter.TotalCostMin,
+            filter.TotalCostMax,
             filter.AreaMin,
             filter.AreaMax,
             Rooms = filter.Rooms.ToArray(),
@@ -824,6 +875,16 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             conditions.Add($"round({PricePerM2}, 2) <= @PricePerM2Max");
         }
 
+        if (filter.TotalCostMin is not null)
+        {
+            conditions.Add($"{TotalCost} >= @TotalCostMin");
+        }
+
+        if (filter.TotalCostMax is not null)
+        {
+            conditions.Add($"{TotalCost} <= @TotalCostMax");
+        }
+
         if (filter.AreaMin is not null)
         {
             conditions.Add("o.area_m2 >= @AreaMin");
@@ -884,7 +945,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
     {
         await using var connection = await db.OpenConnectionAsync(cancellationToken);
         await using var results = await connection.QueryMultipleAsync(new CommandDefinition(GetSql, new { Id = id }, cancellationToken: cancellationToken));
-        var offer = await results.ReadSingleOrDefaultAsync<OfferListItem>();
+        var offer = results.Read<OfferListItem, MonthlyCostItem, RentEstimateItem, OfferListItem>(AddCost, CostSplit).SingleOrDefault();
         if (offer is null)
         {
             return null;
@@ -897,6 +958,9 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
         return (await WithNearbyAsync(connection, [offer with { Features = features, Changes = changes }], cancellationToken))[0];
     }
 
+    private static OfferListItem AddCost(OfferListItem offer, MonthlyCostItem? cost, RentEstimateItem? estimate) =>
+        offer with { MonthlyCost = cost is null ? null : cost with { Estimate = estimate } };
+
     // The newest offer first breaks ties, so a page always has the same offers.
     private static string BuildOrderBy(OfferSort sort, SortDirection direction)
     {
@@ -907,7 +971,8 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
             OfferSort.PricePerM2 => PricePerM2,
             OfferSort.AreaM2 => "o.area_m2",
             OfferSort.Rooms => "o.rooms",
-            OfferSort.Rent => "o.rent",
+            OfferSort.Rent => RentShown,
+            OfferSort.TotalCost => TotalCost,
             _ => throw new ArgumentOutOfRangeException(nameof(sort), sort, null),
         };
         var order = direction == SortDirection.Ascending ? "ASC" : "DESC";
@@ -1009,7 +1074,7 @@ public sealed class OfferRepository(NpgsqlDataSource db) : IOfferRepository
 
         if (recordChanges)
         {
-            await RecordChangesAsync(connection, transaction, capture, externalIds, before, isDetailPage: true, cancellationToken);
+            await RecordChangesAsync(connection, transaction, capture, externalIds, before, isDetailPage: true, costs.Value.NominalRentBelow, cancellationToken);
         }
 
         await transaction.CommitAsync(cancellationToken);

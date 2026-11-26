@@ -96,6 +96,24 @@ details fetch. The parser keeps only plausible numbers (build year 1000-2100, bu
 location radius 0-100000 m) and stores any other value as written in `housing.offer.rejected_values`, by
 column name.
 
+The admin rent (`rentPrice`, "czynsz") is typed the same way. On 2026-11-25 (27 751 listed offers): 87% state
+one, 4% state 0 and 13% leave it empty. A stated 0 is a choice of the seller but means different things: of
+1 201 such offers, 182 say "no rent" or "included" in the description, 144 name a fee there, and the rest say
+nothing. Real rents range from about 2 zł/m² (a small fee) to about 50 zł/m² (luxury apartments, small studios
+with utilities included); the clear mistakes are a rent equal to the price (91, typed twice), above 100 zł/m²
+(13, e.g. 132 876 zł) and below 1 zł/m² (16, e.g. 20 zł). A rent above the price is often real ("odstępne"
+plus a high cooperative rent). The form requires a value, so about 170 offers type 1 zł; like 0, it means
+included, none or not filled in (12 sampled: 3 state the rent in the description, 5 say included, 4 nothing).
+The parser keeps every value as typed. The empty field does not mean no rent: 7 of 8 sampled descriptions state
+one. The description often names the admin rent ("czynsz administracyjny: 544,08 zł", "950 zł czynsz do wspólnoty") or
+says there is none ("bezczynszowe", "w tym czynsz administracyjny"). Full scan of the stored detail pages
+(2026-11-26, 27 714 listed offers) with the rules in `RentInDescription`: where both exist, the amount read equals
+the field in 90% of offers (94% within 10%; most of the rest add parking or a repair fund to the field). Of the
+1 368 offers with 0 or 1 zł, the description gives an amount for 177 and says included or none for 336; of 3 436
+with an empty field, an amount for 606 and none for 269. A manual review of samples found that a 0 with a silent
+description is more often no rent (about half) than a hidden one (about a fifth), while an empty field hides a rent
+in about 60% of offers. The monthly cost uses these facts (`MonthlyCostService`); the stated value is never changed.
+
 ## Districts
 
 `location.reverseGeocoding.locations` lists the levels of an offer's location: `voivodeship`, sometimes `county`

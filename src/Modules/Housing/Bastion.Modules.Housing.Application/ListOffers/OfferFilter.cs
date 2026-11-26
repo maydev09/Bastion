@@ -38,6 +38,11 @@ public sealed record OfferFilter
 
     public decimal? PricePerM2Max { get; init; }
 
+    // The total monthly cost (price plus admin rent) in PriceCurrency; an offer without one is left out.
+    public decimal? TotalCostMin { get; init; }
+
+    public decimal? TotalCostMax { get; init; }
+
     public decimal? AreaMin { get; init; }
 
     public decimal? AreaMax { get; init; }

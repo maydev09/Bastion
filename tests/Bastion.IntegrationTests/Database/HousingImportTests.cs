@@ -35,6 +35,7 @@ public class HousingImportTests
     private const string FetchDetails = "/api/housing/jobs/FetchDetails";
     private const string ImportPlaces = "/api/housing/jobs/ImportPlaces";
     private const string LinkPlaces = "/api/housing/jobs/LinkPlaces";
+    private const string CalculateMonthlyCosts = "/api/housing/jobs/CalculateMonthlyCosts";
 
     private const string WarszawaKey = "mazowieckie/warszawa/warszawa/warszawa";
     private const string GoscicinoKey = "pomorskie/wejherowski/gmina-wiejska--wejherowo/goscicino";
@@ -59,7 +60,7 @@ public class HousingImportTests
         _places = Substitute.For<IPlaceSource>();
         _places.FetchAsync(Arg.Any<CancellationToken>()).Returns(new PlaceFetchResult([Warszawa, Goscicino]));
         _rawPath = Directory.CreateTempSubdirectory("bastion-raw-").FullName;
-        await Sql("DELETE FROM housing.job_run; DELETE FROM housing.offer; DELETE FROM housing.raw_capture; DELETE FROM housing.place;");
+        await Sql("DELETE FROM housing.job_run; DELETE FROM housing.offer; DELETE FROM housing.raw_capture; DELETE FROM housing.rent_rate; DELETE FROM housing.place;");
     }
 
     [TearDown]
@@ -626,6 +627,205 @@ public class HousingImportTests
             Assert.That(card!.Furnished, Is.EqualTo(Answer.No));
             var change = card.Changes.SelectMany(c => c.Changes).Single(c => c.Field == "furnished");
             Assert.That((change.Before.ToString(), change.After?.ToString()), Is.EqualTo(("Yes", "No")));
+        });
+    }
+
+    [Test]
+    public async Task Monthly_cost_adds_the_stated_rent_or_the_one_the_description_states_and_takes_a_silent_0_as_no_rent()
+    {
+        await using var factory = App(WithFakes);
+        using var client = factory.CreateClient();
+        var included = new ParsedOffer("5", "Included", new Uri("https://www.otodom.pl/pl/oferta/included-ID5"), PropertyType.Apartment, Transaction.Rent, At(9), 2700m, Currency.Pln, 40m, 2, RentAmount: 0m, RentCurrency: Currency.Pln);
+        var inText = new ParsedOffer("4", "In the text", new Uri("https://www.otodom.pl/pl/oferta/text-ID4"), PropertyType.Apartment, Transaction.Rent, At(9), 2500m, Currency.Pln, 40m, 2, RentAmount: 1m, RentCurrency: Currency.Pln);
+        _source.Pages = [[
+            Small with { RentAmount = 600m, RentCurrency = Currency.Pln },
+            Medium with { RentAmount = 0m, RentCurrency = Currency.Pln },
+            Large,
+            inText,
+            included,
+            inText with { ExternalId = "6", Title = "Two amounts", Url = new Uri("https://www.otodom.pl/pl/oferta/two-ID6"), RentAmount = null },
+            inText with { ExternalId = "7", Title = "With a total", Url = new Uri("https://www.otodom.pl/pl/oferta/total-ID7"), PriceAmount = 2000m, RentAmount = null },
+        ]];
+        _source.Details["6"] = new ParsedOfferDetails(Description: "Czynsz administracyjny 400 zł, a od stycznia czynsz do wspólnoty 450 zł.");
+        _source.Details["7"] = new ParsedOfferDetails(Description: "2000 zł + czynsz administracyjny 310 zł, łącznie z czynszem administracyjnym 2310 zł.");
+        _source.Details["4"] = new ParsedOfferDetails(RentAmount: 1m, RentCurrency: Currency.Pln, Description: "<p>Koszty: czynsz najmu 2500 zł + czynsz administracyjny: 544,08 zł.</p>");
+        _source.Details["5"] = new ParsedOfferDetails(RentAmount: 0m, RentCurrency: Currency.Pln, Description: "<p>Czynsz administracyjny w cenie najmu.</p>");
+        await RunImport(client);
+        await RunDetails(client);
+
+        var list = (await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers?sort=TotalCost&direction=Ascending", Json))!.Items;
+        var cheap = await ListedTitles(client, "?totalCostMax=2900");
+        var summary = await client.GetFromJsonAsync<OfferSummary>("/api/housing/offers/summary", Json);
+        var facets = await Facets(client, "?totalCostMax=2900");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(list.Select(o => (o.Title, o.MonthlyCost?.Total, o.MonthlyCost?.RentSource)), Is.EqualTo(new (string, decimal?, RentSource?)[]
+            {
+                // The description states the rent and the total with it.
+                ("With a total", 2310m, RentSource.Description),
+                ("Included", 2700m, RentSource.Included),
+                ("Small apartment", 2800m, RentSource.Stated),
+                ("Medium apartment", 3000m, RentSource.Nominal),
+                // The field says 1 zł; the description states the rent.
+                ("In the text", 3044.08m, RentSource.Description),
+                // No rent and no rates to estimate one from yet.
+                ("Large apartment", null, null),
+                // Two different amounts: the rent is unknown.
+                ("Two amounts", null, null),
+            }));
+            Assert.That(list.Single(o => o.Title == "In the text").MonthlyCost!.RentQuote, Does.Contain("544,08 zł"));
+            Assert.That(list.Single(o => o.Title == "In the text").Rent, Is.EqualTo(1m));
+            Assert.That(list.Where(o => o.MonthlyCost is not null).Select(o => o.MonthlyCost!.CalculatedAt), Has.All.GreaterThan(DateTimeOffset.MinValue));
+            Assert.That(cheap, Is.EquivalentTo(new[] { "With a total", "Included", "Small apartment" }));
+            Assert.That((summary!.TotalCost!.Median, summary.TotalCost.Count), Is.EqualTo((2800m, 5)));
+            // The typical rent counts the known rents only (600 stated, 544.08 and 310 from descriptions), not the 0s.
+            Assert.That((summary.Rent!.Count, summary.Rent.Median), Is.EqualTo((3, 544.08m)));
+            Assert.That(summary.RentSources, Is.EquivalentTo(new Dictionary<RentSource, int>
+            {
+                [RentSource.Stated] = 1, [RentSource.Nominal] = 1, [RentSource.Description] = 2, [RentSource.Included] = 1,
+            }));
+            // The bound does not narrow its own histogram.
+            Assert.That(facets.TotalCost!.Counts.Sum(), Is.EqualTo(5));
+        });
+    }
+
+    [Test]
+    public async Task A_missing_or_implausible_rent_is_estimated_from_similar_offers()
+    {
+        // Without the area correction, so the rates read plainly.
+        await using var factory = App(WithFakes, NoAreaCorrection);
+        using var client = factory.CreateClient();
+        await JobRuns.Run(client, ImportPlaces);
+        ParsedOffer InWarszawa(string id, decimal price, decimal area, decimal? rent) =>
+            new(id, $"Offer {id}", new Uri($"https://www.otodom.pl/pl/oferta/offer-ID{id}"), PropertyType.Apartment, Transaction.Rent, At(10),
+                price, Currency.Pln, area, 2, LocationKey: WarszawaKey, RentAmount: rent, RentCurrency: rent is null ? null : Currency.Pln);
+        _source.Pages = [[
+            InWarszawa("1", 3000m, 40m, 800m),  // 20 zł/m²
+            InWarszawa("2", 4000m, 50m, 1500m), // 30 zł/m²
+            InWarszawa("3", 2500m, 40m, null),
+            InWarszawa("4", 3200m, 40m, 3200m), // the price typed twice
+        ]];
+        await RunImport(client);
+        var beforeRates = await CardOf(client, "Offer 3");
+
+        var run = await JobRuns.Run(client, CalculateMonthlyCosts);
+        var missing = await CardOf(client, "Offer 3");
+        var typedTwice = await CardOf(client, "Offer 4");
+        _source.Pages = [[InWarszawa("5", 2000m, 30m, null), InWarszawa("6", 2200m, 5158m, null)]];
+        await RunImport(client);
+        var newOffer = await CardOf(client, "Offer 5");
+        var wrongArea = await CardOf(client, "Offer 6");
+        var summary = await client.GetFromJsonAsync<OfferSummary>("/api/housing/offers/summary", Json);
+        var byRent = await ListedTitles(client, "?sort=Rent&direction=Ascending");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(beforeRates.MonthlyCost, Is.Null);
+            Assert.That(run.Summary!.Counts["estimatedRents"], Is.EqualTo(2));
+            // No pins, so no neighbors: the median of 20 and 30 zł/m² in the country, the voivodeship and the place, times 40 m².
+            Assert.That((missing.MonthlyCost!.Total, missing.MonthlyCost.Rent, missing.MonthlyCost.RentSource), Is.EqualTo((3500m, 1000m, RentSource.Estimated)));
+            var estimate = missing.MonthlyCost.Estimate!;
+            Assert.That((estimate.RatePerM2, estimate.Basis, estimate.SampleSize), Is.EqualTo((25m, (RentBasis?)RentBasis.Place, (int?)2)));
+            // The stated rent stays as the offer states it.
+            Assert.That((typedTwice.Rent, typedTwice.MonthlyCost?.Total, typedTwice.MonthlyCost?.RentSource), Is.EqualTo(((decimal?)3200m, (decimal?)4200m, (RentSource?)RentSource.Estimated)));
+            // A saved offer gets its cost at once from the stored rates.
+            Assert.That(newOffer.MonthlyCost?.Total, Is.EqualTo(2750m));
+            // An area typed wrong would make the fees cost more than the flat.
+            Assert.That(wrongArea.MonthlyCost, Is.Null);
+            Assert.That(summary!.RentSources[RentSource.Estimated], Is.EqualTo(3));
+            // Estimated rents sort among the stated ones (750, 800, 1 000, 1 000, 1 500); an offer without either comes last.
+            Assert.That(byRent, Is.EqualTo(new[] { "Offer 5", "Offer 1", "Offer 4", "Offer 3", "Offer 2", "Offer 6" }));
+        });
+    }
+
+    [Test]
+    public async Task A_nominal_rent_where_there_was_none_is_no_change()
+    {
+        await using var factory = App(WithFakes);
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small]];
+        await RunImport(client);
+        var id = (await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json))!.Items.Single().Id;
+
+        // The parser dropped rents of 1 zł before; the same listing now shows one.
+        _source.Pages = [[Small with { RentAmount = 1m, RentCurrency = Currency.Pln }]];
+        await RunImport(client);
+        var card = await client.GetFromJsonAsync<OfferListItem>($"/api/housing/offers/{id}", Json);
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(card!.Rent, Is.EqualTo(1m));
+            Assert.That(card.Changes, Is.Empty);
+        });
+    }
+
+    [Test]
+    public async Task A_removed_offer_keeps_the_cost_of_its_own_time()
+    {
+        await using var factory = App(WithFakes, NoAreaCorrection);
+        using var client = factory.CreateClient();
+        await JobRuns.Run(client, ImportPlaces);
+        ParsedOffer InWarszawa(string id, decimal price, decimal area, decimal? rent) =>
+            new(id, $"Offer {id}", new Uri($"https://www.otodom.pl/pl/oferta/offer-ID{id}"), PropertyType.Apartment, Transaction.Rent, At(10),
+                price, Currency.Pln, area, 2, LocationKey: WarszawaKey, RentAmount: rent, RentCurrency: rent is null ? null : Currency.Pln);
+        _source.Pages = [[
+            InWarszawa("1", 3000m, 40m, 800m),  // 20 zł/m²
+            InWarszawa("2", 4000m, 50m, 1500m), // 30 zł/m²
+            InWarszawa("3", 2500m, 40m, null),
+            InWarszawa("4", 2500m, 40m, null),
+        ]];
+        await RunImport(client);
+        await JobRuns.Run(client, CalculateMonthlyCosts);
+        var removed = await CardOf(client, "Offer 3");
+        await Sql($"UPDATE housing.offer SET removed_at = now() WHERE id = {removed.Id}");
+
+        // The market moves: a new offer at 60 zł/m² makes the median 30 zł/m².
+        _source.Pages = [[InWarszawa("5", 6000m, 40m, 2400m)]];
+        await RunImport(client);
+        await JobRuns.Run(client, CalculateMonthlyCosts);
+        var frozen = await client.GetFromJsonAsync<OfferListItem>($"/api/housing/offers/{removed.Id}", Json);
+        var listed = await CardOf(client, "Offer 4");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(removed.MonthlyCost!.Rent, Is.EqualTo(1000m));
+            Assert.That(frozen!.MonthlyCost!.Rent, Is.EqualTo(1000m));
+            Assert.That(listed.MonthlyCost!.Rent, Is.EqualTo(1200m));
+        });
+    }
+
+    [Test]
+    public async Task Nearby_offers_weigh_in_the_estimate()
+    {
+        await using var factory = App(WithFakes, NoAreaCorrection);
+        using var client = factory.CreateClient();
+        await JobRuns.Run(client, ImportPlaces);
+        ParsedOffer InWarszawa(string id, decimal price, decimal area, decimal? rent) =>
+            new(id, $"Offer {id}", new Uri($"https://www.otodom.pl/pl/oferta/offer-ID{id}"), PropertyType.Apartment, Transaction.Rent, At(10),
+                price, Currency.Pln, area, 2, LocationKey: WarszawaKey, RentAmount: rent, RentCurrency: rent is null ? null : Currency.Pln);
+        _source.Pages = [[
+            InWarszawa("1", 3000m, 40m, 800m),  // 20 zł/m², next door
+            InWarszawa("2", 4000m, 50m, 1500m), // 30 zł/m², about 16 km away
+            InWarszawa("3", 2500m, 40m, null),
+        ]];
+        _source.Details["1"] = new ParsedOfferDetails(Latitude: 52.2000m, Longitude: 21.0000m);
+        _source.Details["2"] = new ParsedOfferDetails(Latitude: 52.3000m, Longitude: 21.2000m);
+        _source.Details["3"] = new ParsedOfferDetails(Latitude: 52.2010m, Longitude: 21.0010m);
+        await RunImport(client);
+        await RunDetails(client);
+
+        await JobRuns.Run(client, CalculateMonthlyCosts);
+        var card = await CardOf(client, "Offer 3");
+
+        Assert.Multiple(() =>
+        {
+            // One neighbor within 2 km (20 zł/m²) next to the place's 25 zł/m², which counts as 10 offers:
+            // (1 × 20 + 10 × 25) / 11 = 24.55 zł/m², times 40 m².
+            var estimate = card.MonthlyCost!.Estimate!;
+            Assert.That((estimate.Neighbors, estimate.NeighborsPerM2, estimate.BasisPerM2), Is.EqualTo((1, (decimal?)20m, (decimal?)25m)));
+            Assert.That(estimate.NeighborsKm, Is.InRange(0.1m, 0.2m));
+            Assert.That((estimate.RatePerM2, card.MonthlyCost.Rent), Is.EqualTo((24.55m, 982m)));
         });
     }
 
@@ -1486,6 +1686,8 @@ public class HousingImportTests
 
     private static readonly (string, string) QuickRetry = ("Modules:Housing:Details:FirstRetrySeconds", "1");
 
+    private static readonly (string, string) NoAreaCorrection = ("Modules:Housing:MonthlyCosts:AreaExponent", "0");
+
     private static async Task Sql(string sql)
     {
         await using var connection = new NpgsqlConnection(DatabaseSetup.AppConnectionString);
@@ -1525,6 +1727,12 @@ public class HousingImportTests
     {
         var list = await client.GetFromJsonAsync<PagedResult<OfferListItem>>($"/api/housing/offers{query}", Json);
         return list!.Items.Select(o => o.Title).ToList();
+    }
+
+    private static async Task<OfferListItem> CardOf(HttpClient client, string title)
+    {
+        var list = await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers?pageSize=100", Json);
+        return (await client.GetFromJsonAsync<OfferListItem>($"/api/housing/offers/{list!.Items.Single(o => o.Title == title).Id}", Json))!;
     }
 
     private static async Task<OfferFacets> Facets(HttpClient client, string query) =>

@@ -59,6 +59,20 @@ BigCityMinPopulation = 100000   # a town this big is a big city
 BigCityCount = 3                # big cities around a place: at most this many...
 BigCityMaxKm = 50               # ...at most this far
 
+# Monthly cost = price + admin rent: the rent field, else the description, else a 0 or 1 zł field as no rent, else an
+# estimate from offers nearby and from the most local groups of offers (RentEstimator in the code; values tested on the
+# stored offers 2026-11-26).
+[Modules.Housing.MonthlyCosts]
+MinRentPerM2 = 1       # a stated rent below (e.g. 20 zł) or above (e.g. 132 876 zł) is implausible, and so is a rent equal to the price;
+MaxRentPerM2 = 100     # real rents go from about 2 zł/m² (a small fee) to about 50 zł/m² (luxury apartments, small studios)
+NominalRentBelow = 10  # 0 or 1 zł typed because the form requires a value
+Neighbors = 10         # the nearest offers of the same building type an estimate looks at...
+NeighborRadiusKm = 2   # ...at most this far
+WiderAreaWeight = 10   # how many offers the wider area's rate counts as next to the neighbors
+WiderGroupWeight = 20  # how many offers a wider group's rate counts as next to a more local group (country -> neighborhood)
+TypicalAreaM2 = 46     # the rate is multiplied by (area / TypicalAreaM2) ^ AreaExponent:
+AreaExponent = -0.18   # small flats pay more per m², big ones less
+
 # ImportPlaces and LinkPlaces have no schedule: they run from the buttons in the UI, e.g. after a new census
 # (ImportPlaces), then LinkPlaces so stored offers get the new places.
 
@@ -70,6 +84,10 @@ Every = "01:00:00"
 
 [Modules.Housing.Jobs.ScanOffers]
 DailyAt = "01:00"   # 33 minutes alone at 3-6 s between requests (expected about 30 at 2-5 s), longer while FetchDetails shares the portal; done before the backup at 03:00
+
+# Saved offers get their cost at once from the stored rent rates; this calculates the rates again from all offers.
+[Modules.Housing.Jobs.CalculateMonthlyCosts]
+DailyAt = "02:00"   # after the full scan at 01:00
 
 [Modules.Housing.Jobs.RawCaptureRetention]
 DailyAt = "04:00"   # after the database backup at 03:00

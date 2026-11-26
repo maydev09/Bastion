@@ -81,7 +81,7 @@ public static class OtoDomDetailParser
             ? NumberBetween("location_radius_m", radiusValue.ToString(), 0, 100_000)
             : null;
 
-        var rent = OtoDomListingParser.Plausible(MoneyOf("rent"));
+        var rent = MoneyOf("rent");
         var deposit = MoneyOf("deposit");
         var details = new ParsedOfferDetails(
             rent?.Amount,

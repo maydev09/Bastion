@@ -13,6 +13,7 @@ import { useErrorMessage } from "@shared/useErrorMessage";
 import { useShortcuts } from "@shared/useShortcuts";
 import styles from "./OfferDetail.module.css";
 import { MarketPosition } from "./MarketPosition";
+import { RentCell, RentNote } from "./MonthlyCost";
 import { OfferChanges } from "./OfferChanges";
 import { OfferDescription } from "./OfferDescription";
 import { OfferDetails } from "./OfferDetails";
@@ -181,7 +182,17 @@ export function OfferDetail() {
   const summary = [
     // What is paid each month first: the price and the fees next to it.
     { label: t("field.price"), value: money(o.price, o.priceCurrency) },
-    { label: t("field.rent"), value: money(o.rent, o.rentCurrency) },
+    // The fees the monthly total uses, marked when they are estimated or read from the description.
+    { label: t("field.rent"), value: <RentCell offer={o} /> },
+    {
+      label: t("cost.total"),
+      // An estimated rent makes the total an estimate too; the note under the bar says how it was made.
+      value:
+        o.monthlyCost?.rentSource === "Estimated"
+          ? `≈ ${money(o.monthlyCost.total, o.monthlyCost.currency)}`
+          : money(o.monthlyCost?.total, o.monthlyCost?.currency),
+      hint: t("cost.hint"),
+    },
     {
       label: t("field.pricePerM2"),
       value:
@@ -219,7 +230,7 @@ export function OfferDetail() {
       <div className={styles.bar}>
         <dl className={styles.summary}>
           {summary.map((item) => (
-            <div key={item.label}>
+            <div key={item.label} title={item.hint}>
               <dt>{item.label}</dt>
               <dd>{item.value}</dd>
             </div>
@@ -230,6 +241,8 @@ export function OfferDetail() {
           <Icon name="external" size={16} />
         </a>
       </div>
+
+      <RentNote offer={o} />
 
       <div className={styles.layout}>
         <div className={styles.main}>

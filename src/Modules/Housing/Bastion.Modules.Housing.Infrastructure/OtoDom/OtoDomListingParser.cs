@@ -37,7 +37,8 @@ public static partial class OtoDomListingParser
             {
                 var (district, neighborhood) = OtoDomLocation.ReadDistrict(item);
                 var price = MoneyOf(item, "totalPrice");
-                var rent = Plausible(MoneyOf(item, "rentPrice"));
+                // Kept as typed, also 0 or 1 zł (included, or not filled in); the monthly cost tells them apart.
+                var rent = MoneyOf(item, "rentPrice");
                 offers.Add(new ParsedOffer(
                     id.GetRawText(),
                     title.GetString()!,
@@ -83,10 +84,6 @@ public static partial class OtoDomListingParser
         && CurrencyOf(money) is { } currency
             ? new Money(amount, currency)
             : null;
-
-    // The rent field is required in OtoDom's form, so some advertisers type 1 zł instead of leaving it out.
-    // 0 is kept: no fees, or fees included in the price.
-    internal static Money? Plausible(Money? rent) => rent is { Amount: > 0 and < 10 } ? null : rent;
 
     // floorNumber is a word ("GROUND", "FIRST" … "TENTH"); "ABOVE_TENTH" has no exact floor.
     private static int? Floor(JsonElement item) => Text(item, "floorNumber") switch

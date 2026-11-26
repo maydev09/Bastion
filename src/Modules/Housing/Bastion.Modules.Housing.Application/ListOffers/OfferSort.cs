@@ -8,5 +8,7 @@ public enum OfferSort
     PricePerM2 = 3,
     AreaM2 = 4,
     Rooms = 5,
+    // The stated rent, or the estimated one where the monthly cost uses an estimate.
     Rent = 6,
+    TotalCost = 7,
 }

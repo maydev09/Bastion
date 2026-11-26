@@ -1,4 +1,5 @@
 using Bastion.Modules.Housing.Application.Abstractions;
+using Bastion.Modules.Housing.Application.MonthlyCosts;
 using Bastion.Modules.Housing.Application.RawCaptures;
 using Bastion.Modules.Housing.Domain;
 using Microsoft.Extensions.Options;
@@ -9,6 +10,7 @@ public sealed class FetchDetailsHandler(
     OfferSources sources,
     RawCaptureService rawCaptures,
     IOfferRepository repository,
+    MonthlyCostService costs,
     TimeProvider time,
     IOptions<DetailsOptions> options)
 {
@@ -162,6 +164,7 @@ public sealed class FetchDetailsHandler(
         }
 
         await repository.SaveDetailsAsync(capture, offer.ExternalId, parsed.Details!.ToDomain(), recordChanges: true, cancellationToken);
+        await costs.UpdateAsync(capture.SourceId, [offer.ExternalId], cancellationToken);
         return null;
     }
 }

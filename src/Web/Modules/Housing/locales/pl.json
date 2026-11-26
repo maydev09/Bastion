@@ -34,6 +34,12 @@
     "running": "Przypisuję…",
     "result": "Oferty z miejscowością: {{linked}}, bez: {{unlinked}}."
   },
+  "costs": {
+    "description": "Liczy od nowa typowe stawki czynszu za m² ze wszystkich ofert, a z nimi koszt miesięczny każdej oferty (cena + czynsz, podany albo szacowany). Działa samo co noc; zapisywana oferta dostaje koszt od razu z ostatnich stawek.",
+    "run": "Przelicz koszty miesięczne",
+    "running": "Przeliczam…",
+    "result": "Stawek: {{rates}}. Czynsz podany: {{stated}}, z opisu: {{description}}, w cenie wg opisu: {{included}}, 0 lub 1 zł bez opisu: {{nominal}}, szacowany: {{estimated}}, bez kosztu: {{without}}."
+  },
   "list": {
     "title": "Oferty",
     "count_one": "{{count, number}} oferta",
@@ -52,8 +58,31 @@
     "firstSeen": "Dodano",
     "pageEmpty": "Na tej stronie nie ma już ofert. Przejdź do ostatniej strony.",
     "rent": "Czynsz",
+    "totalCost": "Razem",
     "furnished": "Meble",
     "previousPrice": "Wcześniej {{price}}"
+  },
+  "cost": {
+    "total": "Razem miesięcznie",
+    "hint": "Cena najmu plus czynsz administracyjny. Media rozliczane osobno (prąd, gaz) nie są wliczone, a to, co obejmuje czynsz, zależy od budynku.",
+    "estimatedShort": "szacowany",
+    "descriptionShort": "z opisu",
+    "includedShort": "brak (wg opisu)",
+    "statedShort": "podano {{rent}}",
+    "description": "Czynsz {{rent}} odczytany z opisu: „{{quote}}”.",
+    "field": "W polu czynszu oferta podaje {{rent}}.",
+    "included": "Opis mówi, że czynsz jest w cenie albo go nie ma: „{{quote}}”.",
+    "implausible": "Podany czynsz {{rent}} wygląda na pomyłkę, więc w sumie jest szacunek.",
+    "voivodeship": "woj. {{name}}",
+    "country": "cała Polska",
+    "estimate": "Czynsz szacowany: {{rent}} = {{rate}} × {{area}}.",
+    "neighbors": "Najbliższe oferty z czynszem: {{count}} w promieniu {{km}} km, typowo {{rate}}.",
+    "neighborsOfType": "Najbliższe oferty z czynszem ({{type}}): {{count}} w promieniu {{km}} km, typowo {{rate}}.",
+    "group_one": "{{group}}: typowo {{rate}} z {{count, number}} oferty.",
+    "group_few": "{{group}}: typowo {{rate}} z {{count, number}} ofert.",
+    "group_many": "{{group}}: typowo {{rate}} z {{count, number}} ofert.",
+    "group_other": "{{group}}: typowo {{rate}} z {{count, number}} oferty.",
+    "areaNote": "Stawka uwzględnia metraż: małe mieszkania płacą więcej za m², duże mniej."
   },
   "filters": {
     "title": "Filtry",
@@ -84,6 +113,8 @@
     "towns": "Miasta",
     "villages": "Wsie",
     "price": "Cena najmu (bez czynszu)",
+    "totalCost": "Razem z czynszem",
+    "totalCostHint": "Cena plus czynsz, podany albo szacowany z podobnych ofert.",
     "area": "Powierzchnia",
     "rooms": "Pokoje",
     "from": "{{what}}: od",
@@ -353,6 +384,8 @@
     "price": "Typowa cena najmu",
     "pricePerM2": "Typowo za m²",
     "rent": "Typowy czynsz",
+    "totalCost": "Typowo razem z czynszem",
+    "rentSources": "szacowany: {{estimated, number}} · z opisu: {{description, number}}",
     "area": "Typowy metraż",
     "middle": "połowa ofert: {{low}}–{{high}}",
     "from_one": "z {{count, number}} oferty",
@@ -386,6 +419,7 @@
     "noPlace": "Oferta nie ma przypisanej miejscowości, więc nie ma z czym jej porównać.",
     "pricePerM2": "Cena za m²",
     "rent": "Czynsz",
+    "totalCost": "Razem z czynszem",
     "area": "Metraż",
     "daysListed": "Na rynku od",
     "same": "typowo",
@@ -415,7 +449,7 @@
     "choices": "W jednej sekcji wystarczy jedna z zaznaczonych opcji: Gdańsk lub Gdynia, 2 lub 3 pokoje, metropolia lub duże miasto. W Lokalizacji dotyczy to miejscowości, województw i ofert bez przypisanej miejscowości.",
     "districts": "Dzielnica zawęża swoją miejscowość: Warszawa z Mokotowem to tylko Mokotów, a inna zaznaczona miejscowość zostaje w całości. Osiedle tak samo zawęża swoją dzielnicę. Lista osiedli pokazuje osiedla zaznaczonych dzielnic, a bez dzielnicy wszystkie. Nazwy dzielnic i osiedli pochodzą z portalu, a wiele miejscowości ich nie ma.",
     "features": "Udogodnienia muszą być wszystkie naraz; przełącznikiem „dowolne” wystarczy jedno z nich.",
-    "ranges": "Cena, cena za m² i metraż to zakres od–do; kliknięcie słupka na wykresie ustawia jego zakres, a drugie kliknięcie innego słupka go rozszerza.",
+    "ranges": "Cena, razem z czynszem, cena za m² i metraż to zakres od–do; kliknięcie słupka na wykresie ustawia jego zakres, a drugie kliknięcie innego słupka go rozszerza.",
     "history": "W Historii zmian „Zmiany oferty” i „Cena obniżona” muszą być spełnione naraz.",
     "counts": "Liczba przy opcji mówi, ile ofert pokaże lista po jej zaznaczeniu, przy pozostałych filtrach bez zmian."
   }

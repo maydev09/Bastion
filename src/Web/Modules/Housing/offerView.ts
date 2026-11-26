@@ -44,7 +44,15 @@ export const villageSizes: PlaceSize[] = [
 // The highest seat first, as on the offer card.
 export const placeRoles: PlaceRole[] = ["VoivodeshipCapital", "CountySeat", "MunicipalitySeat"];
 export const answers: Answer[] = ["Yes", "No", "NotStated"];
-export const sorts: OfferSort[] = ["FirstSeen", "Price", "Rent", "PricePerM2", "AreaM2", "Rooms"];
+export const sorts: OfferSort[] = [
+  "FirstSeen",
+  "Price",
+  "Rent",
+  "TotalCost",
+  "PricePerM2",
+  "AreaM2",
+  "Rooms",
+];
 // The room counts picked one by one; from this one on the pick means "or more" (roomsMin).
 export const roomCounts = [1, 2, 3];
 export const roomsOrMore = 4;
@@ -70,6 +78,9 @@ export type OfferFilter = {
   priceMax: number | null;
   pricePerM2Min: number | null;
   pricePerM2Max: number | null;
+  // The price plus the admin rent a month, stated or estimated.
+  totalCostMin: number | null;
+  totalCostMax: number | null;
   areaMin: number | null;
   areaMax: number | null;
   // Offers with any of the room counts, or with at least roomsMin.
@@ -107,6 +118,8 @@ export const noFilter: OfferFilter = {
   priceMax: null,
   pricePerM2Min: null,
   pricePerM2Max: null,
+  totalCostMin: null,
+  totalCostMax: null,
   areaMin: null,
   areaMax: null,
   rooms: [],
@@ -123,6 +136,8 @@ const numberKeys = [
   "priceMax",
   "pricePerM2Min",
   "pricePerM2Max",
+  "totalCostMin",
+  "totalCostMax",
   "areaMin",
   "areaMax",
   "roomsMin",
@@ -252,6 +267,8 @@ export function toFilterQuery(filter: OfferFilter) {
     priceMax: filter.priceMax ?? undefined,
     pricePerM2Min: filter.pricePerM2Min ?? undefined,
     pricePerM2Max: filter.pricePerM2Max ?? undefined,
+    totalCostMin: filter.totalCostMin ?? undefined,
+    totalCostMax: filter.totalCostMax ?? undefined,
     areaMin: filter.areaMin ?? undefined,
     areaMax: filter.areaMax ?? undefined,
     rooms: list(filter.rooms),

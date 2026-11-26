@@ -13,6 +13,7 @@ import { useErrorMessage } from "@shared/useErrorMessage";
 import { useShortcuts } from "@shared/useShortcuts";
 import { FilterChips } from "./FilterChips";
 import { MarketSummary } from "./MarketSummary";
+import { RentCell, TotalCostCell } from "./MonthlyCost";
 import styles from "./Housing.module.css";
 import { OfferFilters } from "./OfferFilters";
 import { offersQuery } from "./offersQuery";
@@ -136,10 +137,14 @@ export function OfferList() {
         header: t("list.rent"),
         align: "end",
         sortable: true,
-        cell: (offer) =>
-          offer.rent != null && offer.rentCurrency
-            ? format.money(offer.rent, offer.rentCurrency)
-            : "—",
+        cell: (offer) => <RentCell offer={offer} />,
+      },
+      {
+        id: "TotalCost",
+        header: t("list.totalCost"),
+        align: "end",
+        sortable: true,
+        cell: (offer) => <TotalCostCell offer={offer} />,
       },
       {
         id: "PricePerM2",
