@@ -72,6 +72,9 @@ Spend effort only on what solves a real problem the maintainer has today
   and mapped with `MapJobs(schema)`; the module's migrations create `<schema>.job_run`. An optional
   schedule in `[Modules.<Module>.Jobs.<name>]` is either `DailyAt` (in the time zone from `[Jobs] TimeZone`)
   or an interval `Every`.
+  Work that changes data in bulk (import, reparse, recalculation) is a job started with
+  `POST /jobs/{name}/runs`, never an endpoint that makes the browser wait; its state and run history
+  come from the server (`GET /jobs`, `GET /jobs/runs`), so every device sees the same.
   An expected failure throws `JobFailedException` with a code that the UI translates and, when some work
   was done, its `Summary`, so a failed run keeps its counts.
   A job that works through many items (pages, offers) never stops on one bad item: an odd value,
