@@ -57,7 +57,8 @@
     "canChangeSchema": "Uwaga: aplikacja ma za szerokie uprawnienia w bazie (może zmieniać schemat)."
   },
   "date": {
-    "clear": "Wyczyść datę"
+    "clear": "Wyczyść datę",
+    "any": "dowolny dzień"
   },
   "table": {
     "pagination": "Strony wyników",
