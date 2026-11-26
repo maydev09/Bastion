@@ -56,6 +56,9 @@
     "ok": "Database connection works.",
     "canChangeSchema": "Warning: the application has too many database privileges (it can change the schema)."
   },
+  "date": {
+    "clear": "Clear the date"
+  },
   "table": {
     "pagination": "Result pages",
     "range": "{{from}}–{{to}} of {{total}}",

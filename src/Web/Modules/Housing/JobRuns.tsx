@@ -289,9 +289,13 @@ export function JobRuns({ jobNames, active }: Props) {
   );
 }
 
-// A calendar day from the URL ("2026-11-25"), or null for anything else.
+// A calendar day from the URL ("2026-11-25"), or null for anything else, also for a day that does not exist ("2026-13-01").
 function readDay(value: string | null): string | null {
-  return value && /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+  if (!value || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return null;
+  }
+  const date = new Date(`${value}T00:00`);
+  return !Number.isNaN(date.getTime()) && date.getDate() === Number(value.slice(8)) ? value : null;
 }
 
 // The browser's midnight at the start of the day, or of a later one, as an instant for the API.

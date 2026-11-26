@@ -50,10 +50,8 @@ export function JobList({ list, start }: Props) {
         minWidth: 280,
         cell: (job) => (
           <div className={styles.task}>
-            <span className={styles.taskLine}>
-              <Icon name={findJobIcon(job.name)} size={16} />
-              <span className={styles.taskName}>{nameJob(t, job.name)}</span>
-            </span>
+            <Icon name={findJobIcon(job.name)} size={16} />
+            <span className={styles.taskName}>{nameJob(t, job.name)}</span>
             <span className={styles.summary}>{describeJob(t, job.name)}</span>
           </div>
         ),

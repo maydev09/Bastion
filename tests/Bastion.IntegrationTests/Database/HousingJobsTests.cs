@@ -256,6 +256,9 @@ public class HousingJobsTests
         // One day in Warsaw: from inclusive, to exclusive.
         var day = await client.GetFromJsonAsync<PagedResult<JobRun>>(
             "/api/housing/jobs/runs?from=2026-11-20T04:00:00%2B01:00&to=2026-11-21T04:00:00%2B01:00", Json);
+        // Without an offset a time is UTC, whatever the server's time zone.
+        var utc = await client.GetFromJsonAsync<PagedResult<JobRun>>(
+            "/api/housing/jobs/runs?from=2026-11-20T03:05:00&to=2026-11-21T03:00:00", Json);
         var unknown = await client.GetAsync(new Uri("/api/housing/jobs/runs?job=nothing", UriKind.Relative));
 
         Assert.Multiple(() =>
@@ -265,6 +268,7 @@ public class HousingJobsTests
             Assert.That((failed!.TotalCount, failed.Items.Single().Job), Is.EqualTo((2, "ImportOffers")));
             Assert.That(manual!.Items.Select(r => r.QueuedAt.Day), Is.EqualTo(new[] { 21 }));
             Assert.That(day!.Items.Select(r => r.Job), Is.EqualTo(new[] { "ImportOffers", "RawCaptureRetention" }));
+            Assert.That(utc!.Items.Select(r => r.Job), Is.EqualTo(new[] { "ImportOffers" }));
             Assert.That(unknown.StatusCode, Is.EqualTo(HttpStatusCode.NotFound));
         });
     }

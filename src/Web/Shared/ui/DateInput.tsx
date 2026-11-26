@@ -1,5 +1,8 @@
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import styles from "./DateInput.module.css";
 import { Icon } from "./Icon";
+import { IconButton } from "./IconButton";
 
 type Props = {
   // A calendar day, "2026-11-25"; null when the field is empty.
@@ -11,28 +14,56 @@ type Props = {
   max?: string;
 };
 
-// A calendar day in the browser's own date field and format. A click anywhere in the field opens the calendar.
+// A calendar day in the browser's own date field and format. A click anywhere in the field opens the calendar; a button
+// clears it.
 export function DateInput({ value, onChange, label, min, max }: Props) {
+  const { t } = useTranslation();
+  const [draft, setDraft] = useState(value ?? "");
+  const [shown, setShown] = useState(value);
+
+  // A value changed from outside (e.g. "clear filters") replaces what the field shows.
+  if (value !== shown) {
+    setShown(value);
+    setDraft(value ?? "");
+  }
+
   return (
-    <label className={styles.field}>
-      <Icon name="calendar" size={16} />
-      <span className={styles.label}>{label}</span>
-      <input
-        type="date"
-        className={styles.input}
-        value={value ?? ""}
-        min={min}
-        max={max}
-        onChange={(event) => onChange(event.target.value || null)}
-        onClick={(event) => {
-          // Not every browser can open its calendar from code; the field still takes a typed date.
-          try {
-            event.currentTarget.showPicker();
-          } catch {
-            // Nothing to do.
-          }
-        }}
-      />
-    </label>
+    <span className={styles.field}>
+      <label className={styles.picker}>
+        <Icon name="calendar" size={16} />
+        <span className={styles.label}>{label}</span>
+        <input
+          type="date"
+          className={styles.input}
+          value={draft}
+          min={min}
+          max={max}
+          onChange={(event) => {
+            const next = event.target.value;
+            setDraft(next);
+            // While a year is typed digit by digit the field already holds 0002, 0020, 0202: only a whole year counts.
+            if (next === "" || Number(next.slice(0, 4)) >= 1000) {
+              onChange(next || null);
+            }
+          }}
+          onClick={(event) => {
+            // Not every browser can open its calendar from code; the field still takes a typed date.
+            try {
+              event.currentTarget.showPicker();
+            } catch {
+              // Nothing to do.
+            }
+          }}
+        />
+      </label>
+      {value && (
+        <IconButton
+          icon="close"
+          label={t("date.clear")}
+          className={styles.clear}
+          onClick={() => onChange(null)}
+        />
+      )}
+    </span>
   );
 }

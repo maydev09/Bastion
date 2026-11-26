@@ -269,7 +269,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Returns the runs of the module's jobs, newest first: when each was queued, started and finished, what started it (Manual or Schedule), how it ended, the error code of a failed run and the counts of its summary. job, status and trigger narrow the list; from (inclusive) and to (exclusive) narrow it to runs queued in that time range (ISO 8601 with an offset); page and pageSize page it. */
+        /** Returns the runs of the module's jobs, newest first: when each was queued, started and finished, what started it (Manual or Schedule), how it ended, the error code of a failed run and the counts of its summary. job, status and trigger narrow the list; from (inclusive) and to (exclusive) narrow it to runs queued in that time range (ISO 8601; a time without an offset is UTC); page and pageSize page it. */
         get: {
             parameters: {
                 query?: {

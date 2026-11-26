@@ -56,6 +56,9 @@
     "ok": "Połączenie z bazą danych działa.",
     "canChangeSchema": "Uwaga: aplikacja ma za szerokie uprawnienia w bazie (może zmieniać schemat)."
   },
+  "date": {
+    "clear": "Wyczyść datę"
+  },
   "table": {
     "pagination": "Strony wyników",
     "range": "{{from}}–{{to}} z {{total}}",
