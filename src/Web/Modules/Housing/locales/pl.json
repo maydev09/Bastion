@@ -23,7 +23,9 @@
     "schedule": {
       "every": "co {{interval}}",
       "dailyAt": "codziennie o {{time}}",
-      "manual": "tylko ręcznie"
+      "manual": "tylko ręcznie",
+      "between": "co {{interval}}, {{from}}–{{until}}",
+      "limit": "najwyżej {{duration}}"
     },
     "minutes_one": "{{count}} minutę",
     "minutes_few": "{{count}} minuty",
@@ -51,38 +53,40 @@
       "Schedule": "harmonogram"
     },
     "interrupted": "Przerwane przez restart aplikacji; następny przebieg zacznie od nowa.",
-    "ImportOffers": {
+    "ImportNewOffers": {
       "name": "Pobierz nowe ogłoszenia",
-      "description": "Czyta najnowsze strony wyników OtoDom, aż trafi na ogłoszenie, które już zna (najwyżej kilka stron). Dodaje nowe oferty i aktualizuje zmienione.",
+      "description": "W ciągu dnia czyta najnowsze strony wyników OtoDom, dopóki pokazują nowe ogłoszenia (najwyżej kilka stron), potem otwiera strony nowych i zmienionych ofert (opis, czynsz, piętro, udogodnienia), a na końcu przelicza koszty i wykluczenia ze statystyk. Po przebiegu nowe oferty są kompletne.",
       "counts": {
-        "pages": "Strony",
+        "pages": "Strony listingu",
         "added": "Nowe",
         "updated": "Zmienione",
         "unchanged": "Bez zmian",
-        "skipped": "Pominięte"
+        "skipped": "Pominięte",
+        "detailsFetched": "Pobrane szczegóły",
+        "detailsFailed": "Nieudane szczegóły",
+        "detailsRemoved": "Zdjęte z portalu (410)",
+        "detailsRetried": "Ponowione zapytania",
+        "estimatedRents": "Czynsz szacowany",
+        "excludedOffers": "Poza statystykami"
       }
     },
-    "ScanOffers": {
-      "name": "Przejrzyj wszystkie ogłoszenia",
-      "description": "Czyta całą listę ogłoszeń OtoDom do ostatniej strony (około pół godziny). Oferta, której nie ma w dwóch pełnych przeglądach z rzędu, zostaje oznaczona jako zdjęta.",
+    "SyncAllOffers": {
+      "name": "Synchronizuj całą bazę z portalem",
+      "description": "W nocy czyta całą listę ogłoszeń OtoDom do ostatniej strony, oznacza oferty, których nie ma w dwóch przeglądach z rzędu, jako zdjęte, potem otwiera strony zmienionych ofert, a na końcu przelicza koszty i wykluczenia ze statystyk.",
       "counts": {
-        "pages": "Strony",
+        "pages": "Strony listingu",
         "added": "Nowe",
         "updated": "Zmienione",
         "unchanged": "Bez zmian",
         "skipped": "Pominięte",
         "missed": "Nieobecne w przeglądzie",
-        "removed": "Zdjęte"
-      }
-    },
-    "FetchDetails": {
-      "name": "Pobierz szczegóły ofert",
-      "description": "Otwiera stronę każdej nowej lub zmienionej oferty i zapisuje opis, czynsz, piętro, ogrzewanie, udogodnienia i położenie. Pracuje do godziny; resztę kończy następny przebieg.",
-      "counts": {
-        "fetched": "Pobrane",
-        "failed": "Nieudane",
-        "removed": "Zdjęte z portalu",
-        "retried": "Ponowione"
+        "removed": "Zdjęte",
+        "detailsFetched": "Pobrane szczegóły",
+        "detailsFailed": "Nieudane szczegóły",
+        "detailsRemoved": "Zdjęte z portalu (410)",
+        "detailsRetried": "Ponowione zapytania",
+        "estimatedRents": "Czynsz szacowany",
+        "excludedOffers": "Poza statystykami"
       }
     },
     "ReparseOffers": {
@@ -115,17 +119,28 @@
         "unlinkedOffers": "Bez miejscowości"
       }
     },
-    "CalculateMonthlyCosts": {
-      "name": "Przelicz koszty miesięczne",
-      "description": "Liczy od nowa typowe stawki czynszu za m² z wystawionych ofert, a z nimi koszt miesięczny (cena + czynsz) każdej wystawionej oferty. Zapisywana oferta dostaje koszt od razu; to zadanie odświeża wszystkie.",
+    "RecalculateDerivedData": {
+      "name": "Przelicz koszty i wykluczenia ze statystyk",
+      "description": "Liczy od nowa z wystawionych ofert typowe stawki czynszu za m² i typowe zakresy cen za m² grup ofert, a z nimi koszt miesięczny (cena + czynsz) każdej wystawionej oferty i to, czy statystyki ją pomijają (pokoje, miejsca parkingowe, błędne ceny i metraże). Zapisywana oferta dostaje jedno i drugie od razu; to zadanie odświeża wszystkie, gdy zmienia się rynek.",
       "counts": {
-        "rentRates": "Stawki grup",
+        "rentRates": "Stawki czynszu grup",
         "statedRents": "Czynsz podany",
         "descriptionRents": "Czynsz z opisu",
         "includedRents": "Brak czynszu wg opisu",
         "nominalRents": "0 lub 1 zł",
         "estimatedRents": "Czynsz szacowany",
-        "withoutCost": "Bez kosztu"
+        "withoutCost": "Bez kosztu",
+        "priceFences": "Zakresy cen grup",
+        "checkedOffers": "Sprawdzone oferty",
+        "excludedOffers": "Poza statystykami",
+        "rooms": "Pokoje",
+        "parking": "Miejsca parkingowe",
+        "implausibleAreas": "Błędny metraż",
+        "implausiblePrices": "Błędna cena",
+        "auctions": "Licytacje",
+        "perPerson": "Kwatery, cena za osobę",
+        "rentForRenovation": "Najem za remont",
+        "unusualPrices": "Nietypowa cena"
       }
     },
     "RawCaptureRetention": {
@@ -134,6 +149,16 @@
       "counts": {
         "deletedCaptures": "Usunięte strony",
         "freedBytes": "Zwolnione miejsce"
+      }
+    },
+    "FetchDetails": {
+      "name": "Pobierz szczegóły ofert (wycofane)",
+      "description": "Wycofane 27.11.2026: szczegóły ofert pobiera teraz każdy przebieg pobierania nowych ogłoszeń i synchronizacji z portalem. Zostaje tylko w historii przebiegów.",
+      "counts": {
+        "fetched": "Pobrane",
+        "failed": "Nieudane",
+        "removed": "Zdjęte z portalu",
+        "retried": "Ponowione"
       }
     },
     "history": {
@@ -151,7 +176,6 @@
       "to": "Do",
       "clear": "Wyczyść filtry",
       "empty": "Brak uruchomień dla wybranych filtrów.",
-      "noCounts": "Ten przebieg nie podał żadnych liczników.",
       "noCounts": "Ten przebieg nie podał żadnych liczników.",
       "loading": "Wczytywanie historii…"
     },
@@ -185,6 +209,7 @@
     "rent": "Czynsz",
     "totalCost": "Razem",
     "furnished": "Meble",
+    "details": "Szczegóły",
     "previousPrice": "Wcześniej {{price}}"
   },
   "cost": {
@@ -208,6 +233,35 @@
     "group_many": "{{group}}: typowo {{rate}} z {{count, number}} ofert.",
     "group_other": "{{group}}: typowo {{rate}} z {{count, number}} oferty.",
     "areaNote": "Stawka uwzględnia metraż: małe mieszkania płacą więcej za m², duże mniej."
+  },
+  "exclusion": {
+    "mark": "Poza statystykami: {{reason}}",
+    "markHint": "Oferta zostaje na liście, ale typowe ceny i porównania jej nie liczą.",
+    "reason": {
+      "Room": "pokój",
+      "Parking": "miejsce parkingowe",
+      "ImplausibleArea": "błędny metraż",
+      "ImplausiblePrice": "błędna cena",
+      "Auction": "licytacja",
+      "PerPerson": "cena za osobę",
+      "RentForRenovation": "najem za remont",
+      "UnusualPrice": "nietypowa cena"
+    },
+    "note": {
+      "Room": "Tytuł mówi o pokoju w mieszkaniu, a nie o całym mieszkaniu, więc typowe ceny i porównania tej oferty nie liczą.",
+      "Parking": "To miejsce parkingowe albo garaż, a nie mieszkanie, więc typowe ceny i porównania tej oferty nie liczą.",
+      "ImplausibleArea": "Metraż nie może być prawdziwy (kilka m², taki sam jak cena albo setki m² za kilka zł za m²), więc typowe ceny i porównania tej oferty nie liczą.",
+      "ImplausiblePrice": "Cena nie jest miesięcznym czynszem najmu (symboliczna kwota albo cena sprzedaży), więc typowe ceny i porównania tej oferty nie liczą.",
+      "Auction": "Cena za m² jest daleko od typowych, a opis mówi o licytacji lub przetargu: to kwota jednorazowa, nie miesięczna.",
+      "PerPerson": "Cena za m² jest daleko od typowych, a oferta to kwatery pracownicze albo cena za osobę lub łóżko.",
+      "RentForRenovation": "Cena za m² jest daleko od typowych, a mieszkanie jest do wynajęcia w zamian za remont.",
+      "UnusualPrice": "Cena za m² jest daleko od typowych w swojej grupie, a oferta nie mówi dlaczego: to literówka albo bardzo nietypowe mieszkanie. Typowe ceny i porównania tej oferty nie liczą."
+    },
+    "fences_one": "Zwykle w grupie {{group}}: {{low}}–{{high}} ({{count, number}} oferta), ta oferta: {{value}}.",
+    "fences_few": "Zwykle w grupie {{group}}: {{low}}–{{high}} ({{count, number}} oferty), ta oferta: {{value}}.",
+    "fences_many": "Zwykle w grupie {{group}}: {{low}}–{{high}} ({{count, number}} ofert), ta oferta: {{value}}.",
+    "fences_other": "Zwykle w grupie {{group}}: {{low}}–{{high}} ({{count, number}} oferty), ta oferta: {{value}}.",
+    "roomsUnknown": "liczba pokoi nieznana"
   },
   "filters": {
     "title": "Filtry",
@@ -257,6 +311,17 @@
     "changedAny": "Wszystkie oferty",
     "changedYes": "Zmienione",
     "changedNo": "Bez zmian",
+    "exclusions": "Pominięte w statystykach",
+    "excludedAny": "Wszystkie oferty",
+    "excludedYes": "Tylko pominięte w statystykach",
+    "excludedNo": "Bez pominiętych w statystykach",
+    "excludedHint": "Pokoje, miejsca parkingowe, błędne ceny lub metraże i ceny za m² daleko od typowych. Typowe ceny i porównania zawsze je pomijają.",
+    "data": "Dane oferty",
+    "detailsFetched": "Szczegóły z portalu",
+    "detailsAny": "Wszystkie oferty",
+    "detailsYes": "Ze szczegółami",
+    "detailsNo": "Bez szczegółów",
+    "detailsHint": "Szczegóły (opis, czynsz, piętro, udogodnienia) pobiera każdy przebieg importu po listingu; oferty bez nich czekają na następny.",
     "anyOf": "dowolne z zaznaczonych",
     "allOf": "wszystkie zaznaczone",
     "match": "Oferta ma",
@@ -513,6 +578,11 @@
     "rent": "Typowy czynsz",
     "totalCost": "Typowo razem z czynszem",
     "rentSources": "szacowany: {{estimated, number}} · z opisu: {{description, number}}",
+    "excluded_one": "bez {{count, number}} oferty spoza statystyk",
+    "excluded_few": "bez {{count, number}} ofert spoza statystyk",
+    "excluded_many": "bez {{count, number}} ofert spoza statystyk",
+    "excluded_other": "bez {{count, number}} oferty spoza statystyk",
+    "allExcluded": "Typowe ceny nie liczą żadnej z tych ofert: wszystkie są poza statystykami.",
     "area": "Typowy metraż",
     "middle": "połowa ofert: {{low}}–{{high}}",
     "from_one": "z {{count, number}} oferty",

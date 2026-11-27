@@ -2,13 +2,11 @@ using System.ComponentModel.DataAnnotations;
 
 namespace Bastion.Modules.Housing.Application.FetchDetails;
 
-public sealed class DetailsOptions
+// How detail pages are fetched, by both collecting jobs (ImportNewOffers, SyncAllOffers); how long they may work is the
+// job's TimeLimit.
+public sealed class DetailPageOptions
 {
-    public const string Section = "Details";
-
-    // A run works through the queue until it is empty or this time is up; the rest waits for the next run.
-    [Range(1, 1_440)]
-    public int MaxMinutes { get; set; } = 55;
+    public const string Section = "DetailPages";
 
     // After this many failed attempts an offer waits until its content changes or RetryAfterHours pass.
     [Range(1, 10)]

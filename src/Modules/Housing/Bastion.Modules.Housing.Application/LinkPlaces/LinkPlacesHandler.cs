@@ -1,12 +1,12 @@
 using Bastion.Modules.Housing.Application.Abstractions;
-using Bastion.Modules.Housing.Application.MonthlyCosts;
+using Bastion.Modules.Housing.Application.DerivedData;
 using Bastion.Modules.Housing.Application.Places;
 
 namespace Bastion.Modules.Housing.Application.LinkPlaces;
 
 // Stored offers get their places again: after new places were imported, or after a fix in the matcher.
 // New offers do not need it: an import links them at once.
-public sealed class LinkPlacesHandler(IOfferRepository offers, IPlaceRepository places, OfferSources sources, MonthlyCostService costs)
+public sealed class LinkPlacesHandler(IOfferRepository offers, IPlaceRepository places, OfferSources sources, DerivedDataService derivedData)
 {
     public async Task<LinkPlacesResult> Handle(CancellationToken cancellationToken)
     {
@@ -20,8 +20,8 @@ public sealed class LinkPlacesHandler(IOfferRepository offers, IPlaceRepository 
         }
 
         await offers.SetPlacesAsync(links, cancellationToken);
-        // The rent rates are grouped by place.
-        await costs.RecalculateAllAsync(cancellationToken);
+        // The rent rates and the price fences are grouped by place.
+        await derivedData.RecalculateAllAsync(cancellationToken);
 
         var linked = locations.Zip(links).Where(p => p.Second.PlaceId is not null).Sum(p => p.First.OfferCount);
         return new LinkPlacesResult(linked, locations.Sum(l => l.OfferCount) - linked);

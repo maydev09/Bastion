@@ -10,28 +10,35 @@ type JobTrigger = components["schemas"]["JobTrigger"];
 export type JobGroup = "offers" | "places" | "upkeep" | "other";
 
 type KnownJob =
-  | "ImportOffers"
-  | "ScanOffers"
-  | "FetchDetails"
+  | "ImportNewOffers"
+  | "SyncAllOffers"
   | "ReparseOffers"
   | "ImportPlaces"
   | "LinkPlaces"
-  | "CalculateMonthlyCosts"
-  | "RawCaptureRetention";
+  | "RecalculateDerivedData"
+  | "RawCaptureRetention"
+  | "FetchDetails";
 
 // The jobs the page knows by name, in the order it shows them. What a run did is told by the labels of its counts in the
 // dictionary (jobs.<name>.counts), in their order there; keys: the counts that say most in one line, the first one the
 // run reported wins (a scan stopped early reports no removed offers). A job the API lists but this list does not know
-// shows under "other" with its own name.
+// shows under "other" with its own name. A retired job stays here, so its old runs in the history keep their name and
+// counts; the API no longer lists it.
 const definitions: { name: KnownJob; group: JobGroup; icon: IconName; keys: string[] }[] = [
-  { name: "ImportOffers", group: "offers", icon: "download", keys: ["added"] },
-  { name: "ScanOffers", group: "offers", icon: "search", keys: ["removed", "added"] },
-  { name: "FetchDetails", group: "offers", icon: "file", keys: ["fetched"] },
+  { name: "ImportNewOffers", group: "offers", icon: "download", keys: ["added"] },
+  { name: "SyncAllOffers", group: "offers", icon: "sync", keys: ["removed", "added"] },
   { name: "ReparseOffers", group: "offers", icon: "refresh", keys: ["pages"] },
   { name: "ImportPlaces", group: "places", icon: "globe", keys: ["places"] },
   { name: "LinkPlaces", group: "places", icon: "pin", keys: ["linkedOffers"] },
-  { name: "CalculateMonthlyCosts", group: "upkeep", icon: "calculator", keys: ["estimatedRents"] },
+  {
+    name: "RecalculateDerivedData",
+    group: "upkeep",
+    icon: "calculator",
+    keys: ["excludedOffers", "estimatedRents"],
+  },
   { name: "RawCaptureRetention", group: "upkeep", icon: "trash", keys: ["deletedCaptures"] },
+  // Retired 2026-11-27: ImportNewOffers and SyncAllOffers fetch the detail pages now.
+  { name: "FetchDetails", group: "offers", icon: "file", keys: ["fetched"] },
 ];
 
 // What each run state and trigger looks like next to its name.
@@ -126,20 +133,36 @@ export function describeResult(
     }));
 }
 
-// "co 10 minut", "codziennie o 01:00", "tylko ręcznie". every is "hh:mm:ss" (or "d.hh:mm:ss"), dailyAt "hh:mm:ss".
+// "co 10 minut, 06:00–00:00 · najwyżej 30 minut", "codziennie o 01:00", "tylko ręcznie". every and timeLimit are
+// "hh:mm:ss" (or "d.hh:mm:ss"), dailyAt, from and until "hh:mm:ss".
 export function describeSchedule(t: TFunction<"housing">, job: JobListItem): string {
-  if (job.dailyAt) {
-    return t("jobs.schedule.dailyAt", { time: job.dailyAt.slice(0, 5) });
-  }
-  if (job.every) {
-    const minutes = Math.round(parseTimeSpan(job.every) / 60);
-    const interval =
-      minutes % 60 === 0
-        ? t("jobs.hours", { count: minutes / 60 })
-        : t("jobs.minutes", { count: minutes });
-    return t("jobs.schedule.every", { interval });
-  }
-  return t("jobs.schedule.manual");
+  const when = (() => {
+    if (job.dailyAt) {
+      return t("jobs.schedule.dailyAt", { time: job.dailyAt.slice(0, 5) });
+    }
+    if (job.every) {
+      const interval = describeInterval(t, job.every);
+      return job.from && job.until
+        ? t("jobs.schedule.between", {
+            interval,
+            from: job.from.slice(0, 5),
+            until: job.until.slice(0, 5),
+          })
+        : t("jobs.schedule.every", { interval });
+    }
+    return t("jobs.schedule.manual");
+  })();
+  return job.timeLimit
+    ? `${when} · ${t("jobs.schedule.limit", { duration: describeInterval(t, job.timeLimit) })}`
+    : when;
+}
+
+// "10 minut", "4 godziny".
+function describeInterval(t: TFunction<"housing">, timeSpan: string): string {
+  const minutes = Math.round(parseTimeSpan(timeSpan) / 60);
+  return minutes % 60 === 0
+    ? t("jobs.hours", { count: minutes / 60 })
+    : t("jobs.minutes", { count: minutes });
 }
 
 // "45 s", "3 min 12 s", "1 godz. 5 min".

@@ -159,6 +159,20 @@ export function FilterChips({ filter, onChange }: Props) {
   if (filter.priceCut) {
     chips.push({ key: "priceCut", label: t("filters.priceCut"), remove: { priceCut: false } });
   }
+  if (filter.detailsFetched != null) {
+    chips.push({
+      key: "detailsFetched",
+      label: t(filter.detailsFetched ? "filters.detailsYes" : "filters.detailsNo"),
+      remove: { detailsFetched: null },
+    });
+  }
+  if (filter.excludedFromStatistics != null) {
+    chips.push({
+      key: "excludedFromStatistics",
+      label: t(filter.excludedFromStatistics ? "filters.excludedYes" : "filters.excludedNo"),
+      remove: { excludedFromStatistics: null },
+    });
+  }
 
   if (chips.length === 0) {
     return null;

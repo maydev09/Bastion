@@ -24,11 +24,23 @@ export function MarketSummary({ filter }: { filter: OfferFilter }) {
   }
 
   const { count } = summary.data;
+  const excluded = Object.values(summary.data.excluded).reduce((sum, n) => sum + (n ?? 0), 0);
+  // E.g. only the offers left out are shown: the statistics count none of them.
+  if (excluded === count) {
+    return <p className={styles.allExcluded}>{t("summary.allExcluded")}</p>;
+  }
   const money = (value: number) => format.wholeMoney(value, "PLN");
   const whole = (value: number) => format.number(Math.round(value));
   // The low end of a range is a bare number and the high end carries the unit: "2 300–3 000 zł".
   const tiles = [
-    { title: t("summary.price"), spread: summary.data.price, show: money, low: whole },
+    {
+      title: t("summary.price"),
+      spread: summary.data.price,
+      show: money,
+      low: whole,
+      // Every value leaves out the offers that are no flat for a monthly rent or have wrong numbers.
+      note: excluded > 0 ? t("summary.excluded", { count: excluded }) : undefined,
+    },
     { title: t("summary.pricePerM2"), spread: summary.data.pricePerM2, show: money, low: whole },
     { title: t("summary.rent"), spread: summary.data.rent, show: money, low: whole },
     {

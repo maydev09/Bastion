@@ -1,5 +1,4 @@
 using Bastion.Modules.Housing.Application.Abstractions;
-using Bastion.Modules.Housing.Application.MonthlyCosts;
 using Bastion.Modules.Housing.Application.RawCaptures;
 using Bastion.Modules.Housing.Domain;
 using Microsoft.Extensions.Options;
@@ -10,9 +9,8 @@ public sealed class FetchDetailsHandler(
     OfferSources sources,
     RawCaptureService rawCaptures,
     IOfferRepository repository,
-    MonthlyCostService costs,
     TimeProvider time,
-    IOptions<DetailsOptions> options)
+    IOptions<DetailPageOptions> options)
 {
     // A removed offer (HTTP 410) is no failure: the offer is marked removed and leaves the queue.
     // A single bad page is that offer's failure.
@@ -20,8 +18,8 @@ public sealed class FetchDetailsHandler(
     // A missing page (HTTP 404) is no sign of a refusal; only far more of them in a row mean the whole portal
     // answers so (changed URLs, a block page) and stop the run.
     // A portal out of reach (no VPN, network, timeout) is retried after FirstRetrySeconds, then twice as long each time;
-    // when the retries run out it stops the run and blames no offer. When a retry would pass the time limit, the run ends
-    // as at its time limit and the offer waits for the next run.
+    // when the retries run out it stops the run and blames no offer. When a retry would pass the deadline, the work ends
+    // as at its deadline and the offer waits for the next run.
     // A rate limited portal (429, 503) stops the run at once: the scraping client already backs off before its next request.
     public const int MaxFetchFailuresInRow = 10;
 
@@ -33,7 +31,9 @@ public sealed class FetchDetailsHandler(
 
     private const int BatchSize = 100;
 
-    public async Task<DetailsOutcome> Handle(Source source, CancellationToken cancellationToken)
+    // Works through the queue of offers that need their detail page (newest first) until it is empty or the deadline (the
+    // job's time limit) passes; the rest waits for the next run.
+    public async Task<DetailsOutcome> Handle(Source source, DateTimeOffset? deadline, CancellationToken cancellationToken)
     {
         if (!sources.TryGet(source, out var offerSource))
         {
@@ -41,13 +41,12 @@ public sealed class FetchDetailsHandler(
         }
 
         var startedAt = time.GetUtcNow();
-        var deadline = startedAt.AddMinutes(options.Value.MaxMinutes);
         var retryGivenUpBefore = startedAt.AddHours(-options.Value.RetryAfterHours);
         int fetched = 0, failed = 0, removed = 0, retried = 0;
 
         // Failed fetches since the last success; blamed on their offers only when the streak ends without stopping the run.
         var streak = new List<(PendingDetails Offer, DateTimeOffset At, string Error, bool IsMissing)>();
-        while (time.GetUtcNow() < deadline)
+        while (!IsPast(deadline))
         {
             // Before the next batch, or these offers would come back in it.
             failed += await BlameAsync(streak, cancellationToken);
@@ -60,7 +59,7 @@ public sealed class FetchDetailsHandler(
 
             foreach (var offer in pending)
             {
-                if (time.GetUtcNow() >= deadline)
+                if (IsPast(deadline))
                 {
                     break;
                 }
@@ -135,6 +134,8 @@ public sealed class FetchDetailsHandler(
         return new DetailsOutcome(new DetailsResult(source, fetched, failed, removed, retried), null);
     }
 
+    private bool IsPast(DateTimeOffset? deadline) => time.GetUtcNow() >= deadline;
+
     private async Task<int> BlameAsync(List<(PendingDetails Offer, DateTimeOffset At, string Error, bool IsMissing)> streak, CancellationToken cancellationToken)
     {
         foreach (var (offer, at, error, _) in streak)
@@ -164,7 +165,6 @@ public sealed class FetchDetailsHandler(
         }
 
         await repository.SaveDetailsAsync(capture, offer.ExternalId, parsed.Details!.ToDomain(), recordChanges: true, cancellationToken);
-        await costs.UpdateAsync(capture.SourceId, [offer.ExternalId], cancellationToken);
         return null;
     }
 }

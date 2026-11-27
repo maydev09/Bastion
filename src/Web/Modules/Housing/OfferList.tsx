@@ -15,6 +15,7 @@ import { FilterChips } from "./FilterChips";
 import { MarketSummary } from "./MarketSummary";
 import { RentCell, TotalCostCell } from "./MonthlyCost";
 import styles from "./Housing.module.css";
+import { ExclusionMark } from "./StatisticsExclusion";
 import { OfferFilters } from "./OfferFilters";
 import { offersQuery } from "./offersQuery";
 import {
@@ -117,7 +118,12 @@ export function OfferList() {
         id: "title",
         header: t("list.offer"),
         minWidth: 200,
-        cell: (offer) => <OfferLink offer={offer} />,
+        cell: (offer) => (
+          <>
+            <OfferLink offer={offer} />
+            <ExclusionMark offer={offer} />
+          </>
+        ),
       },
       {
         id: "place",
@@ -178,6 +184,12 @@ export function OfferList() {
           offer.furnished === "Yes" || offer.furnished === "No"
             ? t(`answer.${offer.furnished}`)
             : "—",
+      },
+      {
+        id: "details",
+        header: t("list.details"),
+        // Fetched once is enough: a changed offer keeps its old details until the next run fetches the new ones.
+        cell: (offer) => t(offer.detailsFetchedAt ? "answer.Yes" : "answer.No"),
       },
       {
         id: "FirstSeen",

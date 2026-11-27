@@ -18,6 +18,7 @@ import { OfferChanges } from "./OfferChanges";
 import { OfferDescription } from "./OfferDescription";
 import { OfferDetails } from "./OfferDetails";
 import { OfferFeatures } from "./OfferFeatures";
+import { ExclusionNote } from "./StatisticsExclusion";
 import { OfferPlace } from "./OfferPlace";
 import { offersQuery } from "./offersQuery";
 import { readView, writeView } from "./offerView";
@@ -243,6 +244,7 @@ export function OfferDetail() {
       </div>
 
       <RentNote offer={o} />
+      <ExclusionNote offer={o} />
 
       <div className={styles.layout}>
         <div className={styles.main}>

@@ -23,7 +23,9 @@
     "schedule": {
       "every": "every {{interval}}",
       "dailyAt": "daily at {{time}}",
-      "manual": "by hand only"
+      "manual": "by hand only",
+      "between": "every {{interval}}, {{from}}–{{until}}",
+      "limit": "at most {{duration}}"
     },
     "minutes_one": "minute",
     "minutes_other": "{{count}} minutes",
@@ -47,38 +49,40 @@
       "Schedule": "schedule"
     },
     "interrupted": "Interrupted by a restart of the application; the next run starts again.",
-    "ImportOffers": {
+    "ImportNewOffers": {
       "name": "Fetch new listings",
-      "description": "Reads the newest OtoDom result pages until it meets a listing it already knows (a few pages at most). Adds new offers and updates changed ones.",
+      "description": "During the day reads the newest OtoDom result pages while they show new listings (a few pages at most), then opens the pages of new and changed offers (description, fees, floor, amenities), and last recalculates the costs and statistics exclusions. After a run the new offers are complete.",
       "counts": {
-        "pages": "Pages",
-        "added": "New",
-        "updated": "Changed",
-        "unchanged": "Unchanged",
-        "skipped": "Skipped"
-      }
-    },
-    "ScanOffers": {
-      "name": "Scan all listings",
-      "description": "Reads the whole OtoDom listing to its last page (about half an hour). An offer missing from two full scans in a row is marked as removed.",
-      "counts": {
-        "pages": "Pages",
+        "pages": "Listing pages",
         "added": "New",
         "updated": "Changed",
         "unchanged": "Unchanged",
         "skipped": "Skipped",
-        "missed": "Missing from the scan",
-        "removed": "Removed"
+        "detailsFetched": "Details fetched",
+        "detailsFailed": "Details failed",
+        "detailsRemoved": "Removed from the portal (410)",
+        "detailsRetried": "Requests retried",
+        "estimatedRents": "Fees estimated",
+        "excludedOffers": "Left out of statistics"
       }
     },
-    "FetchDetails": {
-      "name": "Fetch offer details",
-      "description": "Opens the page of every new or changed offer and saves the description, fees, floor, heating, amenities and location. Works up to an hour; the next run finishes the rest.",
+    "SyncAllOffers": {
+      "name": "Sync the whole database with the portal",
+      "description": "At night reads the whole OtoDom listing to its last page, marks offers missing from two runs in a row as removed, then opens the pages of changed offers, and last recalculates the costs and statistics exclusions.",
       "counts": {
-        "fetched": "Fetched",
-        "failed": "Failed",
-        "removed": "Removed from the portal",
-        "retried": "Retried"
+        "pages": "Listing pages",
+        "added": "New",
+        "updated": "Changed",
+        "unchanged": "Unchanged",
+        "skipped": "Skipped",
+        "missed": "Missing from the run",
+        "removed": "Removed",
+        "detailsFetched": "Details fetched",
+        "detailsFailed": "Details failed",
+        "detailsRemoved": "Removed from the portal (410)",
+        "detailsRetried": "Requests retried",
+        "estimatedRents": "Fees estimated",
+        "excludedOffers": "Left out of statistics"
       }
     },
     "ReparseOffers": {
@@ -111,17 +115,28 @@
         "unlinkedOffers": "Without a place"
       }
     },
-    "CalculateMonthlyCosts": {
-      "name": "Recalculate monthly costs",
-      "description": "Calculates the typical fees per m² from the listed offers again, and with them the monthly cost (price + fees) of every listed offer. A saved offer gets its cost at once; this task refreshes them all.",
+    "RecalculateDerivedData": {
+      "name": "Recalculate costs and statistics exclusions",
+      "description": "Calculates again from the listed offers the typical rent per m² and the usual price ranges per m² of groups of offers, and with them the monthly cost (price + fees) of every listed offer and whether the statistics leave it out (rooms, parking spaces, wrong prices and areas). A saved offer gets both at once; this job refreshes all of them as the market moves.",
       "counts": {
-        "rentRates": "Group rates",
+        "rentRates": "Rent rates of groups",
         "statedRents": "Fees stated",
         "descriptionRents": "Fees from the description",
         "includedRents": "No fees per the description",
         "nominalRents": "0 or 1 zł",
         "estimatedRents": "Fees estimated",
-        "withoutCost": "Without a cost"
+        "withoutCost": "Without a cost",
+        "priceFences": "Price ranges of groups",
+        "checkedOffers": "Offers checked",
+        "excludedOffers": "Left out of statistics",
+        "rooms": "Rooms",
+        "parking": "Parking spaces",
+        "implausibleAreas": "Wrong area",
+        "implausiblePrices": "Wrong price",
+        "auctions": "Auctions",
+        "perPerson": "Workers' quarters, price per person",
+        "rentForRenovation": "Rent for renovation",
+        "unusualPrices": "Unusual price"
       }
     },
     "RawCaptureRetention": {
@@ -130,6 +145,16 @@
       "counts": {
         "deletedCaptures": "Deleted pages",
         "freedBytes": "Freed space"
+      }
+    },
+    "FetchDetails": {
+      "name": "Fetch offer details (retired)",
+      "description": "Retired on 2026-11-27: every run fetching new listings or syncing with the portal fetches the offer details now. It stays only in the run history.",
+      "counts": {
+        "fetched": "Fetched",
+        "failed": "Failed",
+        "removed": "Removed from the portal",
+        "retried": "Retried"
       }
     },
     "history": {
@@ -178,6 +203,7 @@
     "rent": "Fees",
     "totalCost": "Total",
     "furnished": "Furniture",
+    "details": "Details",
     "previousPrice": "Before: {{price}}"
   },
   "cost": {
@@ -199,6 +225,33 @@
     "group_one": "{{group}}: typically {{rate}} from {{count, number}} offer.",
     "group_other": "{{group}}: typically {{rate}} from {{count, number}} offers.",
     "areaNote": "The rate takes the area into account: small flats pay more per m², big ones less."
+  },
+  "exclusion": {
+    "mark": "Left out of statistics: {{reason}}",
+    "markHint": "The offer stays on the list, but typical prices and comparisons do not count it.",
+    "reason": {
+      "Room": "room",
+      "Parking": "parking space",
+      "ImplausibleArea": "wrong area",
+      "ImplausiblePrice": "wrong price",
+      "Auction": "auction",
+      "PerPerson": "price per person",
+      "RentForRenovation": "rent for renovation",
+      "UnusualPrice": "unusual price"
+    },
+    "note": {
+      "Room": "The title is about a room in a shared flat, not a whole flat, so typical prices and comparisons do not count this offer.",
+      "Parking": "This is a parking space or a garage, not a flat, so typical prices and comparisons do not count this offer.",
+      "ImplausibleArea": "The area cannot be right (a few m², the same as the price, or hundreds of m² at a few zł per m²), so typical prices and comparisons do not count this offer.",
+      "ImplausiblePrice": "The price is not a monthly rent (a token amount or a sale price), so typical prices and comparisons do not count this offer.",
+      "Auction": "The price per m² is far from the usual ones, and the description is about an auction or a tender: the amount is paid once, not each month.",
+      "PerPerson": "The price per m² is far from the usual ones, and the offer is workers' quarters or priced per person or bed.",
+      "RentForRenovation": "The price per m² is far from the usual ones, and the flat is let in return for renovating it.",
+      "UnusualPrice": "The price per m² is far from the usual ones in its group, and the offer does not say why: a typo or a very unusual flat. Typical prices and comparisons do not count this offer."
+    },
+    "fences_one": "Usual in the group {{group}}: {{low}}–{{high}} ({{count, number}} offer); this offer: {{value}}.",
+    "fences_other": "Usual in the group {{group}}: {{low}}–{{high}} ({{count, number}} offers); this offer: {{value}}.",
+    "roomsUnknown": "rooms not known"
   },
   "filters": {
     "title": "Filters",
@@ -246,6 +299,17 @@
     "changedAny": "All offers",
     "changedYes": "Changed",
     "changedNo": "Unchanged",
+    "exclusions": "Left out of statistics",
+    "excludedAny": "All offers",
+    "excludedYes": "Only those left out of statistics",
+    "excludedNo": "Without those left out of statistics",
+    "excludedHint": "Rooms, parking spaces, wrong prices or areas and prices per m² far from the usual ones. Typical prices and comparisons always leave them out.",
+    "data": "Offer data",
+    "detailsFetched": "Details from the portal",
+    "detailsAny": "All offers",
+    "detailsYes": "With details",
+    "detailsNo": "Without details",
+    "detailsHint": "Every import run fetches the details (description, fees, floor, amenities) after the listing; offers without them wait for the next run.",
     "anyOf": "any of the picked",
     "allOf": "all of the picked",
     "match": "Offer has",
@@ -500,6 +564,9 @@
     "rent": "Typical fees",
     "totalCost": "Typical total with fees",
     "rentSources": "estimated: {{estimated, number}} · from the description: {{description, number}}",
+    "excluded_one": "without {{count, number}} offer left out of statistics",
+    "excluded_other": "without {{count, number}} offers left out of statistics",
+    "allExcluded": "Typical prices count none of these offers: all of them are left out of statistics.",
     "area": "Typical area",
     "middle": "middle half: {{low}}–{{high}}",
     "from_one": "of {{count, number}} offer",

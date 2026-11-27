@@ -84,7 +84,7 @@
         "tags": [
           "Housing"
         ],
-        "summary": "Returns stored offers that match all given filters, by default newest first; offers without the sorted value come last. Prices are in PLN; priceMin/priceMax bound the price, totalCostMin/totalCostMax the monthly cost (price plus admin rent, offers without one left out), both in PLN and inclusive. monthlyCost.total is the price plus the admin rent a month (rentSource: Stated in the rent field; Description or Included as the description says, with rentQuote; Nominal for a field of 0 or 1 zł with nothing in the description, taken as 0; Estimated from the nearest offers of the same building type and the most local group of offers, with both shown); place and voivodeship together match offers in any of them, and so do rooms and roomsMin; district and neighborhood take ids from /places/{id}/districts (a neighborhood has a parentId): a picked district narrows its place to the picked districts and takes in its neighborhoods, a picked neighborhood narrows its district the same way, and other picked places and districts stay whole; amenities match all of them unless featureMatch is Any.",
+        "summary": "Returns stored offers that match all given filters, by default newest first; offers without the sorted value come last. Prices are in PLN; priceMin/priceMax bound the price, totalCostMin/totalCostMax the monthly cost (price plus admin rent, offers without one left out), both in PLN and inclusive. monthlyCost.total is the price plus the admin rent a month (rentSource: Stated in the rent field; Description or Included as the description says, with rentQuote; Nominal for a field of 0 or 1 zł with nothing in the description, taken as 0; Estimated from the nearest offers of the same building type and the most local group of offers, with both shown); place and voivodeship together match offers in any of them, and so do rooms and roomsMin; district and neighborhood take ids from /places/{id}/districts (a neighborhood has a parentId): a picked district narrows its place to the picked districts and takes in its neighborhoods, a picked neighborhood narrows its district the same way, and other picked places and districts stay whole; amenities match all of them unless featureMatch is Any; statisticsExclusion says why the statistics leave an offer out (reason: Room, Parking, ImplausibleArea, ImplausiblePrice, Auction, PerPerson, RentForRenovation, UnusualPrice) with the usual price per m² of its group (fenceLowPerM2, fenceHighPerM2, PLN; basis and sampleSize name the group), and excludedFromStatistics=true lists only such offers, excludedFromStatistics=false only the others; detailsFetchedAt is when the offer's detail page was last fetched (null: not yet), and detailsFetched=true or false lists offers with or without it.",
         "operationId": "ListHousingOffers",
         "parameters": [
           {
@@ -287,6 +287,20 @@
             }
           },
           {
+            "name": "detailsFetched",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "excludedFromStatistics",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "excludeOffer",
             "in": "query",
             "schema": {
@@ -352,7 +366,7 @@
         "tags": [
           "Housing"
         ],
-        "summary": "Returns how many offers each filter choice would show with the other given filters (districts: the districts and neighborhoods of the picked places by id, a district with its neighborhoods), the spread of prices, areas and total monthly costs (PLN) without their own bounds (priceMin/priceMax, areaMin/areaMax, totalCostMin/totalCostMax), and the offers first seen since each countAddedSince.",
+        "summary": "Returns how many offers each filter choice would show with the other given filters (districts: the districts and neighborhoods of the picked places by id, a district with its neighborhoods), the spread of prices, areas and total monthly costs (PLN) without their own bounds (priceMin/priceMax, areaMin/areaMax, totalCostMin/totalCostMax), the offers first seen since each countAddedSince, how many offers have their detail page (detailsFetched) or not yet (withoutDetails), and how many offers the statistics leave out (excludedFromStatistics) or count (countedInStatistics).",
         "operationId": "CountHousingOfferFacets",
         "parameters": [
           {
@@ -555,6 +569,20 @@
             }
           },
           {
+            "name": "detailsFetched",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "excludedFromStatistics",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
             "name": "excludeOffer",
             "in": "query",
             "schema": {
@@ -593,7 +621,7 @@
         "tags": [
           "Housing"
         ],
-        "summary": "Returns the typical price, price per m², rent, total monthly cost and area of the offers that match the filters: the median, the middle half and how many offers have the value. Money is in PLN. The rent counts only known rents (the rent field when plausible, or the amount the description states). The total cost is the price plus the admin rent; rentSources counts its offers by where their rent comes from (Stated, Description, Included, Nominal, Estimated).",
+        "summary": "Returns the typical price, price per m², rent, total monthly cost and area of the offers that match the filters: the median, the middle half and how many offers have the value. Money is in PLN. The rent counts only known rents (the rent field when plausible, or the amount the description states). The total cost is the price plus the admin rent; rentSources counts its offers by where their rent comes from (Stated, Description, Included, Nominal, Estimated). Every value leaves out the excluded offers (rooms, parking spaces, typos, sale or token prices, auctions, workers' quarters, prices per m² far outside their group: Tukey's fences, by default 3 × IQR of ln(price per m²), in the offer's group by rooms and place); count includes them and excluded counts them by reason.",
         "operationId": "SummarizeHousingOffers",
         "parameters": [
           {
@@ -790,6 +818,20 @@
           },
           {
             "name": "priceCut",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "detailsFetched",
+            "in": "query",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "name": "excludedFromStatistics",
             "in": "query",
             "schema": {
               "type": "boolean"
@@ -1010,7 +1052,7 @@
         "tags": [
           "Housing"
         ],
-        "summary": "Returns every job of the module in its registered order: its schedule (dailyAt, a time of day in timeZone, or every, an interval; neither: started by hand only), whether schedules are on here (scheduled), its latest run (null before the first one) and the server's current time.",
+        "summary": "Returns every job of the module in its registered order: its schedule (dailyAt, a time of day in timeZone, or every, an interval, only from from until until in timeZone when they are set; neither: started by hand only), timeLimit (how long one run may work, null without a limit), whether schedules are on here (scheduled), its latest run (null before the first one) and the server's current time.",
         "responses": {
           "200": {
             "description": "OK",
@@ -1469,6 +1511,9 @@
           "name",
           "dailyAt",
           "every",
+          "from",
+          "until",
+          "timeLimit",
           "latestRun"
         ],
         "type": "object",
@@ -1484,6 +1529,27 @@
             "format": "time"
           },
           "every": {
+            "pattern": "^-?(\\d+\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "from": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "time"
+          },
+          "until": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "time"
+          },
+          "timeLimit": {
             "pattern": "^-?(\\d+\\.)?\\d{2}:\\d{2}:\\d{2}(\\.\\d{1,7})?$",
             "type": [
               "null",
@@ -1745,6 +1811,10 @@
           "changed",
           "unchanged",
           "priceCut",
+          "detailsFetched",
+          "withoutDetails",
+          "excludedFromStatistics",
+          "countedInStatistics",
           "addedSince"
         ],
         "type": "object",
@@ -1804,6 +1874,22 @@
             "format": "int32"
           },
           "priceCut": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "detailsFetched": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "withoutDetails": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "excludedFromStatistics": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "countedInStatistics": {
             "type": "integer",
             "format": "int32"
           },
@@ -1989,6 +2075,16 @@
               },
               {
                 "$ref": "#/components/schemas/Answer"
+              }
+            ]
+          },
+          "statisticsExclusion": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/StatisticsExclusionItem"
               }
             ]
           },
@@ -2236,6 +2332,7 @@
       "OfferSummary": {
         "required": [
           "count",
+          "excluded",
           "rentSources"
         ],
         "type": "object",
@@ -2243,6 +2340,13 @@
           "count": {
             "type": "integer",
             "format": "int32"
+          },
+          "excluded": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "integer",
+              "format": "int32"
+            }
           },
           "price": {
             "oneOf": [
@@ -2486,6 +2590,15 @@
           null
         ]
       },
+      "PriceFenceBasis": {
+        "enum": [
+          "Country",
+          "PlaceSize",
+          "VoivodeshipPlaceSize",
+          "Place",
+          null
+        ]
+      },
       "ProblemDetails": {
         "type": "object",
         "properties": {
@@ -2660,6 +2773,75 @@
             "format": "int32"
           }
         }
+      },
+      "StatisticsExclusionItem": {
+        "required": [
+          "reason",
+          "calculatedAt"
+        ],
+        "type": "object",
+        "properties": {
+          "reason": {
+            "$ref": "#/components/schemas/StatisticsExclusionReason"
+          },
+          "basis": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/PriceFenceBasis"
+              }
+            ]
+          },
+          "sampleSize": {
+            "type": [
+              "null",
+              "integer"
+            ],
+            "format": "int32"
+          },
+          "fenceLowPerM2": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "fenceHighPerM2": {
+            "type": [
+              "null",
+              "number"
+            ],
+            "format": "double"
+          },
+          "currency": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/Currency"
+              }
+            ]
+          },
+          "calculatedAt": {
+            "type": "string",
+            "format": "date-time"
+          }
+        }
+      },
+      "StatisticsExclusionReason": {
+        "enum": [
+          "Room",
+          "Parking",
+          "ImplausibleArea",
+          "ImplausiblePrice",
+          "Auction",
+          "PerPerson",
+          "RentForRenovation",
+          "UnusualPrice"
+        ]
       },
       "Transaction": {
         "enum": [

@@ -9,28 +9,50 @@ Default = "Information"
 [Modules.Housing]
 Enabled = true
 
+# ----- Jobs: each job's schedule, time limit and own settings -----
+
+# New offers during the day: the listing from the newest offer while its pages show new ones, then the detail pages
+# of new and changed offers (newest first), then the monthly costs and statistics exclusions of all offers.
+[Modules.Housing.Jobs.ImportNewOffers]
+Every = "00:10:00"
+From = "06:00"           # runs only from From until Until (Europe/Warsaw); "00:00" is midnight
+Until = "00:00"
+TimeLimit = "00:30:00"   # then the run takes no more detail pages; a longer run skips the next turns
+MaxPages = 5             # 72 offers per page; more new offers are left to SyncAllOffers
+
+# The whole portal at night: every listing page (360 in November 2026, about 33 minutes at 2-5 s between requests),
+# offers missing from two runs in a row marked removed, then the detail pages of changed offers, then the derived data.
+# Done before the database backup at 03:00 in a normal night.
+[Modules.Housing.Jobs.SyncAllOffers]
+DailyAt = "01:00"
+TimeLimit = "04:00:00"   # ends before the first ImportNewOffers at 06:00
+MaxPages = 1000          # safety limit only; a run stopped by it marks no offer removed
+
+[Modules.Housing.Jobs.RawCaptureRetention]
+DailyAt = "04:00"        # after the database backup at 03:00
+RetentionDays = 30
+
+# Without a schedule (buttons in the UI): ReparseOffers; ImportPlaces after a new census, then LinkPlaces so stored offers
+# get the new places; RecalculateDerivedData after the rules below changed (every collecting run ends with it anyway).
+
+# ----- The portal -----
+
 [Modules.Housing.OtoDom]
 BaseUrl = "https://www.otodom.pl"
 ListingUrl = "https://www.otodom.pl/pl/wyniki/wynajem/mieszkanie/cala-polska?by=LATEST&direction=DESC&limit=72"
 
-[Modules.Housing.Import]
-MaxPages = 5             # new offers; 72 offers per page
-FullScanMaxPages = 1000  # safety limit only; the whole listing had 360 pages in November 2026
-
-# FetchDetails fetches detail pages of new and changed offers, newest first: 5.2 s each at 3-6 s
-# between requests (about 575 per 50-minute run), expected about 4.2 s at 2-5 s. The first runs
-# work through the whole backlog (about 26 000 offers).
-[Modules.Housing.Details]
-MaxMinutes = 55          # per run, which starts every hour; the rest waits for the next run
+# How both collecting jobs fetch detail pages (about 4.2 s each at 2-5 s between requests).
+[Modules.Housing.DetailPages]
 MaxFailedAttempts = 3    # then the offer waits until its content changes or RetryAfterHours pass
 RetryAfterHours = 24     # one more attempt per day: the portal may answer 404 or 410 only for a while
 Retries = 4              # when the portal is out of reach (timeout, network, VPN; not 429): wait 30 s, 1, 2, 4 min
 FirstRetrySeconds = 30
 
-# Path is set per environment (bastion.<Environment>.toml).
+# Stored pages; Path is set per environment (bastion.<Environment>.toml).
 [Modules.Housing.RawCaptures]
-RetentionDays = 30
 AnonymizationMask = "***"
+
+# ----- Places (ImportPlaces) -----
 
 [Modules.Housing.Wikidata]
 QueryUrl = "https://query.wikidata.org/sparql"
@@ -59,6 +81,8 @@ BigCityMinPopulation = 100000   # a town this big is a big city
 BigCityCount = 3                # big cities around a place: at most this many...
 BigCityMaxKm = 50               # ...at most this far
 
+# ----- Rules of the derived data (the last step of every collecting run) -----
+
 # Monthly cost = price + admin rent: the rent field, else the description, else a 0 or 1 zł field as no rent, else an
 # estimate from offers nearby and from the most local groups of offers (RentEstimator in the code; values tested on the
 # stored offers 2026-11-26).
@@ -73,24 +97,18 @@ WiderGroupWeight = 20  # how many offers a wider group's rate counts as next to 
 TypicalAreaM2 = 46     # the rate is multiplied by (area / TypicalAreaM2) ^ AreaExponent:
 AreaExponent = -0.18   # small flats pay more per m², big ones less
 
-# ImportPlaces and LinkPlaces have no schedule: they run from the buttons in the UI, e.g. after a new census
-# (ImportPlaces), then LinkPlaces so stored offers get the new places.
+# Offers the statistics leave out (values chosen on the stored offers 2026-11-27, see StatisticsExclusionService).
+[Modules.Housing.StatisticsExclusions]
+FenceMultiplier = 3      # outside Q1 - 3 IQR .. Q3 + 3 IQR of ln(price per m²) in the offer's group: ~0.3% of offers, nearly all errors
+MinGroupSize = 30        # a smaller group takes the next wider one (place -> size of place in the voivodeship -> in the country -> country)
+MinPrice = 100           # a price below is a token amount (1 zł)...
+MaxPricePerM2 = 1000     # ...and one above this per m² is a sale price
+MinAreaM2 = 5            # an area below is a typo; so is one above LargeAreaM2 priced below the fences (4 216 m² for 1 350 zł)
+LargeAreaM2 = 300
+ParkingMaxAreaM2 = 20    # a title about a parking space is one only when the area or the price is this small;
+ParkingMaxPrice = 700    # most such titles are flats with a parking space
 
-[Modules.Housing.Jobs.ImportOffers]
-Every = "00:10:00"
-
-[Modules.Housing.Jobs.FetchDetails]
-Every = "01:00:00"
-
-[Modules.Housing.Jobs.ScanOffers]
-DailyAt = "01:00"   # 33 minutes alone at 3-6 s between requests (expected about 30 at 2-5 s), longer while FetchDetails shares the portal; done before the backup at 03:00
-
-# Saved offers get their cost at once from the stored rent rates; this calculates the rates again from all offers.
-[Modules.Housing.Jobs.CalculateMonthlyCosts]
-DailyAt = "02:00"   # after the full scan at 01:00
-
-[Modules.Housing.Jobs.RawCaptureRetention]
-DailyAt = "04:00"   # after the database backup at 03:00
+# ----- Shared by all modules -----
 
 [Jobs]
 TimeZone = "Europe/Warsaw"

@@ -36,7 +36,11 @@ public static class OfferEndpoints
             + "district and neighborhood take ids from /places/{id}/districts (a neighborhood has a parentId): a picked district "
             + "narrows its place to the picked districts and takes in its neighborhoods, a picked neighborhood narrows its district "
             + "the same way, and other picked places and districts stay whole; "
-            + "amenities match all of them unless featureMatch is Any.");
+            + "amenities match all of them unless featureMatch is Any; "
+            + "statisticsExclusion says why the statistics leave an offer out (reason: Room, Parking, ImplausibleArea, ImplausiblePrice, Auction, "
+            + "PerPerson, RentForRenovation, UnusualPrice) with the usual price per m² of its group (fenceLowPerM2, fenceHighPerM2, "
+            + "PLN; basis and sampleSize name the group), and excludedFromStatistics=true lists only such offers, excludedFromStatistics=false only the others; "
+            + "detailsFetchedAt is when the offer's detail page was last fetched (null: not yet), and detailsFetched=true or false lists offers with or without it.");
 
         app.MapGet("/offers/facets", async (
             ListOffersHandler handler,
@@ -47,7 +51,9 @@ public static class OfferEndpoints
         .WithName("CountHousingOfferFacets")
         .WithSummary("Returns how many offers each filter choice would show with the other given filters (districts: the districts "
             + "and neighborhoods of the picked places by id, a district with its neighborhoods), "
-            + "the spread of prices, areas and total monthly costs (PLN) without their own bounds (priceMin/priceMax, areaMin/areaMax, totalCostMin/totalCostMax), and the offers first seen since each countAddedSince.");
+            + "the spread of prices, areas and total monthly costs (PLN) without their own bounds (priceMin/priceMax, areaMin/areaMax, totalCostMin/totalCostMax), the offers first seen since each countAddedSince, "
+            + "how many offers have their detail page (detailsFetched) or not yet (withoutDetails), "
+            + "and how many offers the statistics leave out (excludedFromStatistics) or count (countedInStatistics).");
 
         app.MapGet("/offers/summary", async (
             ListOffersHandler handler, CancellationToken cancellationToken, [AsParameters] OfferFilterQuery filter) =>
@@ -56,7 +62,10 @@ public static class OfferEndpoints
         .WithSummary("Returns the typical price, price per m², rent, total monthly cost and area of the offers that match the filters: "
             + "the median, the middle half and how many offers have the value. Money is in PLN. The rent counts only known rents "
             + "(the rent field when plausible, or the amount the description states). The total cost is the price plus "
-            + "the admin rent; rentSources counts its offers by where their rent comes from (Stated, Description, Included, Nominal, Estimated).");
+            + "the admin rent; rentSources counts its offers by where their rent comes from (Stated, Description, Included, Nominal, Estimated). "
+            + "Every value leaves out the excluded offers (rooms, parking spaces, typos, sale or token prices, auctions, workers' quarters, "
+            + "prices per m² far outside their group: Tukey's fences, by default 3 × IQR of ln(price per m²), in the offer's group by rooms and place); count includes them and excluded "
+            + "counts them by reason.");
 
         app.MapGet("/features", () =>
             TypedResults.Ok(FeatureCategories.All.Select(f => new FeatureListItem(f, FeatureCategories.Of(f))).ToList()))

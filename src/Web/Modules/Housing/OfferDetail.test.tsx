@@ -70,6 +70,47 @@ describe("OfferDetail", () => {
     expect(rows[1]).toContain(t("detail.tier.Metropolis"));
   });
 
+  it("says why the statistics leave the offer out and what is usual in its group", async () => {
+    stubApi({
+      "/api/housing/offers/1": {
+        status: 200,
+        body: {
+          id: 1,
+          source: "OtoDom",
+          title: "Mieszkanie przy ul. Zamkowej",
+          url: "https://www.otodom.pl/pl/oferta/flat-ID1",
+          propertyType: "Apartment",
+          transaction: "Rent",
+          price: 12700,
+          priceCurrency: "PLN",
+          areaM2: 36.26,
+          pricePerM2: 350.25,
+          rooms: 1,
+          createdAt: "2026-11-16T10:00:00+00:00",
+          updatedAt: "2026-11-16T10:00:00+00:00",
+          placeName: "Katowice",
+          voivodeship: "Slaskie",
+          statisticsExclusion: {
+            reason: "Auction",
+            basis: "Place",
+            sampleSize: 194,
+            fenceLowPerM2: 17.12,
+            fenceHighPerM2: 228.52,
+            currency: "PLN",
+            calculatedAt: "2026-11-27T13:00:00+00:00",
+          },
+          nearby: [],
+        },
+      },
+    });
+
+    renderDetail();
+
+    const note = await screen.findByRole("note");
+    expect(note).toHaveTextContent(t("exclusion.note.Auction"));
+    expect(note).toHaveTextContent(/Katowice/);
+  });
+
   it("says everything is in place when the place meets every tier", async () => {
     stubApi({
       "/api/housing/offers/1": {

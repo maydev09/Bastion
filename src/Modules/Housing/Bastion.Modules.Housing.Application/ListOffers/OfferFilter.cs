@@ -72,4 +72,10 @@ public sealed record OfferFilter
 
     // Offers whose recorded history has a lower price than the one before.
     public bool PriceCut { get; init; }
+
+    // Offers whose detail page was fetched (true) or not yet (false); see OfferListItem.DetailsFetchedAt.
+    public bool? DetailsFetched { get; init; }
+
+    // Offers the statistics leave out (true) or count (false); see OfferListItem.StatisticsExclusion.
+    public bool? ExcludedFromStatistics { get; init; }
 }

@@ -4,6 +4,7 @@ using Bastion.BuildingBlocks.Scraping;
 using Bastion.Modules.Housing.Api;
 using Bastion.Modules.Housing.Application;
 using Bastion.Modules.Housing.Application.Abstractions;
+using Bastion.Modules.Housing.Application.DerivedData;
 using Bastion.Modules.Housing.Application.FetchDetails;
 using Bastion.Modules.Housing.Application.ImportOffers;
 using Bastion.Modules.Housing.Application.ImportPlaces;
@@ -11,6 +12,7 @@ using Bastion.Modules.Housing.Application.LinkPlaces;
 using Bastion.Modules.Housing.Application.ListOffers;
 using Bastion.Modules.Housing.Application.ListPlaces;
 using Bastion.Modules.Housing.Application.MonthlyCosts;
+using Bastion.Modules.Housing.Application.StatisticsExclusions;
 using Bastion.Modules.Housing.Application.Places;
 using Bastion.Modules.Housing.Application.RawCaptures;
 using Bastion.Modules.Housing.Application.ReparseOffers;
@@ -42,16 +44,24 @@ public sealed class HousingModule : IModule
             .Bind(moduleSection.GetSection(OtoDomOptions.Section))
             .ValidateDataAnnotations()
             .ValidateOnStart();
-        services.AddOptions<ImportOptions>()
-            .Bind(moduleSection.GetSection(ImportOptions.Section))
+        services.AddOptions<ImportNewOffersOptions>()
+            .Bind(moduleSection.GetSection(ImportNewOffersOptions.Section))
             .ValidateDataAnnotations()
             .ValidateOnStart();
-        services.AddOptions<DetailsOptions>()
-            .Bind(moduleSection.GetSection(DetailsOptions.Section))
+        services.AddOptions<SyncAllOffersOptions>()
+            .Bind(moduleSection.GetSection(SyncAllOffersOptions.Section))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddOptions<DetailPageOptions>()
+            .Bind(moduleSection.GetSection(DetailPageOptions.Section))
             .ValidateDataAnnotations()
             .ValidateOnStart();
         services.AddOptions<RawCaptureOptions>()
             .Bind(moduleSection.GetSection(RawCaptureOptions.Section))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddOptions<RawCaptureRetentionOptions>()
+            .Bind(moduleSection.GetSection(RawCaptureRetentionOptions.Section))
             .ValidateDataAnnotations()
             .ValidateOnStart();
         services.AddOptions<WikidataOptions>()
@@ -68,6 +78,10 @@ public sealed class HousingModule : IModule
             .ValidateOnStart();
         services.AddOptions<MonthlyCostOptions>()
             .Bind(moduleSection.GetSection(MonthlyCostOptions.Section))
+            .ValidateDataAnnotations()
+            .ValidateOnStart();
+        services.AddOptions<StatisticsExclusionOptions>()
+            .Bind(moduleSection.GetSection(StatisticsExclusionOptions.Section))
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
@@ -87,9 +101,13 @@ public sealed class HousingModule : IModule
         services.AddSingleton<IPlaceRepository, PlaceRepository>();
         services.AddSingleton<IRawCaptureRepository, RawCaptureRepository>();
         services.AddSingleton<IMonthlyCostRepository, MonthlyCostRepository>();
+        services.AddSingleton<IStatisticsExclusionRepository, StatisticsExclusionRepository>();
         services.AddSingleton<IRawCaptureFileStorage, RawCaptureFileStorage>();
         services.AddSingleton<RawCaptureService>();
-        services.AddTransient<MonthlyCostService>();
+        // Singletons: DerivedDataService holds the lock that lets one calculation run at a time.
+        services.AddSingleton<MonthlyCostService>();
+        services.AddSingleton<StatisticsExclusionService>();
+        services.AddSingleton<DerivedDataService>();
         services.AddTransient<ImportOffersHandler>();
         services.AddTransient<FetchDetailsHandler>();
         services.AddTransient<ReparseOffersHandler>();
@@ -99,14 +117,13 @@ public sealed class HousingModule : IModule
         services.AddTransient<ListPlacesHandler>();
 
         services.AddJobs(Schema, moduleSection)
-            .Add<ImportOffersJob>(ImportOffersJob.Name)
-            .Add<ScanOffersJob>(ScanOffersJob.Name)
-            .Add<FetchDetailsJob>(FetchDetailsJob.Name)
+            .Add<ImportNewOffersJob>(ImportNewOffersJob.Name)
+            .Add<SyncAllOffersJob>(SyncAllOffersJob.Name)
             .Add<ReparseOffersJob>(ReparseOffersJob.Name)
             .Add<RawCaptureRetentionJob>(RawCaptureRetentionJob.Name)
             .Add<ImportPlacesJob>(ImportPlacesJob.Name)
             .Add<LinkPlacesJob>(LinkPlacesJob.Name)
-            .Add<CalculateMonthlyCostsJob>(CalculateMonthlyCostsJob.Name);
+            .Add<RecalculateDerivedDataJob>(RecalculateDerivedDataJob.Name);
     }
 
     public void MapEndpoints(IEndpointRouteBuilder moduleGroup)

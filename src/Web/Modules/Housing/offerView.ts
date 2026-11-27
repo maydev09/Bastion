@@ -92,6 +92,10 @@ export type OfferFilter = {
   // With (true) or without (false) a recorded change.
   changed: boolean | null;
   priceCut: boolean;
+  // Only the offers whose detail page was fetched (true), or only those still without it (false).
+  detailsFetched: boolean | null;
+  // Only the offers the statistics leave out (true), or only those they count (false).
+  excludedFromStatistics: boolean | null;
   // Leaves one offer out, e.g. the offer compared with the others; never part of a list link.
   excludeOffer: number | null;
 };
@@ -128,6 +132,8 @@ export const noFilter: OfferFilter = {
   addedSince: null,
   changed: null,
   priceCut: false,
+  detailsFetched: null,
+  excludedFromStatistics: null,
   excludeOffer: null,
 };
 
@@ -174,6 +180,18 @@ export function readView(params: URLSearchParams): OfferView {
     changed:
       params.get("changed") === "true" ? true : params.get("changed") === "false" ? false : null,
     priceCut: params.get("priceCut") === "true",
+    detailsFetched:
+      params.get("detailsFetched") === "true"
+        ? true
+        : params.get("detailsFetched") === "false"
+          ? false
+          : null,
+    excludedFromStatistics:
+      params.get("excludedFromStatistics") === "true"
+        ? true
+        : params.get("excludedFromStatistics") === "false"
+          ? false
+          : null,
   };
   for (const key of numberKeys) {
     const value = params.get(key);
@@ -223,6 +241,12 @@ export function writeView(view: OfferView): URLSearchParams {
   }
   if (filter.priceCut) {
     params.set("priceCut", "true");
+  }
+  if (filter.detailsFetched != null) {
+    params.set("detailsFetched", String(filter.detailsFetched));
+  }
+  if (filter.excludedFromStatistics != null) {
+    params.set("excludedFromStatistics", String(filter.excludedFromStatistics));
   }
   if (view.page > 1) {
     params.set("page", String(view.page));
@@ -277,6 +301,8 @@ export function toFilterQuery(filter: OfferFilter) {
     addedSince: filter.addedSince ?? undefined,
     changed: filter.changed ?? undefined,
     priceCut: filter.priceCut || undefined,
+    detailsFetched: filter.detailsFetched ?? undefined,
+    excludedFromStatistics: filter.excludedFromStatistics ?? undefined,
     excludeOffer: filter.excludeOffer ?? undefined,
   };
 }
@@ -297,7 +323,9 @@ export function countFilters(filter: OfferFilter): number {
     (filter.furnished ? 1 : 0) +
     (filter.addedSince ? 1 : 0) +
     (filter.changed != null ? 1 : 0) +
-    (filter.priceCut ? 1 : 0)
+    (filter.priceCut ? 1 : 0) +
+    (filter.detailsFetched != null ? 1 : 0) +
+    (filter.excludedFromStatistics != null ? 1 : 0)
   );
 }
 
