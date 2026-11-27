@@ -24,11 +24,25 @@ public sealed class MonthlyCostRepository(NpgsqlDataSource db) : IMonthlyCostRep
 
     private const string RateSamplesSql = $"SELECT {Columns} {From} WHERE o.removed_at IS NULL AND o.rent IS NOT NULL AND o.area_m2 > 0";
 
+    // Every collecting run calculates the rates again: a group keeps its row, which is written only when its rate changes,
+    // and a group without a rate now loses its row.
     private const string ReplaceRatesSql = """
-        DELETE FROM housing.rent_rate;
-        INSERT INTO housing.rent_rate
+        DELETE FROM housing.rent_rate r
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM unnest(@Bases, @Voivodeships, @PlaceIds, @DistrictIds, @BuildingTypes)
+                AS u (basis, voivodeship, place_id, district_id, building_type)
+            WHERE u.basis = r.basis AND u.voivodeship IS NOT DISTINCT FROM r.voivodeship AND u.place_id IS NOT DISTINCT FROM r.place_id
+              AND u.district_id IS NOT DISTINCT FROM r.district_id AND u.building_type IS NOT DISTINCT FROM r.building_type);
+        INSERT INTO housing.rent_rate AS r
             (basis, voivodeship, place_id, district_id, building_type, median_per_m2, currency, sample_size, calculated_at)
-        SELECT * FROM unnest(@Bases, @Voivodeships, @PlaceIds, @DistrictIds, @BuildingTypes, @Medians, @Currencies, @SampleSizes, @CalculatedAts);
+        SELECT * FROM unnest(@Bases, @Voivodeships, @PlaceIds, @DistrictIds, @BuildingTypes, @Medians, @Currencies, @SampleSizes, @CalculatedAts)
+        ON CONFLICT (basis, voivodeship, place_id, district_id, building_type) DO UPDATE SET
+            median_per_m2 = excluded.median_per_m2,
+            currency = excluded.currency,
+            sample_size = excluded.sample_size,
+            calculated_at = excluded.calculated_at
+        WHERE (r.median_per_m2, r.currency, r.sample_size) IS DISTINCT FROM (excluded.median_per_m2, excluded.currency, excluded.sample_size);
         """;
 
     // Only rows whose values change are written, so a recalculation at the end of every collecting run leaves the rest as

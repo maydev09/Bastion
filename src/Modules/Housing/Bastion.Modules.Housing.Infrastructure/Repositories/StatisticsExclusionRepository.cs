@@ -14,8 +14,8 @@ public sealed class StatisticsExclusionRepository(NpgsqlDataSource db) : IStatis
         LEFT JOIN housing.place p ON p.id = o.place_id
         """;
 
-    // A group keeps its row, so the exclusions that point to it keep their fence; a group that lost its fence is deleted
-    // (its exclusions keep no fence until they are found again).
+    // A group keeps its row, so the exclusions that point to it keep their fence, and it is written only when its fence
+    // changes; a group that lost its fence is deleted (its exclusions keep no fence until they are found again).
     private const string ReplaceFencesSql = """
         DELETE FROM housing.price_fence f
         WHERE NOT EXISTS (
@@ -23,7 +23,7 @@ public sealed class StatisticsExclusionRepository(NpgsqlDataSource db) : IStatis
             FROM unnest(@Bases, @Rooms, @PlaceIds, @Voivodeships, @PlaceSizes) AS u (basis, rooms, place_id, voivodeship, place_size)
             WHERE u.basis = f.basis AND u.rooms IS NOT DISTINCT FROM f.rooms AND u.place_id IS NOT DISTINCT FROM f.place_id
               AND u.voivodeship IS NOT DISTINCT FROM f.voivodeship AND u.place_size IS NOT DISTINCT FROM f.place_size);
-        INSERT INTO housing.price_fence
+        INSERT INTO housing.price_fence AS f
             (basis, rooms, place_id, voivodeship, place_size, low_per_m2, high_per_m2, currency, sample_size, calculated_at)
         SELECT * FROM unnest(@Bases, @Rooms, @PlaceIds, @Voivodeships, @PlaceSizes, @Lows, @Highs, @Currencies, @SampleSizes, @CalculatedAts)
         ON CONFLICT (basis, rooms, place_id, voivodeship, place_size) DO UPDATE SET
@@ -31,7 +31,9 @@ public sealed class StatisticsExclusionRepository(NpgsqlDataSource db) : IStatis
             high_per_m2 = excluded.high_per_m2,
             currency = excluded.currency,
             sample_size = excluded.sample_size,
-            calculated_at = excluded.calculated_at;
+            calculated_at = excluded.calculated_at
+        WHERE (f.low_per_m2, f.high_per_m2, f.currency, f.sample_size)
+            IS DISTINCT FROM (excluded.low_per_m2, excluded.high_per_m2, excluded.currency, excluded.sample_size);
         """;
 
     // Only rows whose values change are written (calculated_at: when the exclusion got its current values).

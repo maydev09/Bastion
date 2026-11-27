@@ -306,8 +306,18 @@ public sealed class OfferRepository(NpgsqlDataSource db, IOptions<MonthlyCostOpt
         """;
 
     // As MarkMissedSql: removed_at is when the offer was last seen.
+    // The attempt counts as done for this content (no failure, no fetched page): the offer leaves the queue until its listing
+    // content changes, also while the listing still shows it (the portal may answer 410 before it takes the offer off).
     private const string MarkRemovedSql = """
-        UPDATE housing.offer SET removed_at = last_seen_at WHERE id = @OfferId AND removed_at IS NULL
+        UPDATE housing.offer SET removed_at = last_seen_at WHERE id = @OfferId AND removed_at IS NULL;
+        INSERT INTO housing.offer_detail_fetch AS f (offer_id, content_hash, attempted_at, fetched_at, failed_attempts, last_error)
+        SELECT @OfferId, @ContentHash, @At, NULL, 0, @LastError
+        WHERE EXISTS (SELECT 1 FROM housing.offer WHERE id = @OfferId)
+        ON CONFLICT (offer_id) DO UPDATE SET
+            content_hash = excluded.content_hash,
+            attempted_at = excluded.attempted_at,
+            failed_attempts = 0,
+            last_error = excluded.last_error;
         """;
 
     // The fields whose changes are logged, read before and after a save (locked, so another job cannot change them in between).
@@ -1143,8 +1153,8 @@ public sealed class OfferRepository(NpgsqlDataSource db, IOptions<MonthlyCostOpt
     public Task MarkDetailsFailedAsync(PendingDetails offer, DateTimeOffset at, string lastError, CancellationToken cancellationToken) =>
         ExecuteAsync(DetailsFailedSql, new { offer.OfferId, offer.ContentHash, At = at, LastError = lastError }, cancellationToken);
 
-    public Task MarkRemovedAsync(PendingDetails offer, CancellationToken cancellationToken) =>
-        ExecuteAsync(MarkRemovedSql, new { offer.OfferId }, cancellationToken);
+    public Task MarkRemovedAsync(PendingDetails offer, DateTimeOffset at, string reason, CancellationToken cancellationToken) =>
+        ExecuteAsync(MarkRemovedSql, new { offer.OfferId, offer.ContentHash, At = at, LastError = reason }, cancellationToken);
 
     private async Task ExecuteAsync(string sql, object parameters, CancellationToken cancellationToken)
     {

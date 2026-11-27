@@ -97,7 +97,7 @@ public sealed class FetchDetailsHandler(
 
                 if (fetch.Failure is { Kind: FailureKind.Removed })
                 {
-                    await repository.MarkRemovedAsync(offer, cancellationToken);
+                    await repository.MarkRemovedAsync(offer, time.GetUtcNow(), fetch.Failure.Detail, cancellationToken);
                     removed++;
                     continue;
                 }

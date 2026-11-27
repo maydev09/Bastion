@@ -1516,11 +1516,10 @@ public class HousingImportTests
         _source.RemovedOffers.UnionWith(removed.Select(o => o.ExternalId));
 
         var run = await JobRuns.Run(client, Import);
-        // Gone from the listing too: the next run fetches none of them again.
-        _source.Pages = [[Large]];
+        var list = await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json);
+        // Still on the listing, as when the portal answers 410 before it takes the offer off: the next run asks for none of them.
         _source.DetailRequests.Clear();
         await RunDetails(client);
-        var list = await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json);
 
         Assert.Multiple(() =>
         {

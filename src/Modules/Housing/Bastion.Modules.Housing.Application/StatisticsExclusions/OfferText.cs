@@ -8,8 +8,10 @@ namespace Bastion.Modules.Housing.Application.StatisticsExclusions;
 // uses them only together with numbers that do not fit a flat.
 public static partial class OfferText
 {
-    // A room in a shared flat: "Pokój do wynajęcia", "Pokój w mieszkaniu 3 pok.", "Pokoje dla studentów". Not "Pokój z
-    // osobną kuchnią" or "Pokój/Kawalerka", which are flats of one room.
+    // A room in a shared flat: a title that starts with it ("Pokój do wynajęcia", "Pokoje dla studentów"), or a phrase that
+    // offers one anywhere ("Od zaraz pokój w mieszkaniu 3 pokojowym", "Wynajmę pokój", "pokój jednoosobowy"). Not a room of a
+    // flat named in its title ("3 POKÓJ DO PRACY", "pokój dla dziecka"), nor "Pokój z osobną kuchnią" or "Pokój/Kawalerka",
+    // which are flats of one room.
     public static bool IsRoom(string title) => Room().IsMatch(title) && !FlatOfOneRoom().IsMatch(title);
 
     // A parking space or a garage, and no word of a flat ("Mieszkanie 2-pokojowe z garażem" is a flat).
@@ -34,7 +36,7 @@ public static partial class OfferText
     private static partial Regex Spaces();
 
     [GeneratedRegex(
-        @"^\W*pok[oó]j\b|\bpok[oó]j\s+(?:w|do|na|dla|jedno\w*|dwu\w*)\b|^\W*pokoje\s+(?:w|do|na|dla)\b|\bwynajm[ęe]\s+pok[oó]j\b",
+        @"^\W*pok[oó]j\b|^\W*pokoje\s+(?:w|do|na|dla)\b|\bwynajm[ęe]\s+pok[oó]j\b|\bpok[oó]j\s+(?:do|na)\s+wynaj|\bpok[oó]j\s+(?:jedno|dwu)osob|\bpok[oó]j\s+(?:\S+\s+){0,3}w\s+(?:\S+\s+){0,2}mieszkani|\bpok[oó]j\s+dla\s+(?:student|os[oó]b|pracown|pani\b|pana\b|kobiet|m[eę][żz]czyzn|pary)",
         RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
     private static partial Regex Room();
 

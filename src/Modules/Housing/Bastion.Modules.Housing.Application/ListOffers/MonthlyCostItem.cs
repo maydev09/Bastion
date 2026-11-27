@@ -21,7 +21,8 @@ public sealed record MonthlyCostItem
     // The words of the description the rent was read from (Description, Included).
     public string? RentQuote { get; init; }
 
-    // When the cost was last calculated: at once when the offer is saved, and for all offers every night.
+    // When the cost got its current value. Every collecting run calculates the costs of all listed offers again at its end
+    // and writes only those that change, so an older time means the cost has not changed since.
     public required DateTimeOffset CalculatedAt { get; init; }
 
     // How an estimated rent was made; null for the other sources.

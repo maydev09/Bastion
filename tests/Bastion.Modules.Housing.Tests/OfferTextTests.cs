@@ -11,6 +11,9 @@ public class OfferTextTests
     [TestCase("Pokoje na wynajem, idealne dla studentów!")]
     [TestCase("Wynajmę pokój w centrum Szczecina – 12m²")]
     [TestCase("Pokój w apartamentowcu blisko UŁ")]
+    [TestCase("Różana Poznań - 1 pokój w 2 pokojowym mieszkaniu")]
+    [TestCase("Spacer, film w ofercie. Pokój jednoosobowy, bezpłatny parking")]
+    [TestCase("Marchołta - pokój do wynajęcia w mieszkaniu 3 pok.")]
     public void A_room_in_a_shared_flat_is_a_room(string title) => Assert.That(OfferText.IsRoom(title), Is.True);
 
     [TestCase("3 pokoje na wynajem | Po remoncie | Od zaraz")]
@@ -18,6 +21,8 @@ public class OfferTextTests
     [TestCase("Pokój z osobną kuchną w centrum")]
     [TestCase("Pokój/Kawalerka Andersa")]
     [TestCase("Mieszkanie 2 pokoje, balkon")]
+    [TestCase("ATANER 2021 R. CENTRUM DUŻE 3 POKÓJ DO PRACY ON-LINE")]
+    [TestCase("3 pokoje: salon, sypialnia i pokój dla dziecka")]
     public void A_flat_is_no_room(string title) => Assert.That(OfferText.IsRoom(title), Is.False);
 
     [TestCase("Miejsce postojowe w garażu podziemnym, ul. Wschodu Słońca")]

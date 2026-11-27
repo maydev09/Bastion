@@ -6,7 +6,7 @@ namespace Bastion.Modules.Housing.Application.ListOffers;
 // prices per m² of its group, Tukey's fences (Q1 − k × IQR, Q3 + k × IQR of ln(price per m²), k =
 // StatisticsExclusionOptions.FenceMultiplier) of the listed offers with the same number of rooms in its place, else in places
 // of its size in its voivodeship, else in the country (Basis, SampleSize offers). The fence is null when the offer has no
-// price or area, or its groups have none. Found when the offer is saved and again for every listed offer every night.
+// price or area, or its groups have none. Found for every listed offer at the end of every collecting run.
 public sealed record StatisticsExclusionItem
 {
     public required StatisticsExclusionReason Reason { get; init; }
@@ -21,5 +21,6 @@ public sealed record StatisticsExclusionItem
 
     public Currency? Currency { get; init; }
 
+    // When the exclusion got its current reason and fence; checked again at the end of every collecting run.
     public required DateTimeOffset CalculatedAt { get; init; }
 }

@@ -5,6 +5,7 @@ using Bastion.Modules.Housing.Application.DerivedData;
 using Bastion.Modules.Housing.Application.FetchDetails;
 using Bastion.Modules.Housing.Application.ImportOffers;
 using Bastion.Modules.Housing.Domain;
+using Microsoft.Extensions.Logging;
 
 namespace Bastion.Modules.Housing.Infrastructure.Jobs;
 
@@ -12,8 +13,13 @@ namespace Bastion.Modules.Housing.Infrastructure.Jobs;
 // offers that need them until the queue is empty or the run's time limit passes, then the derived data of all offers.
 // The run ends with complete data. A failing source stops the run, which still calculates the derived data and keeps the
 // counts of the work done; a rate limited portal only ends the detail pages, as the scraping client already slows down.
-public abstract class ImportJob(
-    OfferSources sources, ImportOffersHandler listing, FetchDetailsHandler details, DerivedDataService derivedData, ImportMode mode) : IJob
+public abstract partial class ImportJob(
+    OfferSources sources,
+    ImportOffersHandler listing,
+    FetchDetailsHandler details,
+    DerivedDataService derivedData,
+    ILogger<ImportJob> logger,
+    ImportMode mode) : IJob
 {
     public async Task<JobSummary> Run(JobContext context, CancellationToken cancellationToken)
     {
@@ -28,7 +34,7 @@ public abstract class ImportJob(
             }
         }
 
-        var derived = await derivedData.RecalculateAllAsync(cancellationToken);
+        var derived = await RecalculateAsync(failure, cancellationToken);
         var summary = BuildSummary(counts, derived);
         if (failure is not null)
         {
@@ -36,6 +42,20 @@ public abstract class ImportJob(
         }
 
         return summary;
+    }
+
+    // After a failure the run fails with that failure, which the UI explains; a failing calculation is only logged then.
+    private async Task<DerivedDataResult?> RecalculateAsync(Failure? failure, CancellationToken cancellationToken)
+    {
+        try
+        {
+            return await derivedData.RecalculateAllAsync(cancellationToken);
+        }
+        catch (Exception e) when (failure is not null && e is not OperationCanceledException)
+        {
+            LogRecalculationFailed(logger, e, failure.Code);
+            return null;
+        }
     }
 
     private async Task<Failure?> CollectAsync(Source source, DateTimeOffset? deadline, Counts counts, CancellationToken cancellationToken)
@@ -69,7 +89,7 @@ public abstract class ImportJob(
         return fetched.Failure is { Kind: not FailureKind.RateLimited } detailFailure ? detailFailure : null;
     }
 
-    private JobSummary BuildSummary(Counts counts, DerivedDataResult derived)
+    private JobSummary BuildSummary(Counts counts, DerivedDataResult? derived)
     {
         var summary = new Dictionary<string, long>
         {
@@ -89,10 +109,17 @@ public abstract class ImportJob(
         summary["detailsFailed"] = counts.DetailsFailed;
         summary["detailsRemoved"] = counts.DetailsRemoved;
         summary["detailsRetried"] = counts.DetailsRetried;
-        summary["estimatedRents"] = derived.Costs.EstimatedRentCount;
-        summary["excludedOffers"] = derived.Exclusions.Excluded.Values.Sum();
+        if (derived is not null)
+        {
+            summary["estimatedRents"] = derived.Costs.EstimatedRentCount;
+            summary["excludedOffers"] = derived.Exclusions.Excluded.Values.Sum();
+        }
+
         return new JobSummary(summary);
     }
+
+    [LoggerMessage(Level = LogLevel.Error, Message = "The derived data could not be recalculated after the collecting run failed with {Code}")]
+    private static partial void LogRecalculationFailed(ILogger logger, Exception exception, string code);
 
     private sealed class Counts
     {
