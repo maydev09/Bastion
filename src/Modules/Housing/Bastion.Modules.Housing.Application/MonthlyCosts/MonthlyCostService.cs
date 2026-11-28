@@ -19,10 +19,9 @@ public sealed class MonthlyCostService(IMonthlyCostRepository repository, IOptio
         var rates = RentEstimator.CalculateRates(samples, time.GetUtcNow());
         await repository.ReplaceRatesAsync(rates, cancellationToken);
 
-        // Taken before the offers are read, so a cost saved meanwhile (it reads later) is not overwritten.
         var calculatedAt = time.GetUtcNow();
         var offers = await repository.ListInputsAsync(cancellationToken);
-        var (costs, estimates, _) = CalculateCosts(offers, new RentEstimator(options.Value, rates, samples), calculatedAt);
+        var (costs, estimates) = CalculateCosts(offers, new RentEstimator(options.Value, rates, samples), calculatedAt);
         await repository.SaveAsync(offers.Select(o => o.OfferId).ToList(), calculatedAt, costs, estimates, cancellationToken);
         return new MonthlyCostResult(
             rates.Count,
@@ -34,44 +33,18 @@ public sealed class MonthlyCostService(IMonthlyCostRepository repository, IOptio
             offers.Count - costs.Count);
     }
 
-    // The offers just saved, with the stored rates and the offers nearby as they are now, so a new or changed offer shows
-    // its cost at once. The rates and the offers nearby are read only when an offer needs an estimate: most state a rent.
-    public async Task UpdateAsync(Source source, IReadOnlyList<string> externalIds, CancellationToken cancellationToken)
-    {
-        if (externalIds.Count == 0)
-        {
-            return;
-        }
-
-        var calculatedAt = time.GetUtcNow();
-        var offers = await repository.ListInputsAsync(source, externalIds, cancellationToken);
-        var (costs, estimates, needEstimate) = CalculateCosts(offers, estimator: null, calculatedAt);
-        if (needEstimate.Count > 0)
-        {
-            var estimator = new RentEstimator(
-                options.Value, await repository.ListRatesAsync(cancellationToken), await ListRateSamplesAsync(cancellationToken));
-            var (estimatedCosts, rentEstimates, _) = CalculateCosts(needEstimate, estimator, calculatedAt);
-            costs.AddRange(estimatedCosts);
-            estimates.AddRange(rentEstimates);
-        }
-
-        await repository.SaveAsync(offers.Select(o => o.OfferId).ToList(), calculatedAt, costs, estimates, cancellationToken);
-    }
-
     // The offers whose rent the typical rents are made of: listed offers with a plausible rent field in PLN.
     private async Task<List<CostInput>> ListRateSamplesAsync(CancellationToken cancellationToken) =>
         (await repository.ListRateSamplesAsync(cancellationToken)).Where(IsRateSample).ToList();
 
-    // Without an estimator, the offers that need an estimate are returned in NeedEstimate instead of a cost.
-    private (List<MonthlyCost> Costs, List<RentEstimate> Estimates, List<CostInput> NeedEstimate) CalculateCosts(
-        IReadOnlyList<CostInput> offers, RentEstimator? estimator, DateTimeOffset now)
+    private (List<MonthlyCost> Costs, List<RentEstimate> Estimates) CalculateCosts(
+        IReadOnlyList<CostInput> offers, RentEstimator estimator, DateTimeOffset now)
     {
         var costs = new List<MonthlyCost>();
         var estimates = new List<RentEstimate>();
-        var needEstimate = new List<CostInput>();
         foreach (var offer in offers)
         {
-            var (cost, estimate, needsEstimate) = CalculateCost(offer, estimator, now);
+            var (cost, estimate) = CalculateCost(offer, estimator, now);
             if (cost is not null)
             {
                 costs.Add(cost);
@@ -81,72 +54,61 @@ public sealed class MonthlyCostService(IMonthlyCostRepository repository, IOptio
             {
                 estimates.Add(estimate);
             }
-
-            if (needsEstimate)
-            {
-                needEstimate.Add(offer);
-            }
         }
 
-        return (costs, estimates, needEstimate);
+        return (costs, estimates);
     }
 
     // Null without a price, or when the rent needs an estimate that cannot be made. An estimate as high as the price comes
     // from a wrong area (e.g. 5 158 m² for 2 200 zł), so it gives no cost either.
-    private (MonthlyCost? Cost, RentEstimate? Estimate, bool NeedsEstimate) CalculateCost(
-        CostInput offer, RentEstimator? estimator, DateTimeOffset now)
+    private (MonthlyCost? Cost, RentEstimate? Estimate) CalculateCost(CostInput offer, RentEstimator estimator, DateTimeOffset now)
     {
         if (offer is not { Price: { } price, PriceCurrency: { } currency })
         {
-            return (null, null, false);
+            return (null, null);
         }
 
         var stated = offer.RentCurrency == currency ? offer.Rent : null;
         if (stated is { } rent && !IsNominal(rent) && IsPlausible(rent, price, offer.AreaM2))
         {
-            return (new MonthlyCost(offer.OfferId, rent, RentSource.Stated, price + rent, currency, now), null, false);
+            return (new MonthlyCost(offer.OfferId, rent, RentSource.Stated, price + rent, currency, now), null);
         }
 
         if (currency != Currency.Pln)
         {
-            return (null, null, false);
+            return (null, null);
         }
 
         var reading = RentInDescription.Read(offer.Title, offer.Description);
         if (PickAmount(reading, price, offer.AreaM2) is { } mention)
         {
             return (new MonthlyCost(
-                offer.OfferId, mention.Amount, RentSource.Description, price + mention.Amount, currency, now, mention.Quote), null, false);
+                offer.OfferId, mention.Amount, RentSource.Description, price + mention.Amount, currency, now, mention.Quote), null);
         }
 
         if (reading.Included)
         {
-            return (new MonthlyCost(offer.OfferId, 0, RentSource.Included, price, currency, now, reading.IncludedQuote), null, false);
+            return (new MonthlyCost(offer.OfferId, 0, RentSource.Included, price, currency, now, reading.IncludedQuote), null);
         }
 
         // The description says nothing: a 0 or 1 zł is taken as no rent (maintainer's decision; about half of them really are).
         if (stated is { } nominal && IsNominal(nominal))
         {
-            return (new MonthlyCost(offer.OfferId, 0, RentSource.Nominal, price, currency, now), null, false);
-        }
-
-        if (estimator is null)
-        {
-            return (null, null, true);
+            return (new MonthlyCost(offer.OfferId, 0, RentSource.Nominal, price, currency, now), null);
         }
 
         if (estimator.Calculate(offer) is not { } estimate)
         {
-            return (null, null, false);
+            return (null, null);
         }
 
         var rentEstimate = Math.Round(estimate.RatePerM2 * offer.AreaM2!.Value, 0, MidpointRounding.AwayFromZero);
         if (rentEstimate >= price)
         {
-            return (null, null, false);
+            return (null, null);
         }
 
-        return (new MonthlyCost(offer.OfferId, rentEstimate, RentSource.Estimated, price + rentEstimate, currency, now), estimate, false);
+        return (new MonthlyCost(offer.OfferId, rentEstimate, RentSource.Estimated, price + rentEstimate, currency, now), estimate);
     }
 
     // The one plausible amount the description states; two different ones leave the rent unknown. An amount as high as the

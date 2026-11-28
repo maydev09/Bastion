@@ -9,7 +9,7 @@ public sealed class RawCaptureService(
     IRawCaptureRepository repository,
     IRawCaptureFileStorage files,
     TimeProvider time,
-    IOptions<RawCaptureOptions> options)
+    IOptions<RawCaptureRetentionOptions> retention)
 {
     public async Task<RawCapture> SaveAsync(Source source, RawPage page, CancellationToken cancellationToken)
     {
@@ -41,7 +41,7 @@ public sealed class RawCaptureService(
 
     public async Task<RetentionResult> DeleteExpiredAsync(CancellationToken cancellationToken)
     {
-        var firstKeptDay = DateOnly.FromDateTime(time.GetUtcNow().UtcDateTime).AddDays(-options.Value.RetentionDays);
+        var firstKeptDay = DateOnly.FromDateTime(time.GetUtcNow().UtcDateTime).AddDays(-retention.Value.RetentionDays);
         var start = new DateTimeOffset(firstKeptDay.ToDateTime(TimeOnly.MinValue), TimeSpan.Zero);
 
         var deleted = await repository.DeleteFetchedBeforeAsync(start, cancellationToken);

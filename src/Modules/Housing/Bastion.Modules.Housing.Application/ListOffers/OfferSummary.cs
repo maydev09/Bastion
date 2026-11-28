@@ -3,10 +3,14 @@ using Bastion.Modules.Housing.Domain;
 namespace Bastion.Modules.Housing.Application.ListOffers;
 
 // What the offers of a filter typically cost and offer; a value no offer has is null.
-// Money is in PLN: offers priced in another currency are left out of it.
+// Money is in PLN: offers priced in another currency are left out of it. Excluded offers (rooms, parking spaces, typos, see
+// StatisticsExclusionReason) are left out of every value; Count includes them.
 public sealed record OfferSummary
 {
     public required int Count { get; init; }
+
+    // The offers of Count the values leave out, by reason; a reason no offer has is missing.
+    public required IReadOnlyDictionary<StatisticsExclusionReason, int> Excluded { get; init; }
 
     public Spread? Price { get; init; }
 

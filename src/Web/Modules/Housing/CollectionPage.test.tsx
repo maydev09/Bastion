@@ -37,9 +37,9 @@ describe("CollectionPage", () => {
     stubApi({
       "/api/housing/jobs": jobList([
         {
-          name: "ImportOffers",
+          name: "ImportNewOffers",
           every: "00:10:00",
-          latestRun: run("ImportOffers", {
+          latestRun: run("ImportNewOffers", {
             summary: { counts: { pages: 1, added: 3, updated: 1, unchanged: 68, skipped: 0 } },
           }),
         },
@@ -57,14 +57,16 @@ describe("CollectionPage", () => {
 
     renderWithProviders(<CollectionPage />);
 
-    const importRow = within((await screen.findByText(t("jobs.ImportOffers.name"))).closest("tr")!);
+    const importRow = within(
+      (await screen.findByText(t("jobs.ImportNewOffers.name"))).closest("tr")!,
+    );
     expect(
       importRow.getByText(t("jobs.schedule.every", { interval: t("jobs.minutes", { count: 10 }) })),
     ).toBeVisible();
     // The row shows only the key count.
     expect(
       importRow.getByText(
-        t("jobs.keyResult", { label: t("jobs.ImportOffers.counts.added"), value: "3" }),
+        t("jobs.keyResult", { label: t("jobs.ImportNewOffers.counts.added"), value: "3" }),
       ),
     ).toBeVisible();
     const placesRow = within(screen.getByText(t("jobs.ImportPlaces.name")).closest("tr")!);
@@ -123,11 +125,15 @@ describe("CollectionPage", () => {
 
   it("reads the history view from the link", async () => {
     const requests = stubApi({
-      "/api/housing/jobs": jobList([{ name: "ImportOffers", every: "00:10:00", latestRun: null }]),
+      "/api/housing/jobs": jobList([
+        { name: "ImportNewOffers", every: "00:10:00", latestRun: null },
+      ]),
       "/api/housing/jobs/runs": {
         status: 200,
         body: {
-          items: [run("ImportOffers", { status: "Failed", errorCode: "housing.pageLimitReached" })],
+          items: [
+            run("ImportNewOffers", { status: "Failed", errorCode: "housing.pageLimitReached" }),
+          ],
           page: 2,
           pageSize: 25,
           totalCount: 26,
@@ -137,7 +143,7 @@ describe("CollectionPage", () => {
 
     renderWithProviders(
       <CollectionPage />,
-      "/?job=ImportOffers&status=Failed&trigger=Manual&from=2026-11-25&to=2026-11-25&page=2",
+      "/?job=ImportNewOffers&status=Failed&trigger=Manual&from=2026-11-25&to=2026-11-25&page=2",
     );
 
     expect(await screen.findByText(t("errors.pageLimitReached"))).toBeVisible();
@@ -145,7 +151,7 @@ describe("CollectionPage", () => {
       requests.filter((r) => r.pathname === "/api/housing/jobs/runs").at(-1)!.searchParams,
     );
     expect(query).toMatchObject({
-      job: "ImportOffers",
+      job: "ImportNewOffers",
       status: "Failed",
       trigger: "Manual",
       page: "2",
@@ -156,12 +162,14 @@ describe("CollectionPage", () => {
 
   it("opens a run of the history in place with everything it counted", async () => {
     stubApi({
-      "/api/housing/jobs": jobList([{ name: "ImportOffers", every: "00:10:00", latestRun: null }]),
+      "/api/housing/jobs": jobList([
+        { name: "ImportNewOffers", every: "00:10:00", latestRun: null },
+      ]),
       "/api/housing/jobs/runs": {
         status: 200,
         body: {
           items: [
-            run("ImportOffers", {
+            run("ImportNewOffers", {
               summary: { counts: { pages: 1, added: 3, updated: 1, unchanged: 68, skipped: 0 } },
             }),
           ],
@@ -174,12 +182,12 @@ describe("CollectionPage", () => {
     renderWithProviders(<CollectionPage />);
     const history = within(await screen.findByRole("region", { name: t("jobs.history.title") }));
 
-    const toggle = await history.findByRole("button", { name: t("jobs.ImportOffers.name") });
+    const toggle = await history.findByRole("button", { name: t("jobs.ImportNewOffers.name") });
     await userEvent.click(toggle);
 
     expect(toggle).toHaveAttribute("aria-expanded", "true");
     expect(
-      history.getByText(t("jobs.ImportOffers.counts.unchanged")).nextSibling,
+      history.getByText(t("jobs.ImportNewOffers.counts.unchanged")).nextSibling,
     ).toHaveTextContent("68");
   });
 });

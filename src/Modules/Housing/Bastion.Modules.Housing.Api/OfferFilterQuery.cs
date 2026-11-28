@@ -30,6 +30,8 @@ public sealed record OfferFilterQuery(
     DateTimeOffset? addedSince,
     bool? changed,
     bool? priceCut,
+    bool? detailsFetched,
+    bool? excludedFromStatistics,
     int? excludeOffer)
 {
     public OfferFilter ToFilter() => new()
@@ -57,6 +59,8 @@ public sealed record OfferFilterQuery(
         AddedSince = addedSince,
         Changed = changed,
         PriceCut = priceCut ?? false,
+        DetailsFetched = detailsFetched,
+        ExcludedFromStatistics = excludedFromStatistics,
         ExcludeOffer = excludeOffer,
     };
 }

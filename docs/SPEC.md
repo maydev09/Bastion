@@ -86,6 +86,13 @@ Replaces the legacy flat offers scraper.
 - When parsing fails, the raw input and the error are saved for debugging,
   and the remaining sources keep running.
 - Every run records its parameters and counts of new, unchanged and total offers.
+- **Collecting:** new offers are collected during the day (every 10 minutes, by default from 06:00 until midnight): the
+  newest listing pages while they show new offers (at most a few pages), then the detail pages of new and changed
+  offers, then the derived data, so a new offer is complete about ten minutes after it appears. Every night one run brings
+  the database in line with the whole portal: every listing page, offers gone from it marked removed, the detail pages of
+  offers that changed. Each run has a time limit; detail pages it did not reach wait for the next run, newest first. On a
+  new installation: import the places, then start the nightly run by hand; the imports of the next day or so fetch the
+  remaining detail pages.
 - Offers are unique per source by the source's external id. Changes to known offers
   are applied and recorded in a changelog.
 - **Places:** every offer is linked to its place (town or village, with municipality, county
@@ -112,14 +119,23 @@ Replaces the legacy flat offers scraper.
   type (by the pin, up to 10 within 2 km) blended with the most local groups of offers (country down to the
   neighborhood) and corrected for the area. A rent read from the description or estimated is marked wherever it
   shows (list, card, API with the quote or with the neighbors and the group used, and how many of each source in
-  every summary). The cost of a listed offer follows the market every night; a removed offer keeps the cost of the time
+  every summary). The cost of a listed offer follows the market with every collecting run; a removed offer keeps the cost of the time
   it was listed, so statistics over time compare each offer with its own market. Above the list,
   the typical price, price per m², rent (known rents only: the field or the description), total monthly cost and area of
   the filtered offers (median and the middle half), and
   quick picks for offers found in the last 24 hours or since the last visit; the price, price per m² and area
   filters show how the offers spread over the values. The offer card shows where the offer stands among similar ones
   (the same room count in the same place, or in the voivodeship when the place has too few): price per m²,
-  rent, total monthly cost, area and days listed against their median and middle half. Change status (e.g. not interested,
+  rent, total monthly cost, area and days listed against their median and middle half.
+  Offers that are no flat for a monthly rent or whose numbers cannot be right are excluded from the statistics with a
+  reason: left out of every statistic (each summary says how many and why), while they stay on the list with a mark, the
+  card explains the reason, and a filter shows only them or hides them. Rules from the stored offers (deterministic, no paid AI service):
+  a room in a shared flat (by the title), a parking space (by the title, small area or price), an area or a price that
+  cannot be right (a few m², the area equal to the price, a token price, a sale price), and a price per m² far outside
+  the usual ones of its group (Tukey's fences on ln(price per m²) by rooms in the place, else among places of the same
+  size in the voivodeship, else in the country), told apart as an auction, workers' quarters, rent for renovation, a
+  huge area typed wrong or an unusual price. Every collecting run ends by calculating the group statistics (rent rates,
+  price fences) and every listed offer again, so the data is complete when the run ends. Change status (e.g. not interested,
   waiting, visit scheduled, still interested after visit), bookmark, add notes.
   Every manual change is recorded in the changelog.
 

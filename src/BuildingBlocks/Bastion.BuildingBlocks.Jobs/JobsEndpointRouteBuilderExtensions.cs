@@ -19,7 +19,8 @@ public static class JobsEndpointRouteBuilderExtensions
 
         jobs.MapGet("/", async (CancellationToken cancellationToken) => TypedResults.Ok(await runner.ListAsync(cancellationToken)))
         .WithSummary("Returns every job of the module in its registered order: its schedule (dailyAt, a time of day in timeZone, "
-            + "or every, an interval; neither: started by hand only), whether schedules are on here (scheduled), its latest run "
+            + "or every, an interval, only from from until until in timeZone when they are set; neither: started by hand only), "
+            + "timeLimit (how long one run may work, null without a limit), whether schedules are on here (scheduled), its latest run "
             + "(null before the first one) and the server's current time.");
 
         jobs.MapGet("/runs", async Task<Results<Ok<PagedResult<JobRun>>, ProblemHttpResult>> (

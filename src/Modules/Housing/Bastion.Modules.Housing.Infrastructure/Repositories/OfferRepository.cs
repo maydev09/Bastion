@@ -104,12 +104,18 @@ public sealed class OfferRepository(NpgsqlDataSource db, IOptions<MonthlyCostOpt
         re.rate_per_m2, re.basis, re.basis_per_m2, re.sample_size, re.neighbors, re.neighbors_per_m2, re.neighbors_km
         """;
 
-    private const string CostSplit = "total,rate_per_m2";
+    // Why the statistics leave the offer out, after the cost: read as its own object from reason on, null when they count it.
+    private const string ExclusionColumns = """
+        ex.reason, pf.basis, pf.sample_size, pf.low_per_m2 AS fence_low_per_m2, pf.high_per_m2 AS fence_high_per_m2,
+        pf.currency, ex.calculated_at
+        """;
+
+    private const string CostSplit = "total,rate_per_m2,reason";
 
     // The page is cut first and only its offers are joined with their places.
     // The WHERE conditions from BuildWhere pick the offers; the ORDER BY list from BuildOrderBy picks the page and orders its rows.
     private static string BuildListSql(string where, string orderBy) => $$"""
-        SELECT {{OfferColumns}}, {{CostColumns}}
+        SELECT {{OfferColumns}}, df.fetched_at AS details_fetched_at, {{CostColumns}}, {{ExclusionColumns}}
         FROM (
             SELECT *
             FROM housing.offer o
@@ -120,8 +126,11 @@ public sealed class OfferRepository(NpgsqlDataSource db, IOptions<MonthlyCostOpt
         LEFT JOIN housing.place p ON p.id = o.place_id
         LEFT JOIN housing.district d ON d.id = o.district_id
         LEFT JOIN housing.district dp ON dp.id = d.parent_id
+        LEFT JOIN housing.offer_detail_fetch df ON df.offer_id = o.id
         LEFT JOIN housing.monthly_cost mc ON mc.offer_id = o.id
         LEFT JOIN housing.rent_estimate re ON re.offer_id = o.id
+        LEFT JOIN housing.statistics_exclusion ex ON ex.offer_id = o.id
+        LEFT JOIN housing.price_fence pf ON pf.id = ex.price_fence_id
         ORDER BY {{orderBy}};
 
         SELECT count(*)::int FROM housing.offer o WHERE {{where}};
@@ -177,6 +186,11 @@ public sealed class OfferRepository(NpgsqlDataSource db, IOptions<MonthlyCostOpt
 
     private const string ChangedCondition = "EXISTS (SELECT 1 FROM housing.offer_change c WHERE c.offer_id = o.id)";
 
+    private const string DetailsFetchedCondition =
+        "EXISTS (SELECT 1 FROM housing.offer_detail_fetch f WHERE f.offer_id = o.id AND f.fetched_at IS NOT NULL)";
+
+    private const string ExcludedCondition = "EXISTS (SELECT 1 FROM housing.statistics_exclusion exclusion WHERE exclusion.offer_id = o.id)";
+
     // housing.offer_change keeps a price change as [old, new]; a price removed (new is null) is no cut.
     private const string PriceCutCondition = """
         EXISTS (
@@ -190,13 +204,15 @@ public sealed class OfferRepository(NpgsqlDataSource db, IOptions<MonthlyCostOpt
         SELECT {OfferColumns},
             o.deposit, o.deposit_currency, o.available_from, o.floor, o.building_floors,
             o.build_year, o.building_type, o.heating, o.condition, o.latitude, o.longitude, o.location_radius_m,
-            o.description, f.fetched_at AS details_fetched_at, {CostColumns}
+            o.description, f.fetched_at AS details_fetched_at, {CostColumns}, {ExclusionColumns}
         FROM housing.offer o
         LEFT JOIN housing.place p ON p.id = o.place_id
         LEFT JOIN housing.district d ON d.id = o.district_id
         LEFT JOIN housing.district dp ON dp.id = d.parent_id
         LEFT JOIN housing.monthly_cost mc ON mc.offer_id = o.id
         LEFT JOIN housing.rent_estimate re ON re.offer_id = o.id
+        LEFT JOIN housing.statistics_exclusion ex ON ex.offer_id = o.id
+        LEFT JOIN housing.price_fence pf ON pf.id = ex.price_fence_id
         LEFT JOIN housing.offer_detail_fetch f ON f.offer_id = o.id
         WHERE o.id = @Id;
 
@@ -290,8 +306,18 @@ public sealed class OfferRepository(NpgsqlDataSource db, IOptions<MonthlyCostOpt
         """;
 
     // As MarkMissedSql: removed_at is when the offer was last seen.
+    // The attempt counts as done for this content (no failure, no fetched page): the offer leaves the queue until its listing
+    // content changes, also while the listing still shows it (the portal may answer 410 before it takes the offer off).
     private const string MarkRemovedSql = """
-        UPDATE housing.offer SET removed_at = last_seen_at WHERE id = @OfferId AND removed_at IS NULL
+        UPDATE housing.offer SET removed_at = last_seen_at WHERE id = @OfferId AND removed_at IS NULL;
+        INSERT INTO housing.offer_detail_fetch AS f (offer_id, content_hash, attempted_at, fetched_at, failed_attempts, last_error)
+        SELECT @OfferId, @ContentHash, @At, NULL, 0, @LastError
+        WHERE EXISTS (SELECT 1 FROM housing.offer WHERE id = @OfferId)
+        ON CONFLICT (offer_id) DO UPDATE SET
+            content_hash = excluded.content_hash,
+            attempted_at = excluded.attempted_at,
+            failed_attempts = 0,
+            last_error = excluded.last_error;
         """;
 
     // The fields whose changes are logged, read before and after a save (locked, so another job cannot change them in between).
@@ -505,7 +531,7 @@ public sealed class OfferRepository(NpgsqlDataSource db, IOptions<MonthlyCostOpt
         await using var connection = await db.OpenConnectionAsync(cancellationToken);
         await using var results = await connection.QueryMultipleAsync(new CommandDefinition(sql, parameters, cancellationToken: cancellationToken));
 
-        var items = results.Read<OfferListItem, MonthlyCostItem, RentEstimateItem, OfferListItem>(AddCost, CostSplit).ToList();
+        var items = results.Read<OfferListItem, MonthlyCostItem, RentEstimateItem, StatisticsExclusionItem, OfferListItem>(AddCostAndExclusion, CostSplit).ToList();
         var total = await results.ReadSingleAsync<int>();
         return new PagedResult<OfferListItem>(await WithNearbyAsync(connection, items, cancellationToken), page.Page, page.PageSize, total);
     }
@@ -525,6 +551,8 @@ public sealed class OfferRepository(NpgsqlDataSource db, IOptions<MonthlyCostOpt
         var forFeatures = BuildWhere(filter.FeatureMatch == FeatureMatch.Any ? filter with { Features = [] } : filter, placeSizes);
         var withoutChanged = BuildWhere(filter with { Changed = null }, placeSizes);
         var withPriceCut = BuildWhere(filter with { PriceCut = true }, placeSizes);
+        var withoutExcluded = BuildWhere(filter with { ExcludedFromStatistics = null }, placeSizes);
+        var withoutDetailsFetched = BuildWhere(filter with { DetailsFetched = null }, placeSizes);
         var withoutPrice = BuildWhere(filter with { PriceMin = null, PriceMax = null }, placeSizes) + " AND o.price_currency = @PriceCurrency";
         var withoutPricePerM2 = BuildWhere(filter with { PricePerM2Min = null, PricePerM2Max = null }, placeSizes)
             + " AND o.price_currency = @PriceCurrency";
@@ -579,6 +607,16 @@ public sealed class OfferRepository(NpgsqlDataSource db, IOptions<MonthlyCostOpt
 
             SELECT count(*)::int FROM housing.offer o WHERE {{withPriceCut}};
 
+            SELECT {{DetailsFetchedCondition}} AS fetched, count(*)::int
+            FROM housing.offer o
+            WHERE {{withoutDetailsFetched}}
+            GROUP BY 1;
+
+            SELECT {{ExcludedCondition}} AS excluded, count(*)::int
+            FROM housing.offer o
+            WHERE {{withoutExcluded}}
+            GROUP BY 1;
+
             {{BuildHistogramSql("o.price", withoutPrice)}}
 
             {{BuildHistogramSql(PricePerM2, withoutPricePerM2)}}
@@ -613,6 +651,9 @@ public sealed class OfferRepository(NpgsqlDataSource db, IOptions<MonthlyCostOpt
         var furnished = (await results.ReadAsync<(int Value, int Count)>()).ToDictionary(r => (Answer)r.Value, r => r.Count);
         var features = (await results.ReadAsync<(int Value, int Count)>()).ToDictionary(r => (Feature)r.Value, r => r.Count);
         var changed = (await results.ReadAsync<(bool Changed, int Count)>()).ToDictionary(r => r.Changed, r => r.Count);
+        var priceCut = await results.ReadSingleAsync<int>();
+        var fetched = (await results.ReadAsync<(bool Fetched, int Count)>()).ToDictionary(r => r.Fetched, r => r.Count);
+        var excluded = (await results.ReadAsync<(bool Excluded, int Count)>()).ToDictionary(r => r.Excluded, r => r.Count);
         return new OfferFacets
         {
             Voivodeships = voivodeships,
@@ -624,7 +665,11 @@ public sealed class OfferRepository(NpgsqlDataSource db, IOptions<MonthlyCostOpt
             Features = features,
             Changed = changed.GetValueOrDefault(true),
             Unchanged = changed.GetValueOrDefault(false),
-            PriceCut = await results.ReadSingleAsync<int>(),
+            PriceCut = priceCut,
+            DetailsFetched = fetched.GetValueOrDefault(true),
+            WithoutDetails = fetched.GetValueOrDefault(false),
+            ExcludedFromStatistics = excluded.GetValueOrDefault(true),
+            CountedInStatistics = excluded.GetValueOrDefault(false),
             Price = ReadHistogram(await results.ReadAsync<HistogramRow>()),
             PricePerM2 = ReadHistogram(await results.ReadAsync<HistogramRow>()),
             AreaM2 = ReadHistogram(await results.ReadAsync<HistogramRow>()),
@@ -710,23 +755,31 @@ public sealed class OfferRepository(NpgsqlDataSource db, IOptions<MonthlyCostOpt
     public async Task<OfferSummary> SummarizeAsync(
         OfferFilter filter, IReadOnlyList<PopulationRange> placeSizes, DateTimeOffset now, CancellationToken cancellationToken)
     {
+        // Every value leaves the excluded offers out (ex.offer_id IS NULL); the count and the exclusions by reason include them.
         var sql = $$"""
             SELECT count(*)::int AS count,
-                {{BuildSpreadSql("o.price", "o.price_currency = @PriceCurrency", "price")}},
-                {{BuildSpreadSql(PricePerM2, "o.price_currency = @PriceCurrency", "price_per_m2")}},
-                {{BuildSpreadSql("mc.rent", "mc.currency = @PriceCurrency AND mc.rent_source = ANY(@KnownRentSources)", "rent")}},
-                {{BuildSpreadSql("mc.total", "mc.currency = @PriceCurrency", "total_cost")}},
-                {{BuildSpreadSql("o.area_m2", "TRUE", "area")}},
-                {{BuildSpreadSql("extract(epoch FROM @Now - coalesce(o.external_created_at, o.created_at)) / 86400", "TRUE", "days_listed")}}
+                {{BuildSpreadSql("o.price", "ex.offer_id IS NULL AND o.price_currency = @PriceCurrency", "price")}},
+                {{BuildSpreadSql(PricePerM2, "ex.offer_id IS NULL AND o.price_currency = @PriceCurrency", "price_per_m2")}},
+                {{BuildSpreadSql("mc.rent", "ex.offer_id IS NULL AND mc.currency = @PriceCurrency AND mc.rent_source = ANY(@KnownRentSources)", "rent")}},
+                {{BuildSpreadSql("mc.total", "ex.offer_id IS NULL AND mc.currency = @PriceCurrency", "total_cost")}},
+                {{BuildSpreadSql("o.area_m2", "ex.offer_id IS NULL", "area")}},
+                {{BuildSpreadSql("extract(epoch FROM @Now - coalesce(o.external_created_at, o.created_at)) / 86400", "ex.offer_id IS NULL", "days_listed")}}
             FROM housing.offer o
             LEFT JOIN housing.monthly_cost mc ON mc.offer_id = o.id
+            LEFT JOIN housing.statistics_exclusion ex ON ex.offer_id = o.id
             WHERE {{BuildWhere(filter, placeSizes)}};
 
             SELECT mc.rent_source, count(*)::int
             FROM housing.offer o
             JOIN housing.monthly_cost mc ON mc.offer_id = o.id
-            WHERE {{BuildWhere(filter, placeSizes)}} AND mc.currency = @PriceCurrency
+            WHERE {{BuildWhere(filter, placeSizes)}} AND mc.currency = @PriceCurrency AND NOT {{ExcludedCondition}}
             GROUP BY mc.rent_source;
+
+            SELECT ex.reason, count(*)::int
+            FROM housing.offer o
+            JOIN housing.statistics_exclusion ex ON ex.offer_id = o.id
+            WHERE {{BuildWhere(filter, placeSizes)}}
+            GROUP BY ex.reason;
             """;
         await using var connection = await db.OpenConnectionAsync(cancellationToken);
         var parameters = BuildParameters(filter, placeSizes);
@@ -735,9 +788,11 @@ public sealed class OfferRepository(NpgsqlDataSource db, IOptions<MonthlyCostOpt
         await using var results = await connection.QueryMultipleAsync(new CommandDefinition(sql, parameters, cancellationToken: cancellationToken));
         var row = await results.ReadSingleAsync<SummaryRow>();
         var rentSources = (await results.ReadAsync<(int Value, int Count)>()).ToDictionary(r => (RentSource)r.Value, r => r.Count);
+        var exclusions = (await results.ReadAsync<(int Value, int Count)>()).ToDictionary(r => (StatisticsExclusionReason)r.Value, r => r.Count);
         return new OfferSummary
         {
             Count = row.Count,
+            Excluded = exclusions,
             Price = ReadSpread(row.Price, row.PriceCount),
             PricePerM2 = ReadSpread(row.PricePerM2, row.PricePerM2Count),
             Rent = ReadSpread(row.Rent, row.RentCount),
@@ -938,6 +993,16 @@ public sealed class OfferRepository(NpgsqlDataSource db, IOptions<MonthlyCostOpt
             conditions.Add(PriceCutCondition);
         }
 
+        if (filter.DetailsFetched is { } detailsFetched)
+        {
+            conditions.Add(detailsFetched ? DetailsFetchedCondition : $"NOT {DetailsFetchedCondition}");
+        }
+
+        if (filter.ExcludedFromStatistics is { } excluded)
+        {
+            conditions.Add(excluded ? ExcludedCondition : $"NOT {ExcludedCondition}");
+        }
+
         return string.Join(" AND ", conditions.Select(c => c.Trim()));
     }
 
@@ -945,7 +1010,7 @@ public sealed class OfferRepository(NpgsqlDataSource db, IOptions<MonthlyCostOpt
     {
         await using var connection = await db.OpenConnectionAsync(cancellationToken);
         await using var results = await connection.QueryMultipleAsync(new CommandDefinition(GetSql, new { Id = id }, cancellationToken: cancellationToken));
-        var offer = results.Read<OfferListItem, MonthlyCostItem, RentEstimateItem, OfferListItem>(AddCost, CostSplit).SingleOrDefault();
+        var offer = results.Read<OfferListItem, MonthlyCostItem, RentEstimateItem, StatisticsExclusionItem, OfferListItem>(AddCostAndExclusion, CostSplit).SingleOrDefault();
         if (offer is null)
         {
             return null;
@@ -958,8 +1023,9 @@ public sealed class OfferRepository(NpgsqlDataSource db, IOptions<MonthlyCostOpt
         return (await WithNearbyAsync(connection, [offer with { Features = features, Changes = changes }], cancellationToken))[0];
     }
 
-    private static OfferListItem AddCost(OfferListItem offer, MonthlyCostItem? cost, RentEstimateItem? estimate) =>
-        offer with { MonthlyCost = cost is null ? null : cost with { Estimate = estimate } };
+    private static OfferListItem AddCostAndExclusion(
+        OfferListItem offer, MonthlyCostItem? cost, RentEstimateItem? estimate, StatisticsExclusionItem? exclusion) =>
+        offer with { MonthlyCost = cost is null ? null : cost with { Estimate = estimate }, StatisticsExclusion = exclusion };
 
     // The newest offer first breaks ties, so a page always has the same offers.
     private static string BuildOrderBy(OfferSort sort, SortDirection direction)
@@ -1087,8 +1153,8 @@ public sealed class OfferRepository(NpgsqlDataSource db, IOptions<MonthlyCostOpt
     public Task MarkDetailsFailedAsync(PendingDetails offer, DateTimeOffset at, string lastError, CancellationToken cancellationToken) =>
         ExecuteAsync(DetailsFailedSql, new { offer.OfferId, offer.ContentHash, At = at, LastError = lastError }, cancellationToken);
 
-    public Task MarkRemovedAsync(PendingDetails offer, CancellationToken cancellationToken) =>
-        ExecuteAsync(MarkRemovedSql, new { offer.OfferId }, cancellationToken);
+    public Task MarkRemovedAsync(PendingDetails offer, DateTimeOffset at, string reason, CancellationToken cancellationToken) =>
+        ExecuteAsync(MarkRemovedSql, new { offer.OfferId, offer.ContentHash, At = at, LastError = reason }, cancellationToken);
 
     private async Task ExecuteAsync(string sql, object parameters, CancellationToken cancellationToken)
     {

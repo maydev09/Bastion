@@ -1,5 +1,5 @@
 using Bastion.Modules.Housing.Application.Abstractions;
-using Bastion.Modules.Housing.Application.MonthlyCosts;
+using Bastion.Modules.Housing.Application.DerivedData;
 using Bastion.Modules.Housing.Application.Places;
 using Bastion.Modules.Housing.Application.RawCaptures;
 using Bastion.Modules.Housing.Domain;
@@ -7,7 +7,7 @@ using Bastion.Modules.Housing.Domain;
 namespace Bastion.Modules.Housing.Application.ReparseOffers;
 
 public sealed class ReparseOffersHandler(
-    OfferSources sources, RawCaptureService rawCaptures, IOfferRepository repository, IPlaceRepository places, MonthlyCostService costs)
+    OfferSources sources, RawCaptureService rawCaptures, IOfferRepository repository, IPlaceRepository places, DerivedDataService derivedData)
 {
     public async Task<ReparseResult> Handle(CancellationToken cancellationToken)
     {
@@ -51,8 +51,8 @@ public sealed class ReparseOffersHandler(
             statistics.Add(await repository.SaveAsync(offers, capture, recordChanges: false, cancellationToken), parsed.SkippedCount);
         }
 
-        // Once, at the end: the offers may have changed their rents, areas and districts.
-        await costs.RecalculateAllAsync(cancellationToken);
+        // Once, at the end: the offers may have changed their rents, prices, areas and districts.
+        await derivedData.RecalculateAllAsync(cancellationToken);
         return new ReparseResult(
             captures.Count, failed, statistics.Added, statistics.Updated, statistics.Unchanged, statistics.Skipped, detailCount);
     }

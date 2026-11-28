@@ -1,5 +1,4 @@
 using Bastion.Modules.Housing.Application.Abstractions;
-using Bastion.Modules.Housing.Application.MonthlyCosts;
 using Bastion.Modules.Housing.Application.Places;
 using Bastion.Modules.Housing.Application.RawCaptures;
 using Bastion.Modules.Housing.Domain;
@@ -12,8 +11,8 @@ public sealed class ImportOffersHandler(
     RawCaptureService rawCaptures,
     IOfferRepository repository,
     IPlaceRepository places,
-    MonthlyCostService costs,
-    IOptions<ImportOptions> options)
+    IOptions<ImportNewOffersOptions> newOffers,
+    IOptions<SyncAllOffersOptions> allOffers)
 {
     public const string PageLimitReached = "housing.pageLimitReached";
 
@@ -29,7 +28,7 @@ public sealed class ImportOffersHandler(
 
         var resolver = new PlaceResolver(sources, places);
         var fullScan = mode == ImportMode.FullScan;
-        var maxPages = fullScan ? options.Value.FullScanMaxPages : options.Value.MaxPages;
+        var maxPages = fullScan ? allOffers.Value.MaxPages : newOffers.Value.MaxPages;
         var statistics = new SaveStatistics();
         var seen = new HashSet<string>();
         var pageCount = 0;
@@ -56,7 +55,6 @@ public sealed class ImportOffersHandler(
             // New offers posted during the import push offers of a read page onto the next one; they are not saved twice.
             var offers = await resolver.LinkAsync(source, parsed.Offers.Where(o => seen.Add(o.ExternalId)), cancellationToken);
             var saved = await repository.SaveAsync(offers, capture, recordChanges: true, cancellationToken);
-            await costs.UpdateAsync(source, offers.Select(o => o.ExternalId).ToList(), cancellationToken);
             statistics.Add(saved, parsed.SkippedCount);
             pageCount++;
 
@@ -66,8 +64,9 @@ public sealed class ImportOffersHandler(
                 break;
             }
 
-            // The listing is newest first, so after an offer known from an earlier import only known offers follow.
-            if (!fullScan && saved.Added < offers.Count)
+            // The listing is newest first, but the portal mixes some older offers into its first pages, so one known offer is
+            // no sign of the end: the import stops after a page without a new offer.
+            if (!fullScan && saved.Added == 0)
             {
                 break;
             }

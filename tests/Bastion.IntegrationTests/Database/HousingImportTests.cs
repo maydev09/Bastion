@@ -30,13 +30,12 @@ namespace Bastion.IntegrationTests.Database;
 
 public class HousingImportTests
 {
-    private const string Import = "/api/housing/jobs/ImportOffers";
-    private const string Scan = "/api/housing/jobs/ScanOffers";
-    private const string FetchDetails = "/api/housing/jobs/FetchDetails";
+    private const string Import = "/api/housing/jobs/ImportNewOffers";
+    private const string Scan = "/api/housing/jobs/SyncAllOffers";
     private const string ImportPlaces = "/api/housing/jobs/ImportPlaces";
     private const string LinkPlaces = "/api/housing/jobs/LinkPlaces";
     private const string Reparse = "/api/housing/jobs/ReparseOffers";
-    private const string CalculateMonthlyCosts = "/api/housing/jobs/CalculateMonthlyCosts";
+    private const string RecalculateDerivedData = "/api/housing/jobs/RecalculateDerivedData";
 
     private const string WarszawaKey = "mazowieckie/warszawa/warszawa/warszawa";
     private const string GoscicinoKey = "pomorskie/wejherowski/gmina-wiejska--wejherowo/goscicino";
@@ -61,7 +60,7 @@ public class HousingImportTests
         _places = Substitute.For<IPlaceSource>();
         _places.FetchAsync(Arg.Any<CancellationToken>()).Returns(new PlaceFetchResult([Warszawa, Goscicino]));
         _rawPath = Directory.CreateTempSubdirectory("bastion-raw-").FullName;
-        await Sql("DELETE FROM housing.job_run; DELETE FROM housing.offer; DELETE FROM housing.raw_capture; DELETE FROM housing.rent_rate; DELETE FROM housing.place;");
+        await Sql("DELETE FROM housing.job_run; DELETE FROM housing.offer; DELETE FROM housing.raw_capture; DELETE FROM housing.rent_rate; DELETE FROM housing.price_fence; DELETE FROM housing.place;");
     }
 
     [TearDown]
@@ -605,7 +604,6 @@ public class HousingImportTests
         _source.Pages = [[Small, Medium, Large]];
         _source.Details["1"] = new ParsedOfferDetails(RentAmount: 500m, RentCurrency: Currency.Pln, Furnished: Answer.Yes);
         _source.Details["3"] = new ParsedOfferDetails(RentAmount: 300m, RentCurrency: Currency.Pln, Furnished: Answer.No);
-        await RunImport(client);
         await RunDetails(client);
 
         var furnished = await ListedTitles(client, "?furnished=Yes");
@@ -615,7 +613,6 @@ public class HousingImportTests
 
         _source.Pages = [[Small with { PriceAmount = 2100m, PriceCurrency = Currency.Pln }, Medium, Large]];
         _source.Details["1"] = new ParsedOfferDetails(Furnished: Answer.No);
-        await RunImport(client);
         await RunDetails(client);
         var card = await client.GetFromJsonAsync<OfferListItem>($"/api/housing/offers/{small.Id}", Json);
 
@@ -651,7 +648,6 @@ public class HousingImportTests
         _source.Details["7"] = new ParsedOfferDetails(Description: "2000 zł + czynsz administracyjny 310 zł, łącznie z czynszem administracyjnym 2310 zł.");
         _source.Details["4"] = new ParsedOfferDetails(RentAmount: 1m, RentCurrency: Currency.Pln, Description: "<p>Koszty: czynsz najmu 2500 zł + czynsz administracyjny: 544,08 zł.</p>");
         _source.Details["5"] = new ParsedOfferDetails(RentAmount: 0m, RentCurrency: Currency.Pln, Description: "<p>Czynsz administracyjny w cenie najmu.</p>");
-        await RunImport(client);
         await RunDetails(client);
 
         var list = (await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers?sort=TotalCost&direction=Ascending", Json))!.Items;
@@ -670,24 +666,24 @@ public class HousingImportTests
                 ("Medium apartment", 3000m, RentSource.Nominal),
                 // The field says 1 zł; the description states the rent.
                 ("In the text", 3044.08m, RentSource.Description),
-                // No rent and no rates to estimate one from yet.
-                ("Large apartment", null, null),
-                // Two different amounts: the rent is unknown.
-                ("Two amounts", null, null),
+                // Two different amounts: the rent is unknown, so it is estimated (from Small's 20 zł/m², the only stated rent).
+                ("Two amounts", 3320m, RentSource.Estimated),
+                // No rent at all: estimated the same way, a little less per m² for the bigger flat.
+                ("Large apartment", 5436m, RentSource.Estimated),
             }));
             Assert.That(list.Single(o => o.Title == "In the text").MonthlyCost!.RentQuote, Does.Contain("544,08 zł"));
             Assert.That(list.Single(o => o.Title == "In the text").Rent, Is.EqualTo(1m));
             Assert.That(list.Where(o => o.MonthlyCost is not null).Select(o => o.MonthlyCost!.CalculatedAt), Has.All.GreaterThan(DateTimeOffset.MinValue));
             Assert.That(cheap, Is.EquivalentTo(new[] { "With a total", "Included", "Small apartment" }));
-            Assert.That((summary!.TotalCost!.Median, summary.TotalCost.Count), Is.EqualTo((2800m, 5)));
+            Assert.That((summary!.TotalCost!.Median, summary.TotalCost.Count), Is.EqualTo((3000m, 7)));
             // The typical rent counts the known rents only (600 stated, 544.08 and 310 from descriptions), not the 0s.
             Assert.That((summary.Rent!.Count, summary.Rent.Median), Is.EqualTo((3, 544.08m)));
             Assert.That(summary.RentSources, Is.EquivalentTo(new Dictionary<RentSource, int>
             {
-                [RentSource.Stated] = 1, [RentSource.Nominal] = 1, [RentSource.Description] = 2, [RentSource.Included] = 1,
+                [RentSource.Stated] = 1, [RentSource.Nominal] = 1, [RentSource.Description] = 2, [RentSource.Included] = 1, [RentSource.Estimated] = 2,
             }));
             // The bound does not narrow its own histogram.
-            Assert.That(facets.TotalCost!.Counts.Sum(), Is.EqualTo(5));
+            Assert.That(facets.TotalCost!.Counts.Sum(), Is.EqualTo(7));
         });
     }
 
@@ -708,9 +704,10 @@ public class HousingImportTests
             InWarszawa("4", 3200m, 40m, 3200m), // the price typed twice
         ]];
         await RunImport(client);
-        var beforeRates = await CardOf(client, "Offer 3");
+        var afterImport = await CardOf(client, "Offer 3");
 
-        var run = await JobRuns.Run(client, CalculateMonthlyCosts);
+        // The same calculation on its own, as after a change of the rules.
+        var run = await JobRuns.Run(client, RecalculateDerivedData);
         var missing = await CardOf(client, "Offer 3");
         var typedTwice = await CardOf(client, "Offer 4");
         _source.Pages = [[InWarszawa("5", 2000m, 30m, null), InWarszawa("6", 2200m, 5158m, null)]];
@@ -722,7 +719,8 @@ public class HousingImportTests
 
         Assert.Multiple(() =>
         {
-            Assert.That(beforeRates.MonthlyCost, Is.Null);
+            // The import ends with the rates and the costs of its offers.
+            Assert.That(afterImport.MonthlyCost?.RentSource, Is.EqualTo(RentSource.Estimated));
             Assert.That(run.Summary!.Counts["estimatedRents"], Is.EqualTo(2));
             // No pins, so no neighbors: the median of 20 and 30 zł/m² in the country, the voivodeship and the place, times 40 m².
             Assert.That((missing.MonthlyCost!.Total, missing.MonthlyCost.Rent, missing.MonthlyCost.RentSource), Is.EqualTo((3500m, 1000m, RentSource.Estimated)));
@@ -730,13 +728,78 @@ public class HousingImportTests
             Assert.That((estimate.RatePerM2, estimate.Basis, estimate.SampleSize), Is.EqualTo((25m, (RentBasis?)RentBasis.Place, (int?)2)));
             // The stated rent stays as the offer states it.
             Assert.That((typedTwice.Rent, typedTwice.MonthlyCost?.Total, typedTwice.MonthlyCost?.RentSource), Is.EqualTo(((decimal?)3200m, (decimal?)4200m, (RentSource?)RentSource.Estimated)));
-            // A saved offer gets its cost at once from the stored rates.
+            // A later import gives its new offers their costs too.
             Assert.That(newOffer.MonthlyCost?.Total, Is.EqualTo(2750m));
             // An area typed wrong would make the fees cost more than the flat.
             Assert.That(wrongArea.MonthlyCost, Is.Null);
             Assert.That(summary!.RentSources[RentSource.Estimated], Is.EqualTo(3));
             // Estimated rents sort among the stated ones (750, 800, 1 000, 1 000, 1 500); an offer without either comes last.
             Assert.That(byRent, Is.EqualTo(new[] { "Offer 5", "Offer 1", "Offer 4", "Offer 3", "Offer 2", "Offer 6" }));
+        });
+    }
+
+    [Test]
+    public async Task Offers_that_are_no_flat_or_have_wrong_numbers_are_left_out_of_the_statistics()
+    {
+        await using var factory = App(WithFakes);
+        using var client = factory.CreateClient();
+        ParsedOffer Offer(string id, string title, decimal? price, decimal? area, int rooms) =>
+            new(id, title, new Uri($"https://www.otodom.pl/pl/oferta/offer-ID{id}"), PropertyType.Apartment, Transaction.Rent, At(10),
+                price, Currency.Pln, area, rooms);
+        // 40 ordinary flats of 2 rooms at 50 to 69.5 zł/m²: the usual prices of their group (the country, as they have no place).
+        var ordinary = Enumerable.Range(1, 40).Select(i => Offer($"{i}", $"Flat {i}", 2000m + 20 * i, 40m, 2)).ToList();
+        _source.Pages = [[
+            .. ordinary,
+            Offer("41", "Pokój do wynajęcia blisko centrum", 1000m, 12m, 1),
+            Offer("42", "Miejsce postojowe w garażu podziemnym", 300m, 12m, 1),
+            Offer("43", "Area typed as the price", 2400m, 2400m, 2),
+            Offer("44", "Auctioned flat", 14000m, 40m, 2),
+            Offer("45", "Workers' quarters", 500m, 80m, 2),
+            Offer("46", "Price with a zero too many", 25000m, 40m, 2),
+            Offer("47", "Mieszkanie 2-pokojowe z garażem", 2400m, 40m, 2),
+            Offer("48", "Without an area", 2500m, null, 2),
+        ]];
+        _source.Details["44"] = new ParsedOfferDetails(Description: "<p>Minimalna kwota wierzytelności do licytacji: 14 000 zł</p>");
+        _source.Details["45"] = new ParsedOfferDetails(Description: "Kwatery pracownicze, 35 zł od osoby za dobę.");
+
+        // The import ends with the derived data: the fences of the groups, and the exclusions found with them.
+        var run = await JobRuns.Run(client, Import);
+        var excluded = (await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers?excludedFromStatistics=true&pageSize=100", Json))!.Items;
+        var summary = await client.GetFromJsonAsync<OfferSummary>("/api/housing/offers/summary", Json);
+        var facets = await Facets(client, "?excludedFromStatistics=false");
+        var auction = await CardOf(client, "Auctioned flat");
+        // The price is corrected on the portal, and a new offer comes: the next run decides both.
+        _source.Pages = [[Offer("49", "New price with a zero too many", 30000m, 40m, 2), Offer("46", "Price with a zero too many", 2500m, 40m, 2)]];
+        await RunImport(client);
+        var corrected = await CardOf(client, "Price with a zero too many");
+        var newOffer = await CardOf(client, "New price with a zero too many");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(run.Status, Is.EqualTo(JobRunStatus.Succeeded), run.ErrorCode);
+            Assert.That((run.Summary!.Counts["added"], run.Summary.Counts["excludedOffers"]), Is.EqualTo((48, 6)));
+            Assert.That(excluded.Select(o => (o.Title, o.StatisticsExclusion!.Reason)), Is.EquivalentTo(new[]
+            {
+                ("Pokój do wynajęcia blisko centrum", StatisticsExclusionReason.Room),
+                ("Miejsce postojowe w garażu podziemnym", StatisticsExclusionReason.Parking),
+                ("Area typed as the price", StatisticsExclusionReason.ImplausibleArea),
+                ("Auctioned flat", StatisticsExclusionReason.Auction),
+                ("Workers' quarters", StatisticsExclusionReason.PerPerson),
+                ("Price with a zero too many", StatisticsExclusionReason.UnusualPrice),
+            }));
+            // A flat that names its garage and an offer without an area stay in the statistics.
+            Assert.That(summary!.Count, Is.EqualTo(48));
+            Assert.That(summary.Excluded.Values.Sum(), Is.EqualTo(6));
+            Assert.That(summary.Excluded[StatisticsExclusionReason.Room], Is.EqualTo(1));
+            Assert.That(summary.Price!.Count, Is.EqualTo(42));
+            Assert.That((facets.ExcludedFromStatistics, facets.CountedInStatistics), Is.EqualTo((6, 42)));
+            // The usual prices of the 2-room offers with a price and an area: the 40 flats, the garage flat and the four outliers.
+            Assert.That((auction.StatisticsExclusion!.Basis, auction.StatisticsExclusion.SampleSize), Is.EqualTo(((PriceFenceBasis?)PriceFenceBasis.Country, (int?)45)));
+            // The fences take in every ordinary flat.
+            Assert.That(auction.StatisticsExclusion.FenceLowPerM2, Is.LessThan(50m));
+            Assert.That(auction.StatisticsExclusion.FenceHighPerM2, Is.GreaterThan(69.5m));
+            Assert.That(corrected.StatisticsExclusion, Is.Null);
+            Assert.That(newOffer.StatisticsExclusion?.Reason, Is.EqualTo(StatisticsExclusionReason.UnusualPrice));
         });
     }
 
@@ -777,14 +840,14 @@ public class HousingImportTests
             InWarszawa("4", 2500m, 40m, null),
         ]];
         await RunImport(client);
-        await JobRuns.Run(client, CalculateMonthlyCosts);
+        await JobRuns.Run(client, RecalculateDerivedData);
         var removed = await CardOf(client, "Offer 3");
         await Sql($"UPDATE housing.offer SET removed_at = now() WHERE id = {removed.Id}");
 
         // The market moves: a new offer at 60 zł/m² makes the median 30 zł/m².
         _source.Pages = [[InWarszawa("5", 6000m, 40m, 2400m)]];
         await RunImport(client);
-        await JobRuns.Run(client, CalculateMonthlyCosts);
+        await JobRuns.Run(client, RecalculateDerivedData);
         var frozen = await client.GetFromJsonAsync<OfferListItem>($"/api/housing/offers/{removed.Id}", Json);
         var listed = await CardOf(client, "Offer 4");
 
@@ -813,10 +876,9 @@ public class HousingImportTests
         _source.Details["1"] = new ParsedOfferDetails(Latitude: 52.2000m, Longitude: 21.0000m);
         _source.Details["2"] = new ParsedOfferDetails(Latitude: 52.3000m, Longitude: 21.2000m);
         _source.Details["3"] = new ParsedOfferDetails(Latitude: 52.2010m, Longitude: 21.0010m);
-        await RunImport(client);
         await RunDetails(client);
 
-        await JobRuns.Run(client, CalculateMonthlyCosts);
+        await JobRuns.Run(client, RecalculateDerivedData);
         var card = await CardOf(client, "Offer 3");
 
         Assert.Multiple(() =>
@@ -908,21 +970,24 @@ public class HousingImportTests
     }
 
     [Test]
-    public async Task Import_stops_after_the_page_with_an_offer_known_from_an_earlier_import()
+    public async Task Import_reads_past_an_older_offer_mixed_into_new_ones_and_stops_after_a_page_without_new_offers()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
         using var client = factory.CreateClient();
         _source.Pages = [[Large]];
         await RunImport(client);
 
-        _source.Pages = [[Medium, Large], [Small]];
+        // Large is an older offer the portal mixes in among new ones; the page after it still has a new offer.
+        var newer = Medium with { ExternalId = "4", Title = "Newer apartment", Url = new Uri("https://www.otodom.pl/pl/oferta/newer-ID4") };
+        _source.Pages = [[Medium, Large], [Small], [Large], [newer]];
         var result = await RunImport(client);
         var list = await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json);
 
         Assert.Multiple(() =>
         {
-            Assert.That((result.Pages, result.Added, result.Unchanged), Is.EqualTo((1, 1, 1)));
-            Assert.That(list!.Items.Select(o => o.Title), Is.EquivalentTo(new[] { "Medium apartment", "Large apartment" }));
+            // Page 3 shows no new offer (only Large, already read on page 1), so page 4 is not read.
+            Assert.That((result.Pages, result.Added, result.Unchanged), Is.EqualTo((3, 2, 1)));
+            Assert.That(list!.Items.Select(o => o.Title), Is.EquivalentTo(new[] { "Medium apartment", "Large apartment", "Small apartment" }));
         });
     }
 
@@ -959,13 +1024,39 @@ public class HousingImportTests
     public async Task Import_never_reads_more_pages_than_the_limit()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)))
-            .WithWebHostBuilder(b => b.UseSetting("Modules:Housing:Import:MaxPages", "2"));
+            .WithWebHostBuilder(b => b.UseSetting("Modules:Housing:Jobs:ImportNewOffers:MaxPages", "2"));
         using var client = factory.CreateClient();
         _source.Pages = [[Small], [Medium], [Large]];
 
         var result = await RunImport(client);
 
         Assert.That((result.Pages, result.Added), Is.EqualTo((2, 2)));
+    }
+
+    [Test]
+    public async Task The_nightly_sync_fetches_the_details_of_offers_that_changed_deep_in_the_listing()
+    {
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
+        using var client = factory.CreateClient();
+        _source.Pages = [[Small], [Large]];
+        _source.Details["1"] = new ParsedOfferDetails(Floor: 1);
+        _source.Details["2"] = new ParsedOfferDetails(Floor: 2);
+        await RunScan(client);
+        _source.DetailRequests.Clear();
+
+        // An older offer lowers its price: the import, which reads only the first page, never sees it.
+        _source.Pages = [[Small], [Large with { PriceAmount = 3900m }]];
+        _source.Details["2"] = new ParsedOfferDetails(Floor: 3);
+        var run = await JobRuns.Run(client, Scan);
+        var floor = await Scalar<int>("SELECT floor FROM housing.offer WHERE external_id = '2'");
+
+        Assert.Multiple(() =>
+        {
+            Assert.That(run.Status, Is.EqualTo(JobRunStatus.Succeeded), run.ErrorCode);
+            Assert.That((run.Summary!.Counts["updated"], run.Summary.Counts["detailsFetched"]), Is.EqualTo((1, 1)));
+            Assert.That(_source.DetailRequests, Is.EqualTo(new[] { "2" }));
+            Assert.That(floor, Is.EqualTo(3));
+        });
     }
 
     [Test]
@@ -986,7 +1077,7 @@ public class HousingImportTests
     public async Task A_full_scan_stopped_at_the_page_limit_fails_but_keeps_the_counts_of_the_pages_read()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)),
-            ("Modules:Housing:Import:FullScanMaxPages", "1"));
+            ("Modules:Housing:Jobs:SyncAllOffers:MaxPages", "1"));
         using var client = factory.CreateClient();
         _source.Pages = [[Small], [Large]];
 
@@ -1031,7 +1122,7 @@ public class HousingImportTests
     public async Task Scan_stopped_by_the_page_limit_fails_and_marks_nothing()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)))
-            .WithWebHostBuilder(b => b.UseSetting("Modules:Housing:Import:FullScanMaxPages", "1"));
+            .WithWebHostBuilder(b => b.UseSetting("Modules:Housing:Jobs:SyncAllOffers:MaxPages", "1"));
         using var client = factory.CreateClient();
         _source.Pages = [[Small, Large]];
         await RunScan(client);
@@ -1100,15 +1191,12 @@ public class HousingImportTests
             LocationRadiusM: 0, Description: "<p>Small</p>", Features: [Feature.Balcony, Feature.Lift]);
         _source.Details["2"] = new ParsedOfferDetails(Floor: 0);
 
-        await RunImport(client);
         var first = await RunDetails(client);
         var second = await RunDetails(client);
         _source.Pages = [[Small with { PriceAmount = 2000m, PriceCurrency = Currency.Pln }, Large]];
-        await RunImport(client);
         var changed = await RunDetails(client);
         _source.Pages = [[Small with { PriceAmount = 2000m, PriceCurrency = Currency.Pln, ExternalUpdatedAt = At(13) }, Large]];
-        var bump = await RunImport(client);
-        var bumped = await RunDetails(client);
+        var bump = (await JobRuns.Run(client, Import)).Summary!.Counts;
 
         var small = await Scalar<string>("""
             SELECT concat_ws('|', rent, rent_currency, floor, latitude, location_radius_m, description)
@@ -1121,7 +1209,7 @@ public class HousingImportTests
             Assert.That(first, Is.EqualTo(new Fetched(2, 0)));
             Assert.That(second, Is.EqualTo(new Fetched(0, 0)));
             Assert.That(changed, Is.EqualTo(new Fetched(1, 0)));
-            Assert.That((bump.Updated, bumped.Count), Is.EqualTo((1, 0)));
+            Assert.That((bump["updated"], bump["detailsFetched"]), Is.EqualTo((1, 0)));
             Assert.That(_source.DetailRequests, Is.EqualTo(new[] { "1", "2", "1" }));
             Assert.That(small, Is.EqualTo("500.00|1|3|52.229700|0|<p>Small</p>"));
             Assert.That(features, Is.EqualTo($"{(int)Feature.Balcony},{(int)Feature.Lift}"));
@@ -1135,12 +1223,10 @@ public class HousingImportTests
         using var client = factory.CreateClient();
         _source.Pages = [[Small]];
         _source.Details["1"] = new ParsedOfferDetails(RentAmount: 500m, RentCurrency: Currency.Pln, Floor: 3, Features: [Feature.Balcony]);
-        await RunImport(client);
         await RunDetails(client);
 
         _source.Pages = [[Small with { PriceAmount = 2000m, PriceCurrency = Currency.Pln }]];
         _source.Details["1"] = new ParsedOfferDetails(Floor: 4, Features: [Feature.Lift]);
-        await RunImport(client);
         await RunDetails(client);
 
         var stored = await Scalar<string>("SELECT concat_ws('|', rent, floor) FROM housing.offer");
@@ -1160,18 +1246,15 @@ public class HousingImportTests
         using var client = factory.CreateClient();
         _source.Pages = [[Small]];
         _source.Details["1"] = new ParsedOfferDetails(BuildYear: 1950);
-        await RunImport(client);
         await RunDetails(client);
 
         _source.Pages = [[Small with { PriceAmount = 2000m, PriceCurrency = Currency.Pln }]];
         _source.Details["1"] = new ParsedOfferDetails(RejectedValues: new Dictionary<string, string> { ["build_year"] = "195014" });
-        await RunImport(client);
         var rejectedRun = await RunDetails(client);
         var rejected = await Scalar<string>("SELECT concat_ws('|', build_year, rejected_values->>'build_year') FROM housing.offer");
 
         _source.Pages = [[Small with { PriceAmount = 2100m, PriceCurrency = Currency.Pln }]];
         _source.Details["1"] = new ParsedOfferDetails(BuildYear: 1960);
-        await RunImport(client);
         await RunDetails(client);
         var corrected = await Scalar<string>("SELECT concat_ws('|', build_year, rejected_values) FROM housing.offer");
         var id = (await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json))!.Items.Single().Id;
@@ -1198,13 +1281,11 @@ public class HousingImportTests
         using var client = factory.CreateClient();
         _source.Pages = [[Small]];
         _source.Details["1"] = new ParsedOfferDetails(Heating: Heating.Gas, BuildYear: 1950, Features: [Feature.Lift]);
-        await RunImport(client);
         await RunDetails(client);
         var afterFirstPage = await Scalar<long>("SELECT count(*) FROM housing.offer_change");
 
         _source.Pages = [[Small with { PriceAmount = 2000m, PriceCurrency = Currency.Pln }]];
         _source.Details["1"] = new ParsedOfferDetails(Heating: Heating.Gas, BuildYear: 1950, Condition: Condition.ReadyToUse, Features: [Feature.Lift]);
-        await RunImport(client);
         await RunDetails(client);
         var logged = await Scalar<string>("SELECT string_agg(key, ',' ORDER BY id, key) FROM housing.offer_change, jsonb_object_keys(changes) AS key");
 
@@ -1223,7 +1304,6 @@ public class HousingImportTests
         _source.Pages = [[Small with { RentAmount = 400m, RentCurrency = Currency.Pln, Floor = 2, Features = [Feature.Balcony] }]];
         _source.Details["1"] = new ParsedOfferDetails(DepositAmount: 3000m, DepositCurrency: Currency.Pln, Features: [Feature.Balcony, Feature.Dishwasher]);
 
-        await RunImport(client);
         await RunDetails(client);
 
         var stored = await Scalar<string>("SELECT concat_ws('|', rent, floor, deposit) FROM housing.offer");
@@ -1244,16 +1324,13 @@ public class HousingImportTests
         _source.Pages = [[Small]];
         _source.Details["1"] = new ParsedOfferDetails(DepositAmount: 3000m, DepositCurrency: Currency.Pln, AvailableFrom: new DateOnly(2026, 12, 1),
             Floor: 2, BuildingType: BuildingType.Block, Heating: Heating.Gas, Description: "<p>Quiet</p>", Features: [Feature.Lift]);
+        // The import fetches the detail pages of the offers it finds.
         await RunImport(client);
         var id = (await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json))!.Items.Single().Id;
-        var before = await client.GetFromJsonAsync<OfferListItem>($"/api/housing/offers/{id}", Json);
-
-        await RunDetails(client);
         var card = await client.GetFromJsonAsync<OfferListItem>($"/api/housing/offers/{id}", Json);
 
         Assert.Multiple(() =>
         {
-            Assert.That(before!.DetailsFetchedAt, Is.Null);
             Assert.That(card!.DetailsFetchedAt, Is.Not.Null);
             Assert.That((card.Deposit, card.DepositCurrency, card.AvailableFrom, card.Floor),
                 Is.EqualTo(((decimal?)3000m, (Currency?)Currency.Pln, (DateOnly?)new DateOnly(2026, 12, 1), (int?)2)));
@@ -1270,11 +1347,9 @@ public class HousingImportTests
         using var client = factory.CreateClient();
         _source.Pages = [[Small]];
         _source.Details["1"] = new ParsedOfferDetails(Heating: Heating.Gas, Features: [Feature.Lift]);
-        await RunImport(client);
         await RunDetails(client);
         _source.Pages = [[Small with { PriceAmount = 2000m, PriceCurrency = Currency.Pln }]];
         _source.Details["1"] = new ParsedOfferDetails(Heating: Heating.District, Features: [Feature.Lift, Feature.Balcony]);
-        await RunImport(client);
         await RunDetails(client);
         var id = (await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json))!.Items.Single().Id;
 
@@ -1300,16 +1375,15 @@ public class HousingImportTests
         _source.Pages = [[Small, Large]];
         _source.Details["1"] = new ParsedOfferDetails(Floor: 1);
         _source.Details["2"] = new ParsedOfferDetails(Floor: 2);
-        await RunImport(client);
         _source.DetailTimeouts = 2;
 
-        var run = await JobRuns.Run(client, FetchDetails);
+        var run = await JobRuns.Run(client, Import);
 
         Assert.Multiple(() =>
         {
             Assert.That(run.Status, Is.EqualTo(JobRunStatus.Succeeded), run.ErrorCode);
-            Assert.That(run.Summary!.Counts["fetched"], Is.EqualTo(2));
-            Assert.That(run.Summary.Counts["retried"], Is.EqualTo(2));
+            Assert.That(run.Summary!.Counts["detailsFetched"], Is.EqualTo(2));
+            Assert.That(run.Summary.Counts["detailsRetried"], Is.EqualTo(2));
         });
     }
 
@@ -1317,62 +1391,64 @@ public class HousingImportTests
     public async Task A_retry_that_would_pass_the_time_limit_ends_the_run_as_at_its_time_limit()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)),
-            QuickRetry, ("Modules:Housing:Details:MaxMinutes", "1"));
+            QuickRetry, ("Modules:Housing:Jobs:ImportNewOffers:TimeLimit", "00:01:00"));
         using var client = factory.CreateClient();
         _source.Pages = [[Small]];
         _source.Details["1"] = new ParsedOfferDetails(Floor: 1);
-        await RunImport(client);
         _source.DetailTimeouts = 1;
 
-        var run = await JobRuns.Run(client, FetchDetails);
+        var run = await JobRuns.Run(client, Import);
         var blamed = await Scalar<long>("SELECT count(*) FROM housing.offer_detail_fetch");
         var later = await RunDetails(client);
 
         Assert.Multiple(() =>
         {
             Assert.That(run.Status, Is.EqualTo(JobRunStatus.Succeeded), run.ErrorCode);
-            Assert.That(run.Summary!.Counts["fetched"], Is.Zero);
+            Assert.That(run.Summary!.Counts["detailsFetched"], Is.Zero);
             Assert.That(blamed, Is.Zero);
             Assert.That(later, Is.EqualTo(new Fetched(1, 0)));
         });
     }
 
     [Test]
-    public async Task A_rate_limited_portal_is_not_retried()
+    public async Task A_rate_limited_portal_is_not_retried_and_ends_only_the_detail_pages()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)), QuickRetry);
         using var client = factory.CreateClient();
         _source.Pages = [[Small]];
         _source.Details["1"] = new ParsedOfferDetails(Floor: 1);
-        await RunImport(client);
         _source.DetailsRateLimited = true;
 
-        var run = await JobRuns.Run(client, FetchDetails);
+        var run = await JobRuns.Run(client, Import);
 
         Assert.Multiple(() =>
         {
-            Assert.That((run.Status, run.ErrorCode), Is.EqualTo((JobRunStatus.Failed, (string?)ScrapingException.RateLimited)));
+            // The listing is saved; the scraping client already slows down before its next request.
+            Assert.That(run.Status, Is.EqualTo(JobRunStatus.Succeeded), run.ErrorCode);
+            Assert.That((run.Summary!.Counts["added"], run.Summary.Counts["detailsFetched"]), Is.EqualTo((1, 0)));
             Assert.That(_source.DetailRequests, Has.Count.EqualTo(1));
         });
     }
 
     [Test]
-    public async Task A_failed_details_run_keeps_the_counts_of_the_pages_fetched_before()
+    public async Task Detail_pages_left_after_a_rate_limit_wait_for_the_next_run()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)));
         using var client = factory.CreateClient();
         _source.Pages = [[Small, Large]];
         _source.Details["1"] = new ParsedOfferDetails(Floor: 1);
         _source.Details["2"] = new ParsedOfferDetails(Floor: 2);
-        await RunImport(client);
         _source.DetailsBeforeRateLimit = 1;
 
-        var run = await JobRuns.Run(client, FetchDetails);
+        var run = await JobRuns.Run(client, Import);
+        _source.DetailsBeforeRateLimit = int.MaxValue;
+        var next = await RunDetails(client);
 
         Assert.Multiple(() =>
         {
-            Assert.That((run.Status, run.ErrorCode), Is.EqualTo((JobRunStatus.Failed, (string?)ScrapingException.RateLimited)));
-            Assert.That(run.Summary?.Counts["fetched"], Is.EqualTo(1));
+            Assert.That(run.Status, Is.EqualTo(JobRunStatus.Succeeded), run.ErrorCode);
+            Assert.That(run.Summary?.Counts["detailsFetched"], Is.EqualTo(1));
+            Assert.That(next, Is.EqualTo(new Fetched(1, 0)));
         });
     }
 
@@ -1380,18 +1456,17 @@ public class HousingImportTests
     public async Task An_unreachable_portal_fails_the_run_and_blames_no_offer()
     {
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<IOfferSource>(_source)),
-            QuickRetry, ("Modules:Housing:Details:Retries", "1"));
+            QuickRetry, ("Modules:Housing:DetailPages:Retries", "1"));
         using var client = factory.CreateClient();
         _source.Pages = [[Small, Large]];
         _source.Details["1"] = new ParsedOfferDetails(Floor: 1);
         _source.Details["2"] = new ParsedOfferDetails(Floor: 2);
-        await RunImport(client);
         _source.DetailsUnavailable = true;
 
         var failedRuns = new List<JobRun>();
         for (var run = 0; run < 3; run++)
         {
-            failedRuns.Add(await JobRuns.Run(client, FetchDetails));
+            failedRuns.Add(await JobRuns.Run(client, Import));
         }
 
         var attempts = await Scalar<long>("SELECT count(*) FROM housing.offer_detail_fetch");
@@ -1415,10 +1490,9 @@ public class HousingImportTests
         _source.Pages = [Enumerable.Range(1, FetchDetailsHandler.MaxFetchFailuresInRow + 2)
             .Select(i => Small with { ExternalId = $"{i}", Url = new Uri($"https://www.otodom.pl/pl/oferta/apartment-ID{i}") })
             .ToList()];
-        await RunImport(client);
         _source.DetailsRefused = true;
 
-        var run = await JobRuns.Run(client, FetchDetails);
+        var run = await JobRuns.Run(client, Import);
         var blamed = await Scalar<long>("SELECT count(*) FROM housing.offer_detail_fetch");
 
         Assert.Multiple(() =>
@@ -1440,18 +1514,18 @@ public class HousingImportTests
         _source.Pages = [[.. removed, Large]];
         _source.Details["2"] = new ParsedOfferDetails(Floor: 2);
         _source.RemovedOffers.UnionWith(removed.Select(o => o.ExternalId));
-        await RunImport(client);
 
-        var run = await JobRuns.Run(client, FetchDetails);
+        var run = await JobRuns.Run(client, Import);
+        var list = await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json);
+        // Still on the listing, as when the portal answers 410 before it takes the offer off: the next run asks for none of them.
         _source.DetailRequests.Clear();
         await RunDetails(client);
-        var list = await client.GetFromJsonAsync<PagedResult<OfferListItem>>("/api/housing/offers", Json);
 
         Assert.Multiple(() =>
         {
             Assert.That(run.Status, Is.EqualTo(JobRunStatus.Succeeded), run.ErrorCode);
-            Assert.That(run.Summary!.Counts["removed"], Is.EqualTo(removed.Count));
-            Assert.That(run.Summary.Counts["fetched"], Is.EqualTo(1));
+            Assert.That(run.Summary!.Counts["detailsRemoved"], Is.EqualTo(removed.Count));
+            Assert.That(run.Summary.Counts["detailsFetched"], Is.EqualTo(1));
             Assert.That(list!.TotalCount, Is.EqualTo(1));
             Assert.That(_source.DetailRequests, Is.Empty);
         });
@@ -1468,7 +1542,6 @@ public class HousingImportTests
             .ToList();
         _source.Pages = [[.. missing, Large]];
         _source.Details["2"] = new ParsedOfferDetails(Floor: 2);
-        await RunImport(client);
 
         var fetched = await RunDetails(client);
 
@@ -1484,9 +1557,8 @@ public class HousingImportTests
         _source.Pages = [Enumerable.Range(1, FetchDetailsHandler.MaxMissingPagesInRow + 2)
             .Select(i => Small with { ExternalId = $"{i}", Url = new Uri($"https://www.otodom.pl/pl/oferta/apartment-ID{i}") })
             .ToList()];
-        await RunImport(client);
 
-        var run = await JobRuns.Run(client, FetchDetails);
+        var run = await JobRuns.Run(client, Import);
         var blamed = await Scalar<long>("SELECT count(*) FROM housing.offer_detail_fetch");
 
         Assert.Multiple(() =>
@@ -1503,7 +1575,6 @@ public class HousingImportTests
         using var client = factory.CreateClient();
         _source.Pages = [[Small with { Features = [Feature.Garden] }]];
         _source.Details["1"] = new ParsedOfferDetails(Features: []);
-        await RunImport(client);
         await RunDetails(client);
 
         await RunImport(client);
@@ -1518,7 +1589,7 @@ public class HousingImportTests
         using var client = factory.CreateClient();
         _source.Pages = [[Small]];
 
-        await RunImport(client);
+        // Every import run tries the detail page; the first one is also the one that finds the offer.
         var runs = new List<Fetched>();
         for (var run = 0; run < 4; run++)
         {
@@ -1566,7 +1637,6 @@ public class HousingImportTests
         using var client = factory.CreateClient();
         _source.Pages = [[Small]];
         _source.Details["1"] = new ParsedOfferDetails(Floor: 3, Features: [Feature.Garden]);
-        await RunImport(client);
         await RunDetails(client);
         await Sql("UPDATE housing.offer SET floor = NULL; DELETE FROM housing.offer_feature;");
 
@@ -1589,13 +1659,11 @@ public class HousingImportTests
         using var client = factory.CreateClient();
         _source.Pages = [[Small with { Features = [Feature.Garden] }]];
         _source.Details["1"] = new ParsedOfferDetails(Floor: 3, AvailableFrom: new DateOnly(2026, 12, 1), Features: [Feature.Balcony]);
-        await RunImport(client);
         await RunDetails(client);
 
         var cheaper = Small with { PriceAmount = 2000m, PriceCurrency = Currency.Pln, RentAmount = 500m, RentCurrency = Currency.Pln };
         _source.Pages = [[cheaper]];
         _source.Details["1"] = new ParsedOfferDetails(Floor: 4, AvailableFrom: new DateOnly(2027, 1, 1), Features: [Feature.Lift, Feature.Balcony]);
-        await RunImport(client);
         await RunDetails(client);
         _source.Pages = [[cheaper with { ExternalUpdatedAt = At(13) }]];
         await RunImport(client);
@@ -1634,11 +1702,9 @@ public class HousingImportTests
         using var client = factory.CreateClient();
         _source.Pages = [[Small]];
         _source.Details["1"] = new ParsedOfferDetails(Floor: 3);
-        await RunImport(client);
         await RunDetails(client);
         _source.Pages = [[Small with { PriceAmount = 2000m, PriceCurrency = Currency.Pln }]];
         _source.Details["1"] = new ParsedOfferDetails(Floor: 4);
-        await RunImport(client);
         await RunDetails(client);
         var before = await Scalar<long>("SELECT count(*) FROM housing.offer_change");
 
@@ -1669,7 +1735,7 @@ public class HousingImportTests
             }
         });
 
-    private static readonly (string, string) QuickRetry = ("Modules:Housing:Details:FirstRetrySeconds", "1");
+    private static readonly (string, string) QuickRetry = ("Modules:Housing:DetailPages:FirstRetrySeconds", "1");
 
     private static readonly (string, string) NoAreaCorrection = ("Modules:Housing:MonthlyCosts:AreaExponent", "0");
 
@@ -1705,9 +1771,9 @@ public class HousingImportTests
 
     private static async Task<Fetched> RunDetails(HttpClient client)
     {
-        var run = await JobRuns.Run(client, FetchDetails);
+        var run = await JobRuns.Run(client, Import);
         Assert.That(run.Status, Is.EqualTo(JobRunStatus.Succeeded), run.ErrorCode);
-        return new Fetched((int)run.Summary!.Counts["fetched"], (int)run.Summary.Counts["failed"]);
+        return new Fetched((int)run.Summary!.Counts["detailsFetched"], (int)run.Summary.Counts["detailsFailed"]);
     }
 
     private static async Task<Scanned> RunScan(HttpClient client)

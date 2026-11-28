@@ -44,3 +44,8 @@
   font-size: var(--font-size-sm);
   font-variant-numeric: tabular-nums;
 }
+
+.allExcluded {
+  margin: 0;
+  color: var(--color-muted);
+}

@@ -30,6 +30,16 @@ public sealed record OfferFacets
 
     public required int PriceCut { get; init; }
 
+    // Offers whose detail page was fetched, and those still without it.
+    public required int DetailsFetched { get; init; }
+
+    public required int WithoutDetails { get; init; }
+
+    // Offers the statistics leave out, and those they count (see OfferListItem.StatisticsExclusion).
+    public required int ExcludedFromStatistics { get; init; }
+
+    public required int CountedInStatistics { get; init; }
+
     // For each asked moment, in the order asked, how many offers Bastion first saw since then (e.g. the last visit).
     public required IReadOnlyList<int> AddedSince { get; init; }
 

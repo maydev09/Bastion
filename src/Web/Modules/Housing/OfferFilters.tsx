@@ -59,7 +59,8 @@ type SectionId =
   | "rooms"
   | "furnished"
   | "features"
-  | "history";
+  | "history"
+  | "data";
 
 // Open until the user closes them; the other sections open while they hold a filter.
 const openAtFirst: SectionId[] = ["new", "location", "price"];
@@ -132,6 +133,7 @@ export function OfferFilters({ filter, onChange, onHide, previousVisit, searchRe
     furnished: filter.furnished ? 1 : 0,
     features: filter.feature.length,
     history: (filter.changed != null ? 1 : 0) + (filter.priceCut ? 1 : 0),
+    data: (filter.detailsFetched != null ? 1 : 0) + (filter.excludedFromStatistics != null ? 1 : 0),
   };
   const [choices, setChoices] = useState(readSectionChoices);
   const [helpOpen, setHelpOpen] = useState(false);
@@ -474,6 +476,52 @@ export function OfferFilters({ filter, onChange, onHide, previousVisit, searchRe
             {t("filters.priceCut")}
           </Checkbox>
           <p className={styles.hint}>{t("filters.priceCutHint")}</p>
+        </>,
+      )}
+
+      {section(
+        "data",
+        t("filters.data"),
+        <>
+          <Select
+            label={t("filters.detailsFetched")}
+            value={filter.detailsFetched == null ? "" : String(filter.detailsFetched)}
+            items={[
+              { value: "", label: t("filters.detailsAny") },
+              { value: "true", label: withCount(t("filters.detailsYes"), facets?.detailsFetched) },
+              { value: "false", label: withCount(t("filters.detailsNo"), facets?.withoutDetails) },
+            ]}
+            onChange={(fetched) =>
+              set({
+                detailsFetched: fetched === "true" ? true : fetched === "false" ? false : null,
+              })
+            }
+          />
+          <p className={styles.hint}>{t("filters.detailsHint")}</p>
+          <Select
+            label={t("filters.exclusions")}
+            value={
+              filter.excludedFromStatistics == null ? "" : String(filter.excludedFromStatistics)
+            }
+            items={[
+              { value: "", label: t("filters.excludedAny") },
+              {
+                value: "true",
+                label: withCount(t("filters.excludedYes"), facets?.excludedFromStatistics),
+              },
+              {
+                value: "false",
+                label: withCount(t("filters.excludedNo"), facets?.countedInStatistics),
+              },
+            ]}
+            onChange={(excluded) =>
+              set({
+                excludedFromStatistics:
+                  excluded === "true" ? true : excluded === "false" ? false : null,
+              })
+            }
+          />
+          <p className={styles.hint}>{t("filters.excludedHint")}</p>
         </>,
       )}
     </aside>

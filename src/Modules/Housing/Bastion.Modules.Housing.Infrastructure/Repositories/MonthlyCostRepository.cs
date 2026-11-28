@@ -24,20 +24,37 @@ public sealed class MonthlyCostRepository(NpgsqlDataSource db) : IMonthlyCostRep
 
     private const string RateSamplesSql = $"SELECT {Columns} {From} WHERE o.removed_at IS NULL AND o.rent IS NOT NULL AND o.area_m2 > 0";
 
+    // Every collecting run calculates the rates again: a group keeps its row, which is written only when its rate changes,
+    // and a group without a rate now loses its row.
     private const string ReplaceRatesSql = """
-        DELETE FROM housing.rent_rate;
-        INSERT INTO housing.rent_rate
+        DELETE FROM housing.rent_rate r
+        WHERE NOT EXISTS (
+            SELECT 1
+            FROM unnest(@Bases, @Voivodeships, @PlaceIds, @DistrictIds, @BuildingTypes)
+                AS u (basis, voivodeship, place_id, district_id, building_type)
+            WHERE u.basis = r.basis AND u.voivodeship IS NOT DISTINCT FROM r.voivodeship AND u.place_id IS NOT DISTINCT FROM r.place_id
+              AND u.district_id IS NOT DISTINCT FROM r.district_id AND u.building_type IS NOT DISTINCT FROM r.building_type);
+        INSERT INTO housing.rent_rate AS r
             (basis, voivodeship, place_id, district_id, building_type, median_per_m2, currency, sample_size, calculated_at)
-        SELECT * FROM unnest(@Bases, @Voivodeships, @PlaceIds, @DistrictIds, @BuildingTypes, @Medians, @Currencies, @SampleSizes, @CalculatedAts);
+        SELECT * FROM unnest(@Bases, @Voivodeships, @PlaceIds, @DistrictIds, @BuildingTypes, @Medians, @Currencies, @SampleSizes, @CalculatedAts)
+        ON CONFLICT (basis, voivodeship, place_id, district_id, building_type) DO UPDATE SET
+            median_per_m2 = excluded.median_per_m2,
+            currency = excluded.currency,
+            sample_size = excluded.sample_size,
+            calculated_at = excluded.calculated_at
+        WHERE (r.median_per_m2, r.currency, r.sample_size) IS DISTINCT FROM (excluded.median_per_m2, excluded.currency, excluded.sample_size);
         """;
 
-    // A calculation writes its rows only where no later one has: a cost saved while the nightly run was working is newer
-    // than that run's snapshot (calculated_at) and stays. An estimate follows the cost row this calculation wrote.
+    // Only rows whose values change are written, so a recalculation at the end of every collecting run leaves the rest as
+    // they are (and keeps their calculated_at: when the cost got its current value).
     private const string SaveSql = """
-        DELETE FROM housing.monthly_cost
-        WHERE offer_id = ANY(@OfferIds) AND NOT offer_id = ANY(@CostOfferIds) AND calculated_at <= @CalculatedAt;
+        DELETE FROM housing.monthly_cost WHERE offer_id = ANY(@OfferIds) AND NOT offer_id = ANY(@CostOfferIds);
         INSERT INTO housing.monthly_cost AS c (offer_id, rent, rent_source, total, currency, rent_quote, calculated_at)
-        SELECT u.*, @CalculatedAt FROM unnest(@CostOfferIds, @Rents, @RentSources, @Totals, @Currencies, @RentQuotes) AS u
+        SELECT u.offer_id, u.rent, u.rent_source, u.total, u.currency, u.rent_quote, @CalculatedAt
+        FROM unnest(@CostOfferIds, @Rents, @RentSources, @Totals, @Currencies, @RentQuotes)
+            AS u (offer_id, rent, rent_source, total, currency, rent_quote)
+        -- An offer deleted meanwhile gets no row.
+        WHERE EXISTS (SELECT 1 FROM housing.offer o WHERE o.id = u.offer_id)
         ON CONFLICT (offer_id) DO UPDATE SET
             rent = excluded.rent,
             rent_source = excluded.rent_source,
@@ -45,18 +62,16 @@ public sealed class MonthlyCostRepository(NpgsqlDataSource db) : IMonthlyCostRep
             currency = excluded.currency,
             rent_quote = excluded.rent_quote,
             calculated_at = excluded.calculated_at
-        WHERE c.calculated_at <= excluded.calculated_at;
+        WHERE (c.rent, c.rent_source, c.total, c.currency, c.rent_quote)
+            IS DISTINCT FROM (excluded.rent, excluded.rent_source, excluded.total, excluded.currency, excluded.rent_quote);
 
-        DELETE FROM housing.rent_estimate e
-        USING housing.monthly_cost c
-        WHERE c.offer_id = e.offer_id AND c.offer_id = ANY(@OfferIds) AND c.calculated_at = @CalculatedAt
-          AND NOT e.offer_id = ANY(@EstimateOfferIds);
+        DELETE FROM housing.rent_estimate WHERE offer_id = ANY(@OfferIds) AND NOT offer_id = ANY(@EstimateOfferIds);
         INSERT INTO housing.rent_estimate AS e
             (offer_id, rate_per_m2, basis, basis_per_m2, sample_size, neighbors, neighbors_per_m2, neighbors_km)
         SELECT u.*
         FROM unnest(@EstimateOfferIds, @RatesPerM2, @Bases, @BasisRates, @SampleSizes, @Neighbors, @NeighborRates, @NeighborKms)
             AS u (offer_id, rate_per_m2, basis, basis_per_m2, sample_size, neighbors, neighbors_per_m2, neighbors_km)
-        JOIN housing.monthly_cost c ON c.offer_id = u.offer_id AND c.calculated_at = @CalculatedAt
+        WHERE EXISTS (SELECT 1 FROM housing.monthly_cost c WHERE c.offer_id = u.offer_id)
         ON CONFLICT (offer_id) DO UPDATE SET
             rate_per_m2 = excluded.rate_per_m2,
             basis = excluded.basis,
@@ -64,7 +79,10 @@ public sealed class MonthlyCostRepository(NpgsqlDataSource db) : IMonthlyCostRep
             sample_size = excluded.sample_size,
             neighbors = excluded.neighbors,
             neighbors_per_m2 = excluded.neighbors_per_m2,
-            neighbors_km = excluded.neighbors_km;
+            neighbors_km = excluded.neighbors_km
+        WHERE (e.rate_per_m2, e.basis, e.basis_per_m2, e.sample_size, e.neighbors, e.neighbors_per_m2, e.neighbors_km)
+            IS DISTINCT FROM (excluded.rate_per_m2, excluded.basis, excluded.basis_per_m2, excluded.sample_size,
+                excluded.neighbors, excluded.neighbors_per_m2, excluded.neighbors_km);
         """;
 
     public async Task<IReadOnlyList<CostInput>> ListInputsAsync(CancellationToken cancellationToken)
@@ -77,30 +95,10 @@ public sealed class MonthlyCostRepository(NpgsqlDataSource db) : IMonthlyCostRep
         return (await connection.QueryAsync<CostInput>(new CommandDefinition(sql, cancellationToken: cancellationToken))).ToList();
     }
 
-    public async Task<IReadOnlyList<CostInput>> ListInputsAsync(
-        Source source, IReadOnlyList<string> externalIds, CancellationToken cancellationToken)
-    {
-        await using var connection = await db.OpenConnectionAsync(cancellationToken);
-        var sql = $"{InputsSql} WHERE o.source_id = @SourceId AND o.external_id = ANY(@ExternalIds)";
-        var parameters = new { SourceId = (int)source, ExternalIds = externalIds.ToArray() };
-        return (await connection.QueryAsync<CostInput>(new CommandDefinition(sql, parameters, cancellationToken: cancellationToken))).ToList();
-    }
-
     public async Task<IReadOnlyList<CostInput>> ListRateSamplesAsync(CancellationToken cancellationToken)
     {
         await using var connection = await db.OpenConnectionAsync(cancellationToken);
         return (await connection.QueryAsync<CostInput>(new CommandDefinition(RateSamplesSql, cancellationToken: cancellationToken))).ToList();
-    }
-
-    public async Task<IReadOnlyList<RentRate>> ListRatesAsync(CancellationToken cancellationToken)
-    {
-        const string sql = """
-            SELECT basis, voivodeship, place_id, district_id, building_type, median_per_m2, currency, sample_size, calculated_at
-            FROM housing.rent_rate
-            """;
-        await using var connection = await db.OpenConnectionAsync(cancellationToken);
-        var rows = await connection.QueryAsync<RateRow>(new CommandDefinition(sql, cancellationToken: cancellationToken));
-        return rows.Select(r => r.ToRate()).ToList();
     }
 
     public async Task ReplaceRatesAsync(IReadOnlyList<RentRate> rates, CancellationToken cancellationToken)
@@ -151,29 +149,5 @@ public sealed class MonthlyCostRepository(NpgsqlDataSource db) : IMonthlyCostRep
             NeighborKms = estimates.Select(e => e.NeighborsKm).ToArray(),
         }, transaction, cancellationToken: cancellationToken));
         await transaction.CommitAsync(cancellationToken);
-    }
-
-    // Dapper fills properties, not the parameters of a record with enums, so rows are read as they are and converted here.
-    private sealed record RateRow
-    {
-        public RentBasis Basis { get; init; }
-
-        public Voivodeship? Voivodeship { get; init; }
-
-        public int? PlaceId { get; init; }
-
-        public int? DistrictId { get; init; }
-
-        public BuildingType? BuildingType { get; init; }
-
-        public decimal MedianPerM2 { get; init; }
-
-        public Currency Currency { get; init; }
-
-        public int SampleSize { get; init; }
-
-        public DateTimeOffset CalculatedAt { get; init; }
-
-        public RentRate ToRate() => new(Basis, Voivodeship, PlaceId, DistrictId, BuildingType, MedianPerM2, Currency, SampleSize, CalculatedAt);
     }
 }

@@ -69,9 +69,18 @@ Spend effort only on what solves a real problem the maintainer has today
   `IOfferSource` picked from the `OfferSources` registry, never with a switch.
 - Background jobs: a job is an `IJob` in the
   module's Infrastructure, registered in the module root with `AddJobs(schema, moduleSection).Add<TJob>(name)` (PascalCase name)
-  and mapped with `MapJobs(schema)`; the module's migrations create `<schema>.job_run`. An optional
-  schedule in `[Modules.<Module>.Jobs.<name>]` is either `DailyAt` (in the time zone from `[Jobs] TimeZone`)
-  or an interval `Every`.
+  and mapped with `MapJobs(schema)`; the module's migrations create `<schema>.job_run`. Everything about one job sits
+  in its section `[Modules.<Module>.Jobs.<name>]`: an optional schedule, either `DailyAt` (in the time zone from
+  `[Jobs] TimeZone`) or an interval `Every` (only between `From` and `Until` when they are set), an optional `TimeLimit`
+  (the run gets `JobContext.Deadline` and takes no new work after it), and the job's own settings (an options class with
+  `Section = "Jobs:<name>"`). Settings shared by several jobs keep their own section.
+  A collecting job leaves complete data when it ends: the housing jobs `ImportNewOffers` and `SyncAllOffers` read the
+  listing, then the detail pages that are due, then recalculate everything derived from the offers (group statistics,
+  monthly costs, statistics exclusions) through `DerivedDataService` (a few seconds; one at a time; it writes only rows
+  that change). A new derived value joins that service, not a job of its own.
+  A job that is renamed or replaced keeps its run history: a migration moves its runs to the successor when the work and
+  the counts are the same (`UPDATE <schema>.job_run SET job = ...`); a job without one stays in the UI's job list
+  (`jobs.ts`, dictionaries) as retired, so its old runs keep their name and counts.
   Work that changes data in bulk (import, reparse, recalculation) is a job started with
   `POST /jobs/{name}/runs`, never an endpoint that makes the browser wait; its state and run history
   come from the server (`GET /jobs`, `GET /jobs/runs`), so every device sees the same.
@@ -140,6 +149,9 @@ Spend effort only on what solves a real problem the maintainer has today
 - A domain entity has the same name as its table, and its properties the same names as the
   columns (`housing.offer` -> `Offer`, `area_m2` -> `AreaM2`). A different name or shape needs
   a really good reason; explain it to the maintainer before writing it.
+  An enum stored in a column is named after its table and column (`statistics_exclusion.reason` ->
+  `StatisticsExclusionReason`), never a short generic name (`ExclusionReason`, `Type`); a value type shared by
+  many columns (`Answer`, `Currency`) keeps its own name.
 - The domain is only what the module stores. Data that crosses a layer and is not a column (what a parser
   reads for a later step, what an endpoint returns) is a DTO record in Application (`ParsedOffer`,
   `OfferListItem`), never an extra property on an entity, and an endpoint never returns an entity.

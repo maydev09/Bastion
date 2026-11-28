@@ -48,7 +48,10 @@ public sealed record OfferListItem
 
     public Answer? Furnished { get; init; }
 
-    // From Deposit to DetailsFetchedAt only on the offer card (GetAsync); the list does not show them.
+    // Why the statistics leave the offer out; null for an offer they count.
+    public StatisticsExclusionItem? StatisticsExclusion { get; init; }
+
+    // From Deposit to Features only on the offer card (GetAsync); the list does not show them.
     public decimal? Deposit { get; init; }
 
     public Currency? DepositCurrency { get; init; }
@@ -77,7 +80,7 @@ public sealed record OfferListItem
 
     public IReadOnlyList<Feature> Features { get; init; } = [];
 
-    // When the detail page was last fetched; null while it never was.
+    // When the detail page was last fetched; null while it never was. Also on the list.
     public DateTimeOffset? DetailsFetchedAt { get; init; }
 
     public int? PlaceId { get; init; }

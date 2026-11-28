@@ -106,7 +106,10 @@ Its scraping traffic goes through a VPN container (ADR 0019); secrets are encryp
    Docker, turns on automatic Debian security updates, asks for the WireGuard private key of
    your VPN provider and starts the `bastion` service. Docker, reboots and Bastion are updated by hand.
 2. Open `http://<server>:8080` from the home network. Do not forward the port to the internet:
-   Bastion has no login.
+   Bastion has no login. **On a new, empty database**, on the data collection page, run "Fetch the place
+   dictionary" (a minute or two), then "Sync the whole database with the portal" by hand instead of waiting for
+   01:00: it stores the whole listing (about half an hour) and starts on the detail pages. The imports of the day after
+   fetch the rest of them, newest first, so all offers have their details after a day or so.
 3. **Update:** after a merge to `master`, run one script on the server:
 
    ```bash

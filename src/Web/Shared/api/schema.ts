@@ -80,7 +80,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Returns stored offers that match all given filters, by default newest first; offers without the sorted value come last. Prices are in PLN; priceMin/priceMax bound the price, totalCostMin/totalCostMax the monthly cost (price plus admin rent, offers without one left out), both in PLN and inclusive. monthlyCost.total is the price plus the admin rent a month (rentSource: Stated in the rent field; Description or Included as the description says, with rentQuote; Nominal for a field of 0 or 1 zł with nothing in the description, taken as 0; Estimated from the nearest offers of the same building type and the most local group of offers, with both shown); place and voivodeship together match offers in any of them, and so do rooms and roomsMin; district and neighborhood take ids from /places/{id}/districts (a neighborhood has a parentId): a picked district narrows its place to the picked districts and takes in its neighborhoods, a picked neighborhood narrows its district the same way, and other picked places and districts stay whole; amenities match all of them unless featureMatch is Any. */
+        /** Returns stored offers that match all given filters, by default newest first; offers without the sorted value come last. Prices are in PLN; priceMin/priceMax bound the price, totalCostMin/totalCostMax the monthly cost (price plus admin rent, offers without one left out), both in PLN and inclusive. monthlyCost.total is the price plus the admin rent a month (rentSource: Stated in the rent field; Description or Included as the description says, with rentQuote; Nominal for a field of 0 or 1 zł with nothing in the description, taken as 0; Estimated from the nearest offers of the same building type and the most local group of offers, with both shown); place and voivodeship together match offers in any of them, and so do rooms and roomsMin; district and neighborhood take ids from /places/{id}/districts (a neighborhood has a parentId): a picked district narrows its place to the picked districts and takes in its neighborhoods, a picked neighborhood narrows its district the same way, and other picked places and districts stay whole; amenities match all of them unless featureMatch is Any; statisticsExclusion says why the statistics leave an offer out (reason: Room, Parking, ImplausibleArea, ImplausiblePrice, Auction, PerPerson, RentForRenovation, UnusualPrice) with the usual price per m² of its group (fenceLowPerM2, fenceHighPerM2, PLN; basis and sampleSize name the group), and excludedFromStatistics=true lists only such offers, excludedFromStatistics=false only the others; detailsFetchedAt is when the offer's detail page was last fetched (null: not yet), and detailsFetched=true or false lists offers with or without it. */
         get: operations["ListHousingOffers"];
         put?: never;
         post?: never;
@@ -97,7 +97,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Returns how many offers each filter choice would show with the other given filters (districts: the districts and neighborhoods of the picked places by id, a district with its neighborhoods), the spread of prices, areas and total monthly costs (PLN) without their own bounds (priceMin/priceMax, areaMin/areaMax, totalCostMin/totalCostMax), and the offers first seen since each countAddedSince. */
+        /** Returns how many offers each filter choice would show with the other given filters (districts: the districts and neighborhoods of the picked places by id, a district with its neighborhoods), the spread of prices, areas and total monthly costs (PLN) without their own bounds (priceMin/priceMax, areaMin/areaMax, totalCostMin/totalCostMax), the offers first seen since each countAddedSince, how many offers have their detail page (detailsFetched) or not yet (withoutDetails), and how many offers the statistics leave out (excludedFromStatistics) or count (countedInStatistics). */
         get: operations["CountHousingOfferFacets"];
         put?: never;
         post?: never;
@@ -114,7 +114,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Returns the typical price, price per m², rent, total monthly cost and area of the offers that match the filters: the median, the middle half and how many offers have the value. Money is in PLN. The rent counts only known rents (the rent field when plausible, or the amount the description states). The total cost is the price plus the admin rent; rentSources counts its offers by where their rent comes from (Stated, Description, Included, Nominal, Estimated). */
+        /** Returns the typical price, price per m², rent, total monthly cost and area of the offers that match the filters: the median, the middle half and how many offers have the value. Money is in PLN. The rent counts only known rents (the rent field when plausible, or the amount the description states). The total cost is the price plus the admin rent; rentSources counts its offers by where their rent comes from (Stated, Description, Included, Nominal, Estimated). Every value leaves out the excluded offers (rooms, parking spaces, typos, sale or token prices, auctions, workers' quarters, prices per m² far outside their group: Tukey's fences, by default 3 × IQR of ln(price per m²), in the offer's group by rooms and place); count includes them and excluded counts them by reason. */
         get: operations["SummarizeHousingOffers"];
         put?: never;
         post?: never;
@@ -233,7 +233,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Returns every job of the module in its registered order: its schedule (dailyAt, a time of day in timeZone, or every, an interval; neither: started by hand only), whether schedules are on here (scheduled), its latest run (null before the first one) and the server's current time. */
+        /** Returns every job of the module in its registered order: its schedule (dailyAt, a time of day in timeZone, or every, an interval, only from from until until in timeZone when they are set; neither: started by hand only), timeLimit (how long one run may work, null without a limit), whether schedules are on here (scheduled), its latest run (null before the first one) and the server's current time. */
         get: {
             parameters: {
                 query?: never;
@@ -481,6 +481,11 @@ export interface components {
             /** Format: time */
             dailyAt: null | string;
             every: null | string;
+            /** Format: time */
+            from: null | string;
+            /** Format: time */
+            until: null | string;
+            timeLimit: null | string;
             latestRun: null | components["schemas"]["JobRun"];
         };
         JobRun: {
@@ -570,6 +575,14 @@ export interface components {
             unchanged: number;
             /** Format: int32 */
             priceCut: number;
+            /** Format: int32 */
+            detailsFetched: number;
+            /** Format: int32 */
+            withoutDetails: number;
+            /** Format: int32 */
+            excludedFromStatistics: number;
+            /** Format: int32 */
+            countedInStatistics: number;
             addedSince: number[];
             price?: null | components["schemas"]["Histogram"];
             pricePerM2?: null | components["schemas"]["Histogram"];
@@ -608,6 +621,7 @@ export interface components {
             rentCurrency?: null | components["schemas"]["Currency"];
             monthlyCost?: null | components["schemas"]["MonthlyCostItem"];
             furnished?: null | components["schemas"]["Answer"];
+            statisticsExclusion?: null | components["schemas"]["StatisticsExclusionItem"];
             /** Format: double */
             deposit?: null | number;
             depositCurrency?: null | components["schemas"]["Currency"];
@@ -656,6 +670,9 @@ export interface components {
         OfferSummary: {
             /** Format: int32 */
             count: number;
+            excluded: {
+                [key: string]: number;
+            };
             price?: null | components["schemas"]["Spread"];
             pricePerM2?: null | components["schemas"]["Spread"];
             rent?: null | components["schemas"]["Spread"];
@@ -711,6 +728,8 @@ export interface components {
         };
         /** @enum {unknown} */
         PlaceSource: "Wikidata" | null;
+        /** @enum {unknown} */
+        PriceFenceBasis: "Country" | "PlaceSize" | "VoivodeshipPlaceSize" | "Place" | null;
         ProblemDetails: {
             type?: null | string;
             title?: null | string;
@@ -758,6 +777,21 @@ export interface components {
             /** Format: int32 */
             count: number;
         };
+        StatisticsExclusionItem: {
+            reason: components["schemas"]["StatisticsExclusionReason"];
+            basis?: null | components["schemas"]["PriceFenceBasis"];
+            /** Format: int32 */
+            sampleSize?: null | number;
+            /** Format: double */
+            fenceLowPerM2?: null | number;
+            /** Format: double */
+            fenceHighPerM2?: null | number;
+            currency?: null | components["schemas"]["Currency"];
+            /** Format: date-time */
+            calculatedAt: string;
+        };
+        /** @enum {unknown} */
+        StatisticsExclusionReason: "Room" | "Parking" | "ImplausibleArea" | "ImplausiblePrice" | "Auction" | "PerPerson" | "RentForRenovation" | "UnusualPrice";
         /** @enum {unknown} */
         Transaction: "Rent";
         /** @enum {unknown} */
@@ -846,6 +880,8 @@ export interface operations {
                 addedSince?: string;
                 changed?: boolean;
                 priceCut?: boolean;
+                detailsFetched?: boolean;
+                excludedFromStatistics?: boolean;
                 excludeOffer?: number;
                 page?: number;
                 pageSize?: number;
@@ -895,6 +931,8 @@ export interface operations {
                 addedSince?: string;
                 changed?: boolean;
                 priceCut?: boolean;
+                detailsFetched?: boolean;
+                excludedFromStatistics?: boolean;
                 excludeOffer?: number;
                 countAddedSince?: string[];
             };
@@ -941,6 +979,8 @@ export interface operations {
                 addedSince?: string;
                 changed?: boolean;
                 priceCut?: boolean;
+                detailsFetched?: boolean;
+                excludedFromStatistics?: boolean;
                 excludeOffer?: number;
             };
             header?: never;

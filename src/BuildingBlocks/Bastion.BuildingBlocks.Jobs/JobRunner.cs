@@ -71,7 +71,8 @@ public sealed partial class JobRunner(
             .Select(job =>
             {
                 var schedule = schedules.Get(OptionsName(schema, job.Name));
-                return new JobListItem(job.Name, schedule.DailyAt, schedule.Every, latest.GetValueOrDefault(job.Name));
+                return new JobListItem(
+                    job.Name, schedule.DailyAt, schedule.Every, schedule.From, schedule.Until, schedule.TimeLimit, latest.GetValueOrDefault(job.Name));
             })
             .ToList();
         return new JobList(items, options.Value.Scheduled, options.Value.TimeZone, time.GetUtcNow());
@@ -96,7 +97,8 @@ public sealed partial class JobRunner(
                 }
                 else if (schedule.Every is { } every)
                 {
-                    running.Add(ScheduleAsync(job.Name, now => now + every, stoppingToken));
+                    running.Add(ScheduleAsync(
+                        job.Name, now => IntervalSchedule.NextRun(now, every, schedule.From, schedule.Until, timeZone), stoppingToken));
                 }
             }
         }
@@ -212,7 +214,8 @@ public sealed partial class JobRunner(
             await using var scope = scopes.CreateAsyncScope();
             var type = jobs.Single(j => j.Name == run.Job).Type;
             var job = (IJob)scope.ServiceProvider.GetRequiredService(type);
-            var summary = await job.Run(new JobContext(run.Id, run.Trigger), stoppingToken);
+            var deadline = run.StartedAt + schedules.Get(OptionsName(schema, run.Job)).TimeLimit;
+            var summary = await job.Run(new JobContext(run.Id, run.Trigger, deadline), stoppingToken);
             LogSucceeded(logger, schema, run.Job, run.Id);
             return run with { Status = JobRunStatus.Succeeded, FinishedAt = time.GetUtcNow(), Summary = summary };
         }

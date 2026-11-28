@@ -24,7 +24,7 @@ namespace Bastion.IntegrationTests.Database;
 public class HousingJobsTests
 {
     private const string Retention = "/api/housing/jobs/RawCaptureRetention";
-    private const string Import = "/api/housing/jobs/ImportOffers";
+    private const string Import = "/api/housing/jobs/ImportNewOffers";
 
     private static readonly JsonSerializerOptions Json = new(JsonSerializerDefaults.Web) { Converters = { new JsonStringEnumConverter() } };
 
@@ -75,7 +75,7 @@ public class HousingJobsTests
         noVpn.EnsureTunnelAsync(default!, default)
             .ThrowsAsyncForAnyArgs(new ScrapingException(ScrapingException.VpnRequired, "no VPN in tests"));
         await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<TimeProvider>(clock)).AddSingleton(noVpn))
-            .WithWebHostBuilder(b => b.UseSetting("Modules:Housing:Jobs:ImportOffers:Every", "00:10:00"));
+            .WithWebHostBuilder(b => b.UseSetting("Modules:Housing:Jobs:ImportNewOffers:Every", "00:10:00"));
         using var client = factory.CreateClient();
 
         clock.Advance(TimeSpan.FromMinutes(10));
@@ -87,6 +87,37 @@ public class HousingJobsTests
             Assert.That(run.QueuedAt, Is.EqualTo(new DateTimeOffset(2026, 1, 15, 12, 10, 0, TimeSpan.Zero)));
             Assert.That(run.Status, Is.EqualTo(JobRunStatus.Failed));
             Assert.That(run.ErrorCode, Is.EqualTo(ScrapingException.VpnRequired));
+        });
+    }
+
+    [Test]
+    public async Task An_import_outside_its_hours_waits_for_the_start_of_the_next_window()
+    {
+        // 23:55 in Warsaw (UTC+1 in January); the import runs every 10 minutes from 06:00 until midnight.
+        var clock = new FakeTimeProvider(new DateTimeOffset(2026, 1, 15, 22, 55, 0, TimeSpan.Zero));
+        var noVpn = Substitute.For<IVpnCheck>();
+        noVpn.EnsureTunnelAsync(default!, default)
+            .ThrowsAsyncForAnyArgs(new ScrapingException(ScrapingException.VpnRequired, "no VPN in tests"));
+        await using var factory = App(s => s.Replace(ServiceDescriptor.Singleton<TimeProvider>(clock)).AddSingleton(noVpn))
+            .WithWebHostBuilder(b => b
+                .UseSetting("Modules:Housing:Jobs:ImportNewOffers:Every", "00:10:00")
+                .UseSetting("Modules:Housing:Jobs:ImportNewOffers:From", "06:00")
+                .UseSetting("Modules:Housing:Jobs:ImportNewOffers:Until", "00:00"));
+        using var client = factory.CreateClient();
+        var list = await client.GetFromJsonAsync<JobList>("/api/housing/jobs", Json);
+
+        clock.Advance(TimeSpan.FromMinutes(10));
+        await Task.Delay(TimeSpan.FromMilliseconds(500));
+        var atNight = await client.GetFromJsonAsync<LatestJobRun>($"{Import}/runs/latest", Json);
+        clock.Advance(new DateTimeOffset(2026, 1, 16, 5, 0, 0, TimeSpan.Zero) - clock.GetUtcNow());
+        var run = await JobRuns.WaitForFinish(client, Import);
+
+        Assert.Multiple(() =>
+        {
+            var import = list!.Jobs.Single(j => j.Name == "ImportNewOffers");
+            Assert.That((import.From, import.Until), Is.EqualTo(((TimeOnly?)new TimeOnly(6, 0), (TimeOnly?)new TimeOnly(0, 0))));
+            Assert.That(atNight!.Run, Is.Null, "no run at 00:05");
+            Assert.That(run.QueuedAt, Is.EqualTo(new DateTimeOffset(2026, 1, 16, 5, 0, 0, TimeSpan.Zero)), "06:00 in Warsaw");
         });
     }
 
@@ -225,10 +256,10 @@ public class HousingJobsTests
         {
             Assert.That(list!.Jobs.Select(j => j.Name), Is.EqualTo(new[]
             {
-                "ImportOffers", "ScanOffers", "FetchDetails", "ReparseOffers", "RawCaptureRetention", "ImportPlaces", "LinkPlaces",
-                "CalculateMonthlyCosts",
+                "ImportNewOffers", "SyncAllOffers", "ReparseOffers", "RawCaptureRetention", "ImportPlaces", "LinkPlaces",
+                "RecalculateDerivedData",
             }));
-            var import = list.Jobs.Single(j => j.Name == "ImportOffers");
+            var import = list.Jobs.Single(j => j.Name == "ImportNewOffers");
             Assert.That((import.Every, import.DailyAt), Is.EqualTo(((TimeSpan?)TimeSpan.FromMinutes(10), (TimeOnly?)null)));
             var retention = list.Jobs.Single(j => j.Name == "RawCaptureRetention");
             Assert.That((retention.DailyAt, retention.LatestRun?.Id), Is.EqualTo(((TimeOnly?)new TimeOnly(4, 0), (int?)run.Id)));
